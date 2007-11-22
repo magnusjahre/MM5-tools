@@ -15,8 +15,8 @@ if rootdir == None:
   print "Envirionment variable BMROOT not set. Quitting..."
   sys.exit(-1)
 
-simbinary = rootdir+'/m5_1.1/m5/build/ALPHA_SE/m5.opt'
-configfile = rootdir+'/m5_1.1/m5/configs/CMP/run.py'
+simbinary = rootdir+'/trunk/m5/build/ALPHA_SE/m5.opt'
+configfile = rootdir+'/trunk/m5/configs/CMP/run.py'
 experimentpath = '/home/jahre/run/adaptive'
 benchmarkroot = bmroot+'/splash2/codes/'
 
