@@ -6,13 +6,15 @@ HARMONIC = 1
 ARITHMETIC = 2
 NO_AVG = 3
 SUM = 4
+PRINT_ALL = 5
 
 #avg_type = NO_AVG
 #patternString = 'sim_ticks.*'
 
 #avg_type  = HARMONIC
 #avg_type = SUM
-#patternString = 'COM:IPC'+'.*'
+avg_type = PRINT_ALL
+patternString = 'detailedCPU..COM:IPC'+'.*'
 
 #avg_type = NO_AVG
 #patternString = 'data_idle_fraction.*'
@@ -24,12 +26,13 @@ SUM = 4
 #patternString = 'toMemBus.data_queued.*\.'
 #avg_type = NO_AVG
 
-patternString = 'toMemBus.data_idle_fraction.*'
-avg_type = NO_AVG
+#patternString = 'toMemBus.data_idle_fraction.*'
+#avg_type = NO_AVG
 
 np = 4
 
 pattern = re.compile(patternString)
+cpuIDPattern = re.compile("[0-9]+")
 
 results = {}
     
@@ -51,6 +54,8 @@ for benchmark in pbsconfig.benchmarks:
                         res = pattern.findall(resultfile.read())
                         sum = 0.0
                         avg = 0.0
+                        data = []
+
                         for string in res:
                             try:
                                 if avg_type == ARITHMETIC:
@@ -63,6 +68,10 @@ for benchmark in pbsconfig.benchmarks:
                                     sum = sum + (1.0/num)
                                 elif avg_type == SUM:
                                     sum = sum + float(string.split()[1])
+                                elif avg_type == PRINT_ALL:
+                                    tmp = string.split()
+                                    cpuID = cpuIDPattern.findall(tmp[0])[0]
+                                    data.append((cpuID, float(tmp[1])))
                                 else:
                                     sum = sum + float(string.split()[1])
                             except ValueError:
@@ -80,33 +89,41 @@ for benchmark in pbsconfig.benchmarks:
                             else:
                                 avg = sum
     
-                        # store result
-                        key = -1.0
-    
-                        if len(pbsconfig.l2mshrs) == 1 and len(pbsconfig.l1mshrTargets) == 1 and len(pbsconfig.l2mshrTargets) == 1:
-                            #L1 MSHR count exp
-                            key = L1mshrCount
-    
-                        elif len(pbsconfig.l1mshrs) == 1 and len(pbsconfig.l1mshrTargets) == 1 and len(pbsconfig.l2mshrTargets) == 1:
-                            #L2 MSHR count exp
-                            key = L2mshrCount
-    
-                        elif len(pbsconfig.l1mshrs) == 1 and len(pbsconfig.l2mshrs) == 1 and len(pbsconfig.l2mshrTargets) == 1:
-                            # L1 target MSHR exp
-                            key = L1targets
-    
-                        elif len(pbsconfig.l1mshrs) == 1 and len(pbsconfig.l2mshrs) == 1 and len(pbsconfig.l1mshrTargets) == 1:
-                            # L2 target MSHR exp
-                            key = L2targets
-    
+
+                        if avg_type == PRINT_ALL:
+                            for id, r in data:
+                                key = "CPU "+str(id)
+                                if benchmark not in results:
+                                    results[benchmark] = {}
+                                results[benchmark][key] = r
                         else:
-                            print "FATAL: Only one parameter can be varied at the time"
-                            sys.exit()
+                            # store result
+                            key = -1.0
+    
+                            if len(pbsconfig.l2mshrs) == 1 and len(pbsconfig.l1mshrTargets) == 1 and len(pbsconfig.l2mshrTargets) == 1:
+                                #L1 MSHR count exp
+                                key = L1mshrCount
+                                
+                            elif len(pbsconfig.l1mshrs) == 1 and len(pbsconfig.l1mshrTargets) == 1 and len(pbsconfig.l2mshrTargets) == 1:
+                                #L2 MSHR count exp
+                                key = L2mshrCount
+    
+                            elif len(pbsconfig.l1mshrs) == 1 and len(pbsconfig.l2mshrs) == 1 and len(pbsconfig.l2mshrTargets) == 1:
+                                # L1 target MSHR exp
+                                key = L1targets
+    
+                            elif len(pbsconfig.l1mshrs) == 1 and len(pbsconfig.l2mshrs) == 1 and len(pbsconfig.l1mshrTargets) == 1:
+                                # L2 target MSHR exp
+                                key = L2targets
+    
+                            else:
+                                print "FATAL: Only one parameter can be varied at the time"
+                                sys.exit()
                         
-                        if benchmark not in results:
-                            results[benchmark] = {}
+                            if benchmark not in results:
+                                results[benchmark] = {}
                         
-                        results[benchmark][key] = avg
+                            results[benchmark][key] = avg
 
 sortedKeys = results.keys()
 sortedKeys.sort()
@@ -120,7 +137,8 @@ dataWidth = 20
 print " ".ljust(bmWidth),
 for k in sortedResKeys:
     print str(k).rjust(dataWidth),
-print "Best static".rjust(dataWidth),
+if avg_type != PRINT_ALL:
+    print "Best static".rjust(dataWidth),
 print
 
 for key in sortedKeys:
@@ -133,6 +151,7 @@ for key in sortedKeys:
             print (str(results[key][res])).rjust(dataWidth),
         else:
             print ("N/A").rjust(dataWidth),
-    print str(best).rjust(dataWidth),
+    if avg_type != PRINT_ALL:
+        print str(best).rjust(dataWidth),
     print
 

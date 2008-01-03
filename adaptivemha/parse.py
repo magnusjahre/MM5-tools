@@ -6,13 +6,15 @@ HARMONIC = 1
 ARITHMETIC = 2
 NO_AVG = 3
 SUM = 4
+PRINT_ALL = 5
 
 #avg_type = NO_AVG
 #patternString = 'sim_ticks.*'
 
 #avg_type  = HARMONIC
-avg_type = SUM
-patternString = 'COM:IPC'+'.*'
+# avg_type = SUM
+avg_type = PRINT_ALL
+patternString = 'detailedCPU..COM:IPC'+'.*'
 
 #avg_type = NO_AVG
 #patternString = 'data_idle_fraction.*'
@@ -38,6 +40,7 @@ bwIntenseWls = [6,7,8,11,12,15,18,24,27,28,35]
 np = 4
 
 pattern = re.compile(patternString)
+cpuIDPattern = re.compile("[0-9]+")
 
 results = {}
     
@@ -61,6 +64,8 @@ for benchmark in pbsconfig.benchmarks:
                                 res = pattern.findall(resultfile.read())
                                 sum = 0.0
                                 avg = 0.0
+                                data = []
+
                                 for string in res:
                                     try:
                                         if avg_type == ARITHMETIC:
@@ -73,6 +78,10 @@ for benchmark in pbsconfig.benchmarks:
                                             sum = sum + (1.0/num)
                                         elif avg_type == SUM:
                                             sum = sum + float(string.split()[1])
+                                        elif avg_type == PRINT_ALL:
+                                            tmp = string.split()
+                                            cpuID = cpuIDPattern.findall(tmp[0])[0]
+                                            data.append((cpuID, float(tmp[1])))
                                         else:
                                             sum = sum + float(string.split()[1])
                                     except ValueError:
@@ -91,12 +100,19 @@ for benchmark in pbsconfig.benchmarks:
                                         avg = sum
             
                                 # store result
-                                key = "Adaptive"+str(int(threshold[0]*100))+str(int(threshold[1]*100))+"-"+str(repeats)
+                                if avg_type == PRINT_ALL:
+                                    for id, r in data:
+                                        key = "CPU "+str(id)
+                                        if benchmark not in results:
+                                            results[benchmark] = {}
+                                        results[benchmark][key] = r
+                                else:
+                                    key = "Adaptive"+str(int(threshold[0]*100))+str(int(threshold[1]*100))+"-"+str(repeats)
                                 
-                                if benchmark not in results:
-                                    results[benchmark] = {}
+                                    if benchmark not in results:
+                                        results[benchmark] = {}
                                 
-                                results[benchmark][key] = avg
+                                    results[benchmark][key] = avg
 
 sortedKeys = results.keys()
 sortedKeys.sort()
