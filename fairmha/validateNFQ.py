@@ -96,17 +96,19 @@ for line in lines:
         grantInterface = int(resarr[1])
         grantInternalID = int(resarr[2])
         lowestTimeStamp = int(resarr[3])
+        tick = int(resarr[4])
 
         if lowestInterface == -1:
-            print "FATAL: no interface granted access"
+            print "FATAL: no interface granted access at tick " + str(tick)
             exit()
 
         if grantInterface != lowestInterface:
-            print "FATAL: granted access to interface " + str(grantInterface) + ", correct was " + str(lowestInterface)
+            print "FATAL: granted access to interface " + str(grantInterface) + ", correct was " + str(lowestInterface) + " at tick " + str(tick)
+            print requests
             exit()
  
         if lowestTimeStamp != lowestTag:
-            print "FATAL: incorrect start tag, was "+str(lowestTimeStamp)+", should have been "+str(lowestTag)
+            print "FATAL: incorrect start tag, was "+str(lowestTimeStamp)+", should have been "+str(lowestTag)+ " at tick " + str(tick)
 
         curStartTag = lowestTag
         requests[grantInterface].pop(0)

@@ -18,6 +18,8 @@ header = """#!/bin/bash
 
 """
 
+PROJECT_NUM = "nn4650k"
+
 bmroot = os.getenv("BMROOT")
 if bmroot == None:
     print "Envirionment variable BMROOT not set. Quitting..."
