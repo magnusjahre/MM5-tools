@@ -7,34 +7,77 @@ import shutil
 import os
 import workloads
 
+PROJECT_NUM = "nn4650k"
+PPN = 8
+PBS_DIR_NAME = "pbsfiles"
+
+
 header = """#!/bin/bash
 #PBS -N m5sim
-#PBS -l walltime=16:00:00
-#PBS -l nodes=1:ppn=1
+#PBS -lwalltime=16:00:00
+#PBS -lpmem=1000MB
 #PBS -m a
-#PBS -q optimist
+#PBS -q default
 #PBS -j oe
-#
-
 """
-
-PROJECT_NUM = "nn4650k"
+header = header + "#PBS -lnodes=1:ppn="+str(PPN)+"\n"
+header = header + "#PBS -A "+str(PROJECT_NUM)+"\n\n"
 
 bmroot = os.getenv("BMROOT")
 if bmroot == None:
     print "Envirionment variable BMROOT not set. Quitting..."
     sys.exit(-1)
+ 
+latest_commands = []
+
+def commit_command(fileID, cmd, cnt, fcnt):
+    
+    # make experiment directory
+    os.mkdir(fileID)
+    print 'Created an experiment directory for '+fileID
+    
+    latest_commands.append((fileID, cmd))
+
+    if cnt == PPN-1:
+        flush_commands(fcnt)
+        return True
+    return False
+
+
+def flush_commands(fcnt):
+
+    output = open(pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs','w')
+    output.write(header)
+    
+    for fileID, command in latest_commands:
+
+        # Change directory into the output directory
+        output.write('cd ' + pbsconfig.experimentpath + '/'+fileID+'\n');
+    
+        # Write command into pbsfile    
+        output.write(command + '\n\n');
+    
+    del latest_commands[:]
+
+    output.write("wait")
+
+    # Finish file
+    output.close()
+    
+    results = popen2.popen3('qsub '+pbsconfig.experimentpath+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs')
+    print results[0].readline(),
+    
 
 def get_command(benchmark,
-                uniformCachePartitioning,
-                uniformBusPartitioning):
+                cachePartitioning,
+                memoryBus):
     
     arguments = []
     arguments.append('-ENP=4')
     arguments.append('-EBENCHMARK='+str(benchmark))
     arguments.append('-EPROTOCOL=none')
     arguments.append('-EINTERCONNECT=crossbar')
-    arguments.append('-ESTATSFILE='+pbsconfig.get_unique_id(benchmark, uniformCachePartitioning, uniformBusPartitioning)+'.txt')
+    arguments.append('-ESTATSFILE='+pbsconfig.get_unique_id(benchmark, cachePartitioning, memoryBus)+'.txt')
     arguments.append('-EMSHRSL1D='+str(pbsconfig.l1mshrs))
     arguments.append('-EMSHRSL1I='+str(pbsconfig.l1mshrs))
     arguments.append('-EMSHRL1TARGETS='+str(pbsconfig.l1mshrTargets))
@@ -48,52 +91,44 @@ def get_command(benchmark,
         arguments.append('-ESIMULATETICKS='+str(pbsconfig.simticks))
         arguments.append('-EFASTFORWARDTICKS='+str(pbsconfig.fwticks))
 
-    if uniformCachePartitioning:
-        arguments.append('-EUNIFORM-CACHE-PARTITIONING')
-    if uniformBusPartitioning:
-        arguments.append('-EUNIFORM-MEMORY-BUS-PARTITIONING')
+    
+    arguments.append('-ECACHE-PARTITIONING='+str(cachePartitioning))
+
+    
+    arguments.append('-EMEMORY-BUS='+str(memoryBus))
 
     command = pbsconfig.simbinary+' '
     for argument in arguments:
         command = command+argument+' '
 
-    command = command+pbsconfig.configfile
+    command = command+pbsconfig.configfile+" &"
 
     return command
 
 count = 0
+command_counter = 0
+file_counter = 0
+
+os.mkdir(pbsconfig.experimentpath+"/"+PBS_DIR_NAME)
 
 for benchmark in pbsconfig.benchmarks:
+    for part in pbsconfig.cachePartitioning:
+        for membus in pbsconfig.memoryBusses:
 
-    fileID = pbsconfig.get_unique_id(benchmark,
-                                     pbsconfig.uniformCachePartitioning,
-                                     pbsconfig.uniformBusPartitioning)
-    pbsfilename = fileID+".pbs"
-    
-    command = get_command(benchmark, 
-                          pbsconfig.uniformCachePartitioning,
-                          pbsconfig.uniformBusPartitioning)
-    
-    # make experiment directory
-    os.mkdir(fileID)
-    print 'Created an experiment directory for '+fileID
-    
-    output = open(pbsconfig.experimentpath+'/'+fileID+'/'+pbsfilename,'w')
-    output.write(header)
-    
-    # Change directory into the output directory
-    output.write('cd ' + pbsconfig.experimentpath + '/'+fileID+'\n');
-    
-    # Write command into pbsfile    
-    output.write(command + '\n');
-    
-    # Finish file
-    output.close()
-    
-    count = count + 1
-    
-    results = popen2.popen3('qsub '+pbsconfig.experimentpath+'/'+fileID+'/'+pbsfilename)
-    print results[0].readline(),
+            fileID = pbsconfig.get_unique_id(benchmark,
+                                             part,
+                                             membus)
+            
+            command = get_command(benchmark, 
+                                  part,
+                                  membus)
+            
+            incFile = commit_command(fileID, command, command_counter, file_counter)
+            if incFile:
+                file_counter = file_counter + 1
+            command_counter = (command_counter + 1) % PPN
+            count = count + 1
 
-print 'Number of submitted jobs:',
-print count
+flush_commands(file_counter)
+
+print "Submitted "+str(count)+" experiments in "+str(file_counter)+" files"
