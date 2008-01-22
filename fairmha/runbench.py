@@ -14,7 +14,7 @@ PBS_DIR_NAME = "pbsfiles"
 
 header = """#!/bin/bash
 #PBS -N m5sim
-#PBS -lwalltime=16:00:00
+#PBS -lwalltime=160:00:00
 #PBS -lpmem=1000MB
 #PBS -m a
 #PBS -q default
@@ -64,8 +64,9 @@ def flush_commands(fcnt):
     # Finish file
     output.close()
     
-    results = popen2.popen3('qsub '+pbsconfig.experimentpath+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs')
-    print results[0].readline(),
+    results = popen2.popen3('qsub '+pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs')
+    print results[0].read()
+    print results[2].read()
     
 
 def get_command(benchmark,
