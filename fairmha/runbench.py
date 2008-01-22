@@ -70,16 +70,17 @@ def flush_commands(fcnt):
 
 def get_command(benchmark,
                 cachePartitioning,
-                memoryBus):
+                memoryBus,
+                l1MSHRs):
     
     arguments = []
     arguments.append('-ENP=4')
     arguments.append('-EBENCHMARK='+str(benchmark))
     arguments.append('-EPROTOCOL=none')
     arguments.append('-EINTERCONNECT=crossbar')
-    arguments.append('-ESTATSFILE='+pbsconfig.get_unique_id(benchmark, cachePartitioning, memoryBus)+'.txt')
-    arguments.append('-EMSHRSL1D='+str(pbsconfig.l1mshrs))
-    arguments.append('-EMSHRSL1I='+str(pbsconfig.l1mshrs))
+    arguments.append('-ESTATSFILE='+pbsconfig.get_unique_id(benchmark, cachePartitioning, memoryBus, l1MSHRs)+'.txt')
+    arguments.append('-EMSHRSL1D='+str(l1MSHRs))
+    arguments.append('-EMSHRSL1I='+str(pbsconfig.l1InstMshrs))
     arguments.append('-EMSHRL1TARGETS='+str(pbsconfig.l1mshrTargets))
     arguments.append('-EMSHRSL2='+str(pbsconfig.l2mshrs))
     arguments.append('-EMSHRL2TARGETS='+str(pbsconfig.l2mshrTargets))
@@ -114,20 +115,23 @@ os.mkdir(pbsconfig.experimentpath+"/"+PBS_DIR_NAME)
 for benchmark in pbsconfig.benchmarks:
     for part in pbsconfig.cachePartitioning:
         for membus in pbsconfig.memoryBusses:
+            for l1MSHRs in pbsconfig.l1DataMshrs:
 
-            fileID = pbsconfig.get_unique_id(benchmark,
-                                             part,
-                                             membus)
+                fileID = pbsconfig.get_unique_id(benchmark,
+                                                 part,
+                                                 membus,
+                                                 l1MSHRs)
             
-            command = get_command(benchmark, 
-                                  part,
-                                  membus)
+                command = get_command(benchmark, 
+                                      part,
+                                      membus,
+                                      l1MSHRs)
             
-            incFile = commit_command(fileID, command, command_counter, file_counter)
-            if incFile:
-                file_counter = file_counter + 1
-            command_counter = (command_counter + 1) % PPN
-            count = count + 1
+                incFile = commit_command(fileID, command, command_counter, file_counter)
+                if incFile:
+                    file_counter = file_counter + 1
+                command_counter = (command_counter + 1) % PPN
+                count = count + 1
 
 flush_commands(file_counter)
 
