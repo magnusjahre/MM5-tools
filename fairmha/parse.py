@@ -8,13 +8,13 @@ NO_AVG = 3
 SUM = 4
 PRINT_ALL = 5
 
-#avg_type = NO_AVG
-#patternString = 'sim_ticks.*'
+avg_type = NO_AVG
+patternString = 'sim_ticks.*'
 
 #avg_type  = HARMONIC
-avg_type = SUM
+#avg_type = SUM
 #avg_type = PRINT_ALL
-patternString = 'detailedCPU..COM:IPC'+'.*'
+#patternString = 'detailedCPU..COM:IPC'+'.*'
 
 #avg_type = NO_AVG
 #patternString = 'data_idle_fraction.*'
@@ -46,79 +46,76 @@ cpuIDPattern = re.compile("[0-9]+")
 results = {}
 
 for benchmark in pbsconfig.benchmarks:
+    for part in pbsconfig.cachePartitioning:
+        for membus in pbsconfig.memoryBusses:
+            for l1MSHRs in pbsconfig.l1DataMshrs:
 
-    resID = pbsconfig.get_unique_id(benchmark,
-                                    pbsconfig.uniformCachePartitioning,
-                                    pbsconfig.uniformBusPartitioning)
-    resultfile = None
+                resID = pbsconfig.get_unique_id(benchmark,
+                                                part,
+                                                membus,
+                                                l1MSHRs)
+
+                resultfile = None
         
-    try:
-        resultfile = open(resID+'/'+resID+'.txt')
-    except IOError:
-        print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
+                try:
+                    resultfile = open(resID+'/'+resID+'.txt')
+                except IOError:
+                    print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
         
-    if resultfile != None:
-        res = pattern.findall(resultfile.read())
-        sum = 0.0
-        avg = 0.0
-        data = []
+                if resultfile != None:
+                    res = pattern.findall(resultfile.read())
+                    sum = 0.0
+                    avg = 0.0
+                    data = []
 
-        for string in res:
-            try:
-                if avg_type == ARITHMETIC:
-                    sum = sum + float(string.split()[1])
-                elif avg_type == HARMONIC:
-                    num = float(string.split()[1])
-                    if num == 0:
-                        avg = -2.0
-                        break
-                    sum = sum + (1.0/num)
-                elif avg_type == SUM:
-                    sum = sum + float(string.split()[1])
-                elif avg_type == PRINT_ALL:
-                    tmp = string.split()
-                    cpuID = cpuIDPattern.findall(tmp[0])[0]
-                    data.append((cpuID, float(tmp[1])))
+                    for string in res:
+                        try:
+                            if avg_type == ARITHMETIC:
+                                sum = sum + float(string.split()[1])
+                            elif avg_type == HARMONIC:
+                                num = float(string.split()[1])
+                                if num == 0:
+                                    avg = -2.0
+                                    break
+                                sum = sum + (1.0/num)
+                            elif avg_type == SUM:
+                                sum = sum + float(string.split()[1])
+                            elif avg_type == PRINT_ALL:
+                                tmp = string.split()
+                                cpuID = cpuIDPattern.findall(tmp[0])[0]
+                                data.append((cpuID, float(tmp[1])))
 
-                else:
-                    sum = sum + float(string.split()[1])
-            except ValueError:
-                avg = -1.0
-                break
+                            else:
+                                sum = sum + float(string.split()[1])
+                        except ValueError:
+                            avg = -1.0
+                            break
             
-        if avg >= 0.0:
-            if avg_type == ARITHMETIC:
-                avg = sum / np
-            elif avg_type == HARMONIC:
-                if sum == 0:
-                    avg = -1.0
-                else:
-                    avg = np/sum
-            else:
-                avg = sum
+                    if avg >= 0.0:
+                        if avg_type == ARITHMETIC:
+                            avg = sum / np
+                        elif avg_type == HARMONIC:
+                            if sum == 0:
+                                avg = -1.0
+                            else:
+                                avg = np/sum
+                        else:
+                            avg = sum
 
-        # store result                
-        if avg_type == PRINT_ALL:
-            for id, r in data:
-                key = "CPU "+str(id)
-                if benchmark not in results:
-                    results[benchmark] = {}
-                results[benchmark][key] = r
-        else:
-            if pbsconfig.uniformCachePartitioning and pbsconfig.uniformBusPartitioning:
-                key = "Static Uniform Cache and Bus Partitioning"
-            elif pbsconfig.uniformBusPartitioning:
-                key = "Static Uniform Bus Partitioning"
-            elif pbsconfig.uniformCachePartitioning:
-                key = "Static Uniform Cache Partitioning"
-            else:
-                print "Unknown configuration"
-                exit()
+                    # store result                
+                    if avg_type == PRINT_ALL:
+                        for id, r in data:
+                            key = "CPU "+str(id)
+                            if benchmark not in results:
+                                results[benchmark] = {}
+                            results[benchmark][key] = r
+                    else:
+                        key = str(l1MSHRs)+'_'+part+'_'+membus
                                 
-            if benchmark not in results:
-                results[benchmark] = {}
+                        if benchmark not in results:
+                            results[benchmark] = {}
                                 
-            results[benchmark][key] = avg
+                        results[benchmark][key] = avg
 
 sortedKeys = results.keys()
 sortedKeys.sort()
