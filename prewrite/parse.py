@@ -1,66 +1,86 @@
-
 import re
 import pbsconfig
+from math import sqrt
 
-HARMONIC = 1
-ARITHMETIC = 2
-NO_AVG = 3
-SUM = 4
-PRINT_ALL = 5
+patternIssued = 'L2Bank..issuedprewrites.*'
+patternSuccess = 'L2Bank..sucessful_prewrites.*'
 
-avg_type = NO_AVG
-patternString = '.*[.]prewrites'
-#patternString = 'sucessful_prewrites'
-
-#avg_type  = HARMONIC
-#avg_type = SUM
-#avg_type = PRINT_ALL
-#patternString = 'detailedCPU..COM:IPC'+'.*'
-
-#avg_type = NO_AVG
-#patternString = 'data_idle_fraction.*'
-
-#avg_type = ARITHMETIC
-#patternString = 'L1dcaches..blocked_no_mshr.*'
-#patternString = 'L1dcaches..blocked_no_targets.*'
-
-#patternString = 'toMemBus.data_queued.*\.'
-#patternString = 'toMemBus.data_idle_fraction.*'
-#avg_type = NO_AVG
-
-
-# print_wls = BW_INTENSE
-# print_wls = NOT_BW_INTENSE
 np = 4
 
-pattern = re.compile(patternString)
+patternI = re.compile(patternIssued)
+patternS = re.compile(patternSuccess)
 
-cpuIDPattern = re.compile("[0-9]+")
+def sumarray(tall):
+    sum = 0.0
+    for i in tall:
+        sum = sum + i
+    return sum
 
-results = {}
+def stdev(tall):
+    n = len(tall)
+    sum = sumarray(tall)
+    sum_of_squares = sumarray(map((lambda x : x*x), tall))
+    return sqrt(sum_of_squares / n - (sum / n) ** 2)    
 
-sum = 0
-num = 0
+def min(tall):
+    minimum = tall[0] 
+    for i in tall:
+        if i < minimum:
+            minimum = i
+    return minimum
 
-for benchmark in pbsconfig.benchmarks:
-                resID = pbsconfig.get_unique_id(benchmark)
+def max(tall):
+    maximum = tall[0]
+    for i in tall:
+        if i > maximum:
+            minimum = i
+    return maximum
 
-                resultfile = None
-        
-                try:
-                    resultfile = open(resID+'/'+resID+'.txt')
-                except IOError:
-                    print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
-        
-                if resultfile != None:
-                    try:
-							res = pattern.findall(resultfile.read())
 
-							for string in res:
-								print string						
-								sum = sum + float(string.split()[1])
-                    except:
-                        print "N/C" 
-			
-	
-print sum
+for config in pbsconfig.configs:
+    sumIssued = 0.0
+
+    sumSuccess = 0.0
+    
+    array = []
+
+    for benchmark in pbsconfig.benchmarks:
+        resID = pbsconfig.get_unique_id(benchmark,config)
+
+        innerIssued = 0.0
+
+        innerSuccess = 0.0
+ 
+        resultfile = open(resID+'/'+resID+'.txt')
+
+        if resultfile != None:
+            foo = resultfile.read()
+            res = patternI.findall(foo)
+
+            for string in res:
+                    sumIssued = sumIssued + int(string.split()[1])
+                    innerIssued = innerIssued + int(string.split()[1])
+
+            res = patternS.findall(foo)
+
+            for string in res:
+                    sumSuccess = sumSuccess + int(string.split()[1])
+                    innerSuccess = innerSuccess + int(string.split()[1])
+
+            array.append(innerSuccess/innerIssued)
+
+    average = sumarray(array) / len(array)
+    avvik = stdev(array)
+
+    print config[0] + '\t' + str(average) + '\t' + str(avvik) + '\t' + str(average - 1.65*avvik) 
+
+    #print config[0] + ": average: ",
+    #print sumSuccess/sumIssued,
+    #print " (" + str(sumSuccess) + "/" + str(sumIssued) +")"
+    #print average 
+    #print avvik
+    #print max(array)
+    #print min(array)
+    #print average + 1.96*avvik
+    #print average - 1.96*avvik
+    #print average - 1.65*avvik
