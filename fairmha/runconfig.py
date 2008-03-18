@@ -85,6 +85,7 @@ for commandline,param in pbsconfig.commandlines:
     command_counter = (command_counter + 1) % PPN
     count = count + 1
 
-flush_commands(file_counter)
+if latest_commands != []:
+    flush_commands(file_counter)
 
 print "Submitted "+str(count)+" experiments in "+str(file_counter)+" files"
