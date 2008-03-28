@@ -8,8 +8,8 @@ NO_AVG = 3
 SUM = 4
 PRINT_ALL = 5
 
-avg_type = NO_AVG
-patternString = 'sim_ticks.*'
+#avg_type = NO_AVG
+#patternString = 'sim_ticks.*'
 
 #avg_type  = HARMONIC
 #avg_type = SUM
@@ -23,8 +23,7 @@ patternString = 'sim_ticks.*'
 #patternString = 'L1dcaches..blocked_no_mshr.*'
 #patternString = 'L1dcaches..blocked_no_targets.*'
 
-#patternString = 'toMemBus.data_queued.*\.'
-patternString = 'toMemBus.data_idle_fraction.*'
+patternString = 'toMemBus.bus_utilization.*'
 avg_type = NO_AVG
 
 
