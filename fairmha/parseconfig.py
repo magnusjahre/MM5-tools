@@ -8,6 +8,9 @@ NO_AVG = 3
 SUM = 4
 PRINT_ALL = 5
 
+#EXCLUDE_HOG = True
+EXCLUDE_HOG = False
+
 #avg_type = NO_AVG
 #patternString = 'sim_ticks.*'
 
@@ -24,6 +27,7 @@ PRINT_ALL = 5
 #patternString = 'L1dcaches..blocked_no_targets.*'
 
 patternString = 'toMemBus.bus_utilization.*'
+#patternString = 'toMemBus.avg_queue_cycles.*'
 avg_type = NO_AVG
 
 
@@ -49,7 +53,7 @@ bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 def getBenchmark(cmd):
     res = bmPattern.findall(cmd)
     bm = res[0].split('=')[1]
-    return int(bm)
+    return bm
 
 # MAIN SCIRPT ===================================
 
@@ -82,7 +86,13 @@ for cmd, config in pbsconfig.commandlines:
                         break
                     sum = sum + (1.0/num)
                 elif avg_type == SUM:
-                    sum = sum + float(string.split()[1])
+                    if EXCLUDE_HOG:
+                        tmp = string.split()
+                        cpuID = int(cpuIDPattern.findall(tmp[0])[0])
+                        if cpuID != np-1:
+                            sum = sum + float(string.split()[1])
+                    else:
+                        sum = sum + float(string.split()[1])
                 elif avg_type == PRINT_ALL:
                     tmp = string.split()
                     cpuID = cpuIDPattern.findall(tmp[0])[0]
@@ -119,7 +129,7 @@ for cmd, config in pbsconfig.commandlines:
                     if benchmark not in results:
                         results[benchmark] = {}
                                 
-                results[benchmark][key] = avg
+                    results[benchmark][key] = avg
 
 
 sortedKeys = results.keys()
