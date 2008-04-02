@@ -10,6 +10,11 @@ numMissPattern = re.compile("L2.*misses_per_cpu_[0-9].*")
 numAccessPattern = re.compile("L2.*accesses_per_cpu_[0-9].*")
 bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 
+#command = "MISS_RATE"
+command = "MISS_PER_MILL_CC"
+
+simlength = pbsconfig.simticks / 1000000
+
 def returnPatterns(instr):
     res = {}
     for m in instr:
@@ -53,21 +58,39 @@ for cmd, config in pbsconfig.commandlines:
         missesPerCPU = returnPatterns(missRes)
         accessesPerCPU = returnPatterns(accessRes) 
 
-        missRate = []
-        for i in range(0, np):
-            missRate.append(0)
-
-        for i in range(0, np):
-            missRate[i] = float(missesPerCPU[i])/float(accessesPerCPU[i])
-
-        bm = bmPattern.findall(cmd)[0].split('=')[1]
+        res = []
+        wl = bmPattern.findall(cmd)[0].split('=')[1]
         key = pbsconfig.get_key(cmd, config)
+
+
+        if command == "MISS_RATE":
+            missRate = []
+            for i in range(0, np):
+                missRate.append(0)
+
+            for i in range(0, np):
+                missRate[i] = float(missesPerCPU[i])/float(accessesPerCPU[i])
+
+            res = missRate
+        elif command == "MISS_PER_MILL_CC":
+            missPerCC = []
+            for i in range(0,np):
+                missPerCC.append(0)
+
+            for i in range(0,np):
+                missPerCC[i] = float(missesPerCPU[i])/float(simlength)
+                
+            res = missPerCC
+        else:
+            print "Unknown command"
+            exit()
 
         if key not in perWorkloadRes:
             perWorkloadRes[key] = {}
-        if bm not in perWorkloadRes[key]:
-            perWorkloadRes[key][bm] = {}
-        perWorkloadRes[key][bm] = missRate
+        if wl not in perWorkloadRes[key]:
+            perWorkloadRes[key][wl] = {}
+        perWorkloadRes[key][wl] = res
+
 
 res = {}
 for wl in workloads.workloads[np]:
@@ -78,7 +101,7 @@ for wl in workloads.workloads[np]:
 
             if k not in res:
                 res[k] = {}
-            if bmname  not in res:
+            if bmname not in res[k]:
                 res[k][bmname] = []
 
             res[k][bmname].append(perWorkloadRes[k][str(wl)][i])
