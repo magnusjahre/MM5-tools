@@ -4,18 +4,16 @@ import random
 # Constants
 FASTFW_START = 1*10**9
 FASTFW_END = int(1.1*10**9)
-WORKLOAD_COUNT = 10
+WORKLOAD_COUNT = 40
 SEED = 34
+BW_BM = 2
+REST_BM = 2
+
 
 # Benchmarks
-benchmarks = ['gcc', 'wupwise', 'swim', 'mgrid', 'applu', 'art', 'facerec', 'ammp', 'lucas', 'apsi']
+bw_benchmarks = ['gcc', 'wupwise', 'swim', 'mgrid', 'applu', 'art', 'facerec', 'ammp', 'lucas', 'apsi']
+other_benchmarks = ['gzip', 'vpr', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'vortex1', 'bzip', 'twolf', 'mesa', 'galgel', 'equake', 'sixtrack', 'fma3d']
 cpus = [4]
-
-used_bms = {}
-for cpu in cpus:
-    used_bms[cpu] = []
-    for i in range(len(benchmarks)):
-        used_bms[cpu].append(0)
 
 random.seed(SEED)
 
@@ -31,24 +29,44 @@ for cpu_count in cpus:
         useBenchmarks = []
         useFW = []
         
-        for j in range(cpu_count):
+        num_bw = 0
+        num_all = 0
+
+        for j in range(BW_BM):
             fastfw = random.randint(FASTFW_START, FASTFW_END)
             
             bm = -1
             run = True
             while run:
-                bm = random.randint(0, len(benchmarks)-1)
+                bm = random.randint(0, len(bw_benchmarks)-1)
                 allreadyInUse = False
                 for b in useBenchmarks:
-                    if benchmarks[bm] == b:
+                    if bw_benchmarks[bm] == b:
                         allreadyInUse = True
                 
                 if not allreadyInUse:
                     run = False
                 
             useFW.append(fastfw)
-            useBenchmarks.append(benchmarks[bm])
-            used_bms[cpu_count][bm] = used_bms[cpu_count][bm] + 1
+            useBenchmarks.append(bw_benchmarks[bm])
+
+        for j in range(REST_BM):
+            fastfw = random.randint(FASTFW_START, FASTFW_END)
+
+            bm = -1
+            run = True
+            while run:
+                bm = random.randint(0, len(other_benchmarks)-1)
+                allreadyInUse = False
+                for b in useBenchmarks:
+                    if other_benchmarks[bm] == b:
+                        allreadyInUse = True
+                
+                if not allreadyInUse:
+                    run = False
+                
+            useFW.append(fastfw)
+            useBenchmarks.append(other_benchmarks[bm])
         
         if i == (WORKLOAD_COUNT-1):
             outfile.write(str(i+1)+":("+str(useBenchmarks)+","+str(useFW)+")\n")
@@ -56,16 +74,6 @@ for cpu_count in cpus:
             outfile.write(str(i+1)+":("+str(useBenchmarks)+","+str(useFW)+"),\n")
 
     outfile.write("},\n\n")
-
-for cpu in cpus:    
-    print "\n"+str(cpu)+" CPU benchmark usage\n"
-    print "Benchmark".ljust(15)+"# used".rjust(15)
-    for i in range(len(benchmarks)):
-        print benchmarks[i].ljust(15)+(str(used_bms[cpu][i])+" times").rjust(15)
-
-for cpu in cpus:    
-    if 0 in used_bms[cpu]:
-        print "WARNING: The "+str(cpu)+" CPU workloads has at least one benchmark that is never used"
 
 outfile.write("}\n")        
 outfile.close()

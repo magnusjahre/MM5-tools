@@ -15,9 +15,9 @@ EXCLUDE_HOG = False
 #patternString = 'sim_ticks.*'
 
 #avg_type  = HARMONIC
-#avg_type = SUM
+avg_type = SUM
 #avg_type = PRINT_ALL
-#patternString = 'detailedCPU..COM:IPC'+'.*'
+patternString = 'detailedCPU..COM:IPC'+'.*'
 
 #avg_type = NO_AVG
 #patternString = 'data_idle_fraction.*'
@@ -26,9 +26,9 @@ EXCLUDE_HOG = False
 #patternString = 'L1dcaches..blocked_no_mshr.*'
 #patternString = 'L1dcaches..blocked_no_targets.*'
 
-patternString = 'toMemBus.bus_utilization.*'
+#patternString = 'toMemBus.bus_utilization.*'
 #patternString = 'toMemBus.avg_queue_cycles.*'
-avg_type = NO_AVG
+#avg_type = NO_AVG
 
 
 BW_INTENSE = 1
