@@ -74,7 +74,7 @@ for option in sys.argv[2:]:
         selectedWls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
     if option == "std_wl_only":
         wl_selection = STD_WLS
-        selectedWls = ['08', '12', '15', '27', '28', '35']
+        selectedWls = ['06', '08', '12', '15', '27', '28', '35']
 
 
 # Prepare for analysis ==========================

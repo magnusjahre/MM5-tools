@@ -11,9 +11,9 @@ numAccessPattern = re.compile("L2.*accesses_per_cpu_[0-9].*")
 bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 
 #command = "MISS_RATE"
-command = "MISS_PER_MILL_CC"
+command = "MISS_PER_K_CC"
 
-simlength = pbsconfig.simticks / 1000000
+simlength = pbsconfig.simticks / 1000
 
 def returnPatterns(instr):
     res = {}
@@ -72,7 +72,7 @@ for cmd, config in pbsconfig.commandlines:
                 missRate[i] = float(missesPerCPU[i])/float(accessesPerCPU[i])
 
             res = missRate
-        elif command == "MISS_PER_MILL_CC":
+        elif command == "MISS_PER_K_CC":
             missPerCC = []
             for i in range(0,np):
                 missPerCC.append(0)
@@ -104,7 +104,12 @@ for wl in workloads.workloads[np]:
             if bmname not in res[k]:
                 res[k][bmname] = []
 
-            res[k][bmname].append(perWorkloadRes[k][str(wl)][i])
+            if wl < 10:
+                tmpWl = "0"+str(wl)
+            else:
+                tmpWl = str(wl)
+
+            res[k][bmname].append(perWorkloadRes[k][tmpWl][i])
 
 sortedKeys = res.keys()
 sortedKeys.sort()
