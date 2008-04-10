@@ -12,11 +12,15 @@ SUM = 4
 PRINT_ALL = 5
 
 options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM),
+           "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL),
            "ticks": ('sim_ticks.*', NO_AVG),
            "avg_blocked_mshrs": ('L1dcaches..blocked_no_mshr.*', ARITHMETIC),
            "avg_blocked_targets": ('L1dcaches..blocked_no_targets.*', ARITHMETIC),
            "bus_util": ('toMemBus.bus_utilization.*', NO_AVG),
-           "bus_latency": ('toMemBus.avg_queue_cycles.*', NO_AVG)
+           "bus_latency": ('toMemBus.avg_queue_cycles.*', NO_AVG),
+           "bus_blocked": ('toMemBus.blocked_cycles.*',NO_AVG),
+           "l2_blocked_mshrs": ('L2Bank..blocked_no_mshr.*', ARITHMETIC),
+           "l2_blocked_targets": ('L2Bank..blocked_no_targets.*', ARITHMETIC),
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
@@ -38,6 +42,8 @@ optionalOptions = {"no_hog": "",
                    "not_selected_wls": "",
                    "bw_wl_only": "",
                    "std_wl_only": "",
+                   "all_sel_wls": "",
+                   "print_max": "",
                   }
 
 SELECTED_WL = 1
@@ -51,6 +57,10 @@ STD_WLS = 6
 EXCLUDE_HOG = False
 print_wls = ALL
 wl_selection = ALL
+print_max = False
+
+std_wls = ['06', '08', '12', '15', '27', '28', '35']
+bw_wls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
 
 for option in sys.argv[2:]:
     if option not in optionalOptions:
@@ -71,10 +81,16 @@ for option in sys.argv[2:]:
 
     if option == "bw_wl_only":
         wl_selection = BW_WLS
-        selectedWls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
+        selectedWls = bw_wls
     if option == "std_wl_only":
         wl_selection = STD_WLS
-        selectedWls = ['06', '08', '12', '15', '27', '28', '35']
+        selectedWls = std_wls
+    if option == "all_sel_wls":
+        wl_selection = ALL # simple, inefficent solution
+        selectedWls = std_wls + bw_wls
+    
+    if option == "print_max":
+        print_max = True
 
 
 # Prepare for analysis ==========================
@@ -121,7 +137,7 @@ for cmd, config in pbsconfig.commandlines:
         sum = 0.0
         avg = 0.0
         data = []
-
+ 
         for string in res:
             try:
                 if avg_type == ARITHMETIC:
@@ -164,19 +180,21 @@ for cmd, config in pbsconfig.commandlines:
 
                 # store result
                 benchmark = getBenchmark(cmd)
-                if avg_type == PRINT_ALL:
-                    for id, r in data:
-                        key = "CPU "+str(id)
-                        if benchmark not in results:
-                            results[benchmark] = {}
-                        results[benchmark][key] = r
-                else:
-                    key = pbsconfig.get_key(cmd, config)
-                                
+                key = pbsconfig.get_key(cmd, config)
+                if avg_type != PRINT_ALL:
                     if benchmark not in results:
                         results[benchmark] = {}
                                 
                     results[benchmark][key] = avg
+
+        for id, r in data:
+            thisKey = str(key) + "_CPU"+str(id)
+            if benchmark not in results:
+                results[benchmark] = {}
+            if thisKey not in results[benchmark]:
+                results[benchmark][thisKey] = str(r)
+            else:
+                results[benchmark][thisKey] = str(r)
 
 
 sortedKeys = results.keys()
@@ -186,11 +204,16 @@ sortedResKeys = results[sortedKeys[0]].keys()
 sortedResKeys.sort()
 
 bmWidth = 10
-dataWidth = 35
+if avg_type != PRINT_ALL:
+    dataWidth = 35
+else:
+    dataWidth = 15
 
 print " ".ljust(bmWidth),
 for k in sortedResKeys:
     print str(k).rjust(dataWidth),
+if print_max:
+    print "Max".rjust(dataWidth),
 print
 
 for key in sortedKeys:
@@ -201,11 +224,17 @@ for key in sortedKeys:
     if print_wls == SELECTED_WL and key not in selectedWls:
         continue
     
+
+    max = 0
     print (str(key)).ljust(bmWidth),
     for res in sortedResKeys:
         if res in results[key]:
             print (str(results[key][res])).rjust(dataWidth),
+            if results[key][res] > max:
+                max = results[key][res]
         else:
             print ("N/A").rjust(dataWidth),
+    if print_max:
+        print str(max).rjust(dataWidth),
     print
 

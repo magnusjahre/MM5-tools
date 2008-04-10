@@ -27,61 +27,60 @@ def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
     res = popen2.popen3("epstopdf "+str(benchmark)+suffix+".eps")
     text = res[0].read()
 
-np = 4
-    
-for benchmark in pbsconfig.benchmarks:
-    for L1mshrCount in pbsconfig.l1mshrs:
-        for L2mshrCount in pbsconfig.l2mshrs:
-            for L1targets in pbsconfig.l1mshrTargets:
-                for L2targets in pbsconfig.l2mshrTargets:
-                    for threshold in pbsconfig.adaptiveMHAThresholds:
-                        for repeats in pbsconfig.adaptiveRepeats:
+    return str(benchmark)+suffix+".pdf"
 
-                            resID = pbsconfig.get_unique_id(np, benchmark, L1mshrCount, L2mshrCount, L1targets, L2targets, threshold[0], threshold[1], repeats)
+np = 4
+
+os.mkdir('memoryBusPlot')
+
+for cmd, config in pbsconfig.commandlines:
+
+    resID = pbsconfig.get_unique_id(config)
                             
-                            print "Processing experiment " + resID
+    print "Processing experiment " + resID
     
-                            os.chdir(resID)
+    os.chdir(resID)
+    
+    statsfile = open("memoryBusTrace.txt")
+    gpReadable = open("memoryBusTrace_gpInput.txt", 'w')
             
-                            statsfile = open("memoryBusTrace.txt")
-                            gpReadable = open("memoryBusTrace_gpInput.txt", 'w')
+    first = True
+    firstDataLine = True
+    mintick = -1
+    maxtick = -1
             
-                            first = True
-                            firstDataLine = True
-                            mintick = -1
-                            maxtick = -1
-            
-                            for line in statsfile.readlines():
-                                if first:
-                                    fields = line.split(';')
-                                    gpReadable.write((fields[0]).ljust(30)+fields[2].ljust(30))
-                                    first = False
+    for line in statsfile.readlines():
+        if first:
+            fields = line.split(';')
+            gpReadable.write((fields[0]).ljust(30)+fields[1].ljust(30))
+            first = False
                         
-                                else:
-                                    fields = line.split(';')
-                                    gpReadable.write(fields[0].ljust(30)+fields[2].ljust(30))
+        else:
+            fields = line.split(';')
+            gpReadable.write(fields[0].ljust(30)+fields[1].ljust(30))
                                     
-                                    if firstDataLine:
-                                        mintick = int(fields[0])
-                                        firstDataLine = False
+            if firstDataLine:
+                mintick = int(fields[0])
+                firstDataLine = False
                                     
-                                    maxtick = int(fields[0])
-                                gpReadable.write("\n")
+            maxtick = int(fields[0])
+        gpReadable.write("\n")
             
-                            gpReadable.flush()
-                            gpReadable.close()
-                
-                            statsfile.close()
-                            
-                            thresStr = str(int(threshold[0]*100))+str(int(threshold[1]*100))+"-"+str(repeats)
-                
-                            writeFile(benchmark,
-                                    "_"+str(thresStr),
-                                    thresStr,
-                                    "Memory Bus Utilisation",
-                                    maxtick+100000,
-                                    mintick-100000,
-                                    "memoryBusTrace_gpInput.txt")
-            
-                            os.chdir('..')
+    gpReadable.flush()
+    gpReadable.close()
+    
+    statsfile.close()
+    
+    thresStr = pbsconfig.get_key(cmd, config)
+    
+    name = writeFile(config[0],
+                     "_"+str(thresStr),
+                     thresStr,
+                     "Memory Bus Utilisation",
+                     maxtick+100000,
+                     mintick-100000,
+                     "memoryBusTrace_gpInput.txt")
+    
+    os.rename(name, '../memoryBusPlot/'+name)
+    os.chdir('..')
 
