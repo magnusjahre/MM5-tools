@@ -58,6 +58,8 @@ readToPrecharge = 10
 writeRecoveryLat = 60
 minBankToBank = 30
 oneBusCycle = 10
+readToWrite = 60
+writeToRead = 30
 
 writeLatency = CAS-oneBusCycle
 
@@ -80,7 +82,7 @@ for line in lines:
 
         elif data[5] == READ_CMD:
             state = bankstate[int(data[2])][0]  
-            assert state == ACTIVE or state == READ
+            assert state == ACTIVE or state == READ or state == WRITTEN
 
             addr, tick = requests.pop(0)
             if(addr != data[1]):
@@ -92,7 +94,7 @@ for line in lines:
 
         elif data[5] == WRITE_CMD:
             state = bankstate[int(data[2])][0]  
-            assert state == ACTIVE or state == WRITTEN
+            assert state == ACTIVE or state == WRITTEN or state == READ
 
             addr, tick = requests.pop(0)
             if(addr != data[1]):
@@ -124,7 +126,7 @@ for line in lines:
 
         elif data[5] == READ_CMD:
             state = bankstate[int(data[2])]
-            assert state[0] == ACTIVE or state[0] == READ
+            assert state[0] == ACTIVE or state[0] == READ or state[0] == WRITTEN
             
             startOffset = 0
             if activeAt[int(data[2])] > (int(data[0]) + RAS):                
@@ -134,6 +136,17 @@ for line in lines:
             if state[0] == ACTIVE:
                 lat = startOffset + RAS + CAS + dataTime
                 readStartAt[int(data[2])] = activeAt[int(data[2])] + CAS
+            elif state[0] == WRITTEN:
+
+                newLat = writeToRead + CAS
+                earliestStart = writeStartAt[int(data[2])] + dataTime
+
+                if int(data[0]) < earliestStart + newLat:
+                    lat = dataTime + (earliestStart + newLat - int(data[0]))
+                else:
+                    lat = dataTime
+
+                readStartAt[int(data[2])] = int(data[0]) + lat - dataTime
             else:
                 lat = dataTime
                 readStartAt[int(data[2])] = readStartAt[int(data[2])] + dataTime 
@@ -147,7 +160,7 @@ for line in lines:
 
         elif data[5] == WRITE_CMD:
             state = bankstate[int(data[2])]  
-            assert state[0] == ACTIVE or state[0] == WRITTEN
+            assert state[0] == ACTIVE or state[0] == WRITTEN or state[0] == READ
             
             startOffset = 0
             if activeAt[int(data[2])] > (int(data[0]) + RAS):
@@ -157,6 +170,17 @@ for line in lines:
             if state[0] == ACTIVE:
                 lat = startOffset + RAS + writeLatency + dataTime
                 writeStartAt[int(data[2])] = activeAt[int(data[2])] + writeLatency
+
+            elif state[0] == READ:
+                newLat = readToWrite  + writeLatency
+                offsetToRead = int(data[0]) - readStartAt[int(data[2])]
+                
+                if offsetToRead < newLat:
+                    lat = dataTime + (newLat - offsetToRead)
+                else:
+                    lat = dataTime
+
+                writeStartAt[int(data[2])] = int(data[0]) + lat - dataTime
             else:
                 lat = dataTime
                 writeStartAt[int(data[2])] = writeStartAt[int(data[2])] + dataTime
@@ -200,9 +224,17 @@ print
 print "Verify finished successfully"
 print
 print "Edges traversed:"
+fullCoverage = True
 keys = edges.keys()
 keys.sort()
 for k in keys:
     print k.ljust(20)+str(edges[k]).rjust(10)
+    if edges[k] == 0:
+        fullCoverage = False
 
+print
+if fullCoverage:
+    print "All state machine edges have been covered!"
+else:
+    print "Warning: the test does not cover all state machine edges."
 print
