@@ -54,7 +54,7 @@ CAS = 40
 dataTime = 40
 prechargeTime = 40
 minActiveToPrechTime = 120
-readToPrecharge = 10
+readToPrecharge = 10 #only the part that is not hidden, i.e. really 30
 writeRecoveryLat = 60
 minBankToBank = 30
 oneBusCycle = 10
@@ -149,7 +149,7 @@ for line in lines:
                 readStartAt[int(data[2])] = int(data[0]) + lat - dataTime
             else:
                 lat = dataTime
-                readStartAt[int(data[2])] = readStartAt[int(data[2])] + dataTime 
+                readStartAt[int(data[2])] = readStartAt[int(data[2])] + dataTime
 
             if(lat != int(data[4])):
                 error("Read latency should be "+str(lat)+", is "+data[4], data[0])
@@ -201,7 +201,7 @@ for line in lines:
             if state[0] == WRITTEN:
                 earliestFin = writeStartAt[int(data[2])] + dataTime + writeRecoveryLat
             else:
-                earliestStart = readStartAt[int(data[2])] + dataTime + readToPrecharge
+                earliestFin = readStartAt[int(data[2])] + readToPrecharge
 
             if earliestFin < (activeAt[int(data[2])] + minActiveToPrechTime):
                 startTime = activeAt[int(data[2])] + minActiveToPrechTime
@@ -209,7 +209,7 @@ for line in lines:
                 startTime = earliestFin
             
             idleAt[int(data[2])] = startTime + prechargeTime
-            
+
             oldState = state[0]
             state[0] = IDLE
             incEdge(oldState, state[0], data[0])
