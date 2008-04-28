@@ -14,6 +14,24 @@ def error(msg, tick):
     print msg+" @ "+str(tick)
     exit()
 
+edges = {}
+edges[IDLE+'->'+ACTIVE] = 0
+edges[ACTIVE+'->'+WRITTEN] = 0
+edges[ACTIVE+'->'+READ] = 0
+edges[READ+'->'+WRITTEN] = 0
+edges[READ+'->'+READ] = 0
+edges[READ+'->'+IDLE] = 0
+edges[WRITTEN+'->'+READ] = 0
+edges[WRITTEN+'->'+WRITTEN] = 0
+edges[WRITTEN+'->'+IDLE] = 0
+
+def incEdge(fromState, toState, tick):
+    key = fromState+"->"+toState
+    if key not in edges:
+        error("Transition does not exist", tick)
+    edges[key] = edges[key] + 1
+        
+
 bankstate = []
 idleAt = []
 activeAt = []
@@ -43,6 +61,10 @@ oneBusCycle = 10
 
 writeLatency = CAS-oneBusCycle
 
+print
+print "Verifying bus trace..."
+print
+
 for line in lines:
     
     data = line.strip().split(",")
@@ -54,6 +76,8 @@ for line in lines:
         if data[5] == ACTIVATE_CMD:
             assert bankstate[int(data[2])][0] == IDLE
             bankstate[int(data[2])] = [ACTIVE, data[3]]
+            incEdge(IDLE, ACTIVE, data[0])
+
         elif data[5] == READ_CMD:
             state = bankstate[int(data[2])][0]  
             assert state == ACTIVE or state == READ
@@ -116,7 +140,10 @@ for line in lines:
 
             if(lat != int(data[4])):
                 error("Read latency should be "+str(lat)+", is "+data[4], data[0])
+            
+            oldState = bankstate[int(data[2])][0]
             bankstate[int(data[2])][0] = READ
+            incEdge(oldState, READ, data[0])
 
         elif data[5] == WRITE_CMD:
             state = bankstate[int(data[2])]  
@@ -136,7 +163,10 @@ for line in lines:
 
             if(lat != int(data[4])):
                 error("Write latency should be "+str(lat)+", is "+data[4], data[0])
+
+            oldState = bankstate[int(data[2])][0]
             bankstate[int(data[2])][0] = WRITTEN
+            incEdge(oldState, WRITTEN, data[0])
 
         elif data[5] == CLOSE_CMD:
             state = bankstate[int(data[2])]
@@ -155,7 +185,10 @@ for line in lines:
                 startTime = earliestFin
             
             idleAt[int(data[2])] = startTime + prechargeTime
+            
+            oldState = state[0]
             state[0] = IDLE
+            incEdge(oldState, state[0], data[0])
         else:
             error("Unknown memory command (latency): "+data[5], data[0])
 
@@ -163,4 +196,13 @@ for line in lines:
     else:
         error("Unknown command", data[0])
 
+print
 print "Verify finished successfully"
+print
+print "Edges traversed:"
+keys = edges.keys()
+keys.sort()
+for k in keys:
+    print k.ljust(20)+str(edges[k]).rjust(10)
+
+print
