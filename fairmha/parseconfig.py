@@ -44,6 +44,8 @@ optionalOptions = {"no_hog": "",
                    "std_wl_only": "",
                    "all_sel_wls": "",
                    "print_max": "",
+                   "one_benchmark":"",
+                   "invert_dims":"",
                   }
 
 SELECTED_WL = 1
@@ -58,6 +60,7 @@ EXCLUDE_HOG = False
 print_wls = ALL
 wl_selection = ALL
 print_max = False
+keys_vertical = False
 
 std_wls = ['06', '08', '12', '15', '27', '28', '35']
 bw_wls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
@@ -91,6 +94,9 @@ for option in sys.argv[2:]:
     
     if option == "print_max":
         print_max = True
+
+    if option == "one_benchmark":
+        keys_vertical = True
 
 
 # Prepare for analysis ==========================
@@ -187,14 +193,35 @@ for cmd, config in pbsconfig.commandlines:
                                 
                     results[benchmark][key] = avg
 
-        for id, r in data:
-            thisKey = str(key) + "_CPU"+str(id)
-            if benchmark not in results:
-                results[benchmark] = {}
-            if thisKey not in results[benchmark]:
+        key = pbsconfig.get_key(cmd, config)
+        if not keys_vertical:
+            for id, r in data:
+                thisKey = str(key) + "_CPU"+str(id)
+                if benchmark not in results:
+                    results[benchmark] = {}
+                assert thisKey not in results[benchmark]
                 results[benchmark][thisKey] = str(r)
-            else:
-                results[benchmark][thisKey] = str(r)
+        else:
+            for id, r in data:
+                resKey = "CPU"+str(id)
+                lineKey = str(key)
+                if lineKey not in results:
+                    results[lineKey] = {}
+
+                assert resKey not in results[lineKey]
+                results[lineKey][resKey] = str(r)
+
+if keys_vertical and avg_type != PRINT_ALL:
+    r2 = {}
+    for k1 in results:
+        for k2 in results[k1]:
+            if k2 not in r2:
+                r2[k2] = {}
+            if k1 not in r2[k2]:
+                r2[k2][k1] = {}
+            r2[k2][k1] = results[k1][k2]
+
+    results = r2
 
 
 sortedKeys = results.keys()
@@ -203,11 +230,12 @@ sortedKeys.sort()
 sortedResKeys = results[sortedKeys[0]].keys()
 sortedResKeys.sort()
 
-bmWidth = 10
-if avg_type != PRINT_ALL:
-    dataWidth = 35
-else:
+if avg_type == PRINT_ALL or keys_vertical:
+    bmWidth = 20
     dataWidth = 15
+else:
+    bmWidth = 10
+    dataWidth = 35
 
 print " ".ljust(bmWidth),
 for k in sortedResKeys:
