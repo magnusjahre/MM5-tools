@@ -11,16 +11,24 @@ NO_AVG = 3
 SUM = 4
 PRINT_ALL = 5
 
-options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM),
-           "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL),
-           "ticks": ('sim_ticks.*', NO_AVG),
-           "avg_blocked_mshrs": ('L1dcaches..blocked_no_mshr.*', ARITHMETIC),
-           "avg_blocked_targets": ('L1dcaches..blocked_no_targets.*', ARITHMETIC),
-           "bus_util": ('toMemBus.bus_utilization.*', NO_AVG),
-           "bus_latency": ('toMemBus.avg_queue_cycles.*', NO_AVG),
-           "bus_blocked": ('toMemBus.blocked_cycles.*',NO_AVG),
-           "l2_blocked_mshrs": ('L2Bank..blocked_no_mshr.*', ARITHMETIC),
-           "l2_blocked_targets": ('L2Bank..blocked_no_targets.*', ARITHMETIC),
+NO_FAIRNESS = 10
+HARMONIC_SPEEDUP = 11
+WEIGHTED_SUM_IPC = 12
+QOS = 13
+
+options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
+           "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL, NO_FAIRNESS),
+           "ticks": ('sim_ticks.*', NO_AVG, NO_FAIRNESS),
+           "avg_blocked_mshrs": ('L1dcaches..blocked_no_mshr.*', ARITHMETIC, NO_FAIRNESS),
+           "avg_blocked_targets": ('L1dcaches..blocked_no_targets.*', ARITHMETIC, NO_FAIRNESS),
+           "bus_util": ('toMemBus.bus_utilization.*', NO_AVG, NO_FAIRNESS),
+           "bus_latency": ('toMemBus.avg_queue_cycles.*', NO_AVG, NO_FAIRNESS),
+           "bus_blocked": ('toMemBus.blocked_cycles.*',NO_AVG, NO_FAIRNESS),
+           "l2_blocked_mshrs": ('L2Bank..blocked_no_mshr.*', ARITHMETIC, NO_FAIRNESS),
+           "l2_blocked_targets": ('L2Bank..blocked_no_targets.*', ARITHMETIC, NO_FAIRNESS),
+           "hmean_speedup": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, HARMONIC_SPEEDUP),
+           "weighted_sum_ipc": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, WEIGHTED_SUM_IPC),
+           "qos": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
@@ -33,6 +41,7 @@ if len(sys.argv) < 2 or sys.argv[1] not in options:
 
 patternString = options[sys.argv[1]][0]
 avg_type = options[sys.argv[1]][1]
+fairness_metric = options[sys.argv[1]][2]
 
 
 # Parse optional options ========================
@@ -194,7 +203,19 @@ for cmd, config in pbsconfig.commandlines:
                     results[benchmark][key] = avg
 
         key = pbsconfig.get_key(cmd, config)
-        if not keys_vertical:
+        if fairness_metric != NO_FAIRNESS:
+            benchmark = getBenchmark(cmd)
+            key = pbsconfig.get_key(cmd, config)
+
+            if benchmark not in results:
+                results[benchmark] = {}
+            
+            if str(key) not in results[benchmark]:
+                results[benchmark][str(key)] = {}
+
+            for id, r in data:
+                results[benchmark][str(key)][id] = str(r)
+        elif not keys_vertical:
             for id, r in data:
                 thisKey = str(key) + "_CPU"+str(id)
                 if benchmark not in results:
@@ -223,6 +244,42 @@ if keys_vertical and avg_type != PRINT_ALL:
 
     results = r2
 
+if fairness_metric != NO_FAIRNESS:
+    newres = {}
+    for wl in results:
+        if wl not in newres:
+            newres[wl] = {}
+        
+        for key in results[wl]:
+            if key != pbsconfig.fairkey:
+                
+                #compute fairness metric
+                if fairness_metric == HARMONIC_SPEEDUP:
+                    invsum = 0
+                    for i in range(np):
+                        invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)]))
+                    newres[wl][key] = np / invsum
+                    
+                elif fairness_metric == WEIGHTED_SUM_IPC:
+                    sum = 0
+                    for i in range(np):
+                        sum = sum + (float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))
+                    newres[wl][key] = sum
+                elif fairness_metric == QOS:
+                    val = 0
+                    print
+                    for i in range(np):
+                        val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
+                        print float(results[wl][key][str(i)])
+                        print float(results[wl][pbsconfig.fairkey][str(i)])
+                    print val
+                    newres[wl][key] = val
+                else:
+                    print "Unknown fairness metric specified, quitting..."
+                    exit()
+
+    results = newres
+                
 
 sortedKeys = results.keys()
 sortedKeys.sort()
@@ -232,7 +289,7 @@ sortedResKeys.sort()
 
 if avg_type == PRINT_ALL or keys_vertical:
     bmWidth = 20
-    dataWidth = 15
+    dataWidth = 17
 else:
     bmWidth = 10
     dataWidth = 35
