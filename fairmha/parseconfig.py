@@ -37,7 +37,7 @@ if len(sys.argv) < 2 or sys.argv[1] not in options:
     print "Avaliable patterns:"
     for a in options:
         print "- "+a
-    exit()
+    sys.exit()
 
 patternString = options[sys.argv[1]][0]
 avg_type = options[sys.argv[1]][1]
@@ -257,26 +257,43 @@ if fairness_metric != NO_FAIRNESS:
                 if fairness_metric == HARMONIC_SPEEDUP:
                     invsum = 0
                     for i in range(np):
-                        invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)]))
-                    newres[wl][key] = np / invsum
+                        if str(i) in results[wl][key]:
+                            invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)]))
+                        else:
+                            invsum = -1
+                            break
+                    if invsum == -1:
+                        newres[wl][key] = "N/A"
+                    else:
+                        newres[wl][key] = np / invsum
                     
                 elif fairness_metric == WEIGHTED_SUM_IPC:
                     sum = 0
                     for i in range(np):
-                        sum = sum + (float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))
-                    newres[wl][key] = sum
+                        if str(i) in results[wl][key]:
+                            sum = sum + (float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))
+                        else:
+                            sum = -1
+                            break
+                    if sum == -1:
+                        newres[wl][key] = "N/A"
+                    else:
+                        newres[wl][key] = sum
                 elif fairness_metric == QOS:
                     val = 0
-                    print
                     for i in range(np):
-                        val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
-                        print float(results[wl][key][str(i)])
-                        print float(results[wl][pbsconfig.fairkey][str(i)])
-                    print val
-                    newres[wl][key] = val
+                        if str(i) in results[wl][key]:
+                            val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
+                        else:
+                            val = -1
+                            break
+                    if val == -1:
+                        newres[wl][key] = "N/A"
+                    else:
+                        newres[wl][key] = val
                 else:
                     print "Unknown fairness metric specified, quitting..."
-                    exit()
+                    sys.exit()
 
     results = newres
                 
@@ -289,7 +306,7 @@ sortedResKeys.sort()
 
 if avg_type == PRINT_ALL or keys_vertical:
     bmWidth = 20
-    dataWidth = 17
+    dataWidth = 20
 else:
     bmWidth = 10
     dataWidth = 35
