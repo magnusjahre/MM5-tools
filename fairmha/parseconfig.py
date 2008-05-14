@@ -5,6 +5,8 @@ import pbsconfig
 
 # Parse mandatory options =======================
 
+TOLERABLE_INST_OFFSET = 0.03
+
 HARMONIC = 1
 ARITHMETIC = 2
 NO_AVG = 3
@@ -107,7 +109,6 @@ for option in sys.argv[2:]:
     if option == "one_benchmark":
         keys_vertical = True
 
-
 # Prepare for analysis ==========================
 
 np = 4
@@ -118,12 +119,61 @@ cpuIDPattern = re.compile("[0-9]+")
 
 bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 
+instPattern = re.compile(" [0-9]+ ")
+
 # PROCEDURES ====================================
 
 def getBenchmark(cmd):
     res = bmPattern.findall(cmd)
     bm = res[0].split('=')[1]
     return bm
+
+# Control error from instruction drift ==========
+
+starts = {}
+for cmd, config in pbsconfig.commandlines:
+    resID = pbsconfig.get_unique_id(config)
+    
+    switchfile = None
+    try:
+        switchfile = open(resID+'/cpuSwitchInsts.txt')
+    except IOError:
+        print "WARNING: could not open switch file!"
+
+    if switchfile != None:
+        bm = getBenchmark(cmd)
+        key = pbsconfig.get_key(cmd, config)
+        if bm not in starts:
+            starts[bm] = {}
+
+        if key not in starts[bm]:
+            starts[bm][key] = {}
+
+        insts = []
+        for line in switchfile.readlines():
+            res = instPattern.findall(line)
+            insts.append(int(res[0]))
+            
+        starts[bm][key] = insts
+
+for bm in starts:
+    configs = starts[bm].keys()
+    for x in configs:
+        for y in configs:
+            assert len(starts[bm][x]) == len(starts[bm][y])
+            for z in range(len(starts[bm][x])):
+                diff = float(starts[bm][x][z]) / float(starts[bm][y][z])
+                testpass = True
+                if diff < 1.0:
+                    if diff < (1.0 - TOLERABLE_INST_OFFSET):
+                        testpass = False
+                else:
+                    if diff > (1.0 + TOLERABLE_INST_OFFSET):
+                        testpass = False
+                if not testpass:
+                    print "FATAL: The instruction drift after fast-forwarding was to large: "+str(diff)
+                    sys.exit()
+                
 
 # MAIN SCIRPT ===================================
 
