@@ -28,6 +28,7 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "bus_blocked": ('toMemBus.blocked_cycles.*',NO_AVG, NO_FAIRNESS),
            "l2_blocked_mshrs": ('L2Bank..blocked_no_mshr.*', ARITHMETIC, NO_FAIRNESS),
            "l2_blocked_targets": ('L2Bank..blocked_no_targets.*', ARITHMETIC, NO_FAIRNESS),
+           "total_l2_misses": ('L2Bank..overall_misses.*', SUM, NO_FAIRNESS),
            "hmean_speedup": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, HARMONIC_SPEEDUP),
            "weighted_sum_ipc": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, WEIGHTED_SUM_IPC),
            "qos": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
@@ -57,6 +58,7 @@ optionalOptions = {"no_hog": "",
                    "print_max": "",
                    "one_benchmark":"",
                    "invert_dims":"",
+                   "disable_drift_check":""
                   }
 
 SELECTED_WL = 1
@@ -72,6 +74,7 @@ print_wls = ALL
 wl_selection = ALL
 print_max = False
 keys_vertical = False
+disable_drift_check = False
 
 std_wls = ['06', '08', '12', '15', '27', '28', '35']
 bw_wls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
@@ -109,9 +112,13 @@ for option in sys.argv[2:]:
     if option == "one_benchmark":
         keys_vertical = True
 
+    if option == "disable_drift_check":
+        disable_drift_check = True
+
 # Prepare for analysis ==========================
 
-np = 4
+#np = 4
+np = 1
 
 pattern = re.compile(patternString)
 
@@ -130,49 +137,50 @@ def getBenchmark(cmd):
 
 # Control error from instruction drift ==========
 
-starts = {}
-for cmd, config in pbsconfig.commandlines:
-    resID = pbsconfig.get_unique_id(config)
+if not disable_drift_check:
+    starts = {}
+    for cmd, config in pbsconfig.commandlines:
+        resID = pbsconfig.get_unique_id(config)
     
-    switchfile = None
-    try:
-        switchfile = open(resID+'/cpuSwitchInsts.txt')
-    except IOError:
-        print "WARNING: could not open switch file!"
+        switchfile = None
+        try:
+            switchfile = open(resID+'/cpuSwitchInsts.txt')
+        except IOError:
+            print "WARNING: could not open switch file!"
 
-    if switchfile != None:
-        bm = getBenchmark(cmd)
-        key = pbsconfig.get_key(cmd, config)
-        if bm not in starts:
-            starts[bm] = {}
+        if switchfile != None:
+            bm = getBenchmark(cmd)
+            key = pbsconfig.get_key(cmd, config)
+            if bm not in starts:
+                starts[bm] = {}
 
-        if key not in starts[bm]:
-            starts[bm][key] = {}
+            if key not in starts[bm]:
+                starts[bm][key] = {}
 
-        insts = []
-        for line in switchfile.readlines():
-            res = instPattern.findall(line)
-            insts.append(int(res[0]))
+            insts = []
+            for line in switchfile.readlines():
+                res = instPattern.findall(line)
+                insts.append(int(res[0]))
             
-        starts[bm][key] = insts
+            starts[bm][key] = insts
 
-for bm in starts:
-    configs = starts[bm].keys()
-    for x in configs:
-        for y in configs:
-            assert len(starts[bm][x]) == len(starts[bm][y])
-            for z in range(len(starts[bm][x])):
-                diff = float(starts[bm][x][z]) / float(starts[bm][y][z])
-                testpass = True
-                if diff < 1.0:
-                    if diff < (1.0 - TOLERABLE_INST_OFFSET):
-                        testpass = False
-                else:
-                    if diff > (1.0 + TOLERABLE_INST_OFFSET):
-                        testpass = False
-                if not testpass:
-                    print "FATAL: The instruction drift after fast-forwarding was to large: "+str(diff)
-                    sys.exit()
+    for bm in starts:
+        configs = starts[bm].keys()
+        for x in configs:
+            for y in configs:
+                assert len(starts[bm][x]) == len(starts[bm][y])
+                for z in range(len(starts[bm][x])):
+                    diff = float(starts[bm][x][z]) / float(starts[bm][y][z])
+                    testpass = True
+                    if diff < 1.0:
+                        if diff < (1.0 - TOLERABLE_INST_OFFSET):
+                            testpass = False
+                    else:
+                        if diff > (1.0 + TOLERABLE_INST_OFFSET):
+                            testpass = False
+                    if not testpass:
+                        print "FATAL: The instruction drift after fast-forwarding was to large: "+str(diff)
+                        sys.exit()
                 
 
 # MAIN SCIRPT ===================================
@@ -359,7 +367,7 @@ if avg_type == PRINT_ALL or keys_vertical:
     dataWidth = 20
 else:
     bmWidth = 10
-    dataWidth = 35
+    dataWidth = 25
 
 print " ".ljust(bmWidth),
 for k in sortedResKeys:
