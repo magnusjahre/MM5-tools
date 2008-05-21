@@ -14,7 +14,7 @@ PBS_DIR_NAME = "pbsfiles"
 
 header = """#!/bin/bash
 #PBS -N m5sim
-#PBS -lwalltime=160:00:00
+#PBS -lwalltime=16:00:00
 #PBS -lpmem=1000MB
 #PBS -m a
 #PBS -q default
@@ -40,10 +40,10 @@ def commit_command(fileID, cmd, cnt, fcnt):
 
 
 def flush_commands(fcnt):
-
+  if latest_commands != []:
     output = open(pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs','w')
     output.write(header)
-    
+     
     for fileID, command in latest_commands:
 
         # Change directory into the output directory
@@ -80,11 +80,8 @@ def get_command(benchmark,config):
     arguments.append('-EISEXPERIMENT')
     arguments.append(config[1])
   
-    if str(benchmark).isdigit():
-        arguments.append('-ESIMULATETICKS='+str(pbsconfig.simticks))
-    else:
-        arguments.append('-ESIMULATETICKS='+str(pbsconfig.simticks))
-        arguments.append('-EFASTFORWARDTICKS='+str(pbsconfig.fwticks))
+    arguments.append('-ESIMULATETICKS='+str(pbsconfig.simticks))
+    #arguments.append('-EFASTFORWARDTICKS='+str(pbsconfig.fwticks))
 
     
     command = pbsconfig.simbinary+' '

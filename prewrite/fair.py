@@ -54,8 +54,7 @@ for benchmark in pbsconfig.benchmarks:
   foo = resultfile.read()
   res = patternIPC.findall(foo)
   for string in res:
-    innerIPC = innerIPC + float(string.split()[1])
-  referenceIPC.append(innerIPC)
+    referenceIPC.append(float(string.split()[1]))
 
 
 print '#benchmark',
@@ -65,51 +64,48 @@ for config in pbsconfig.configs:
 
 print ' ' 
 
-L = [0.0] * len(pbsconfig.configs)
-
-bm = -1
-
+index= 0
 for benchmark in pbsconfig.benchmarks:
     print benchmark,
-    sumIPC = 0.0
-    index= 0
-    bm = bm + 1
 
-    array = []
+    config= pbsconfig.configs[46]
+    resID = pbsconfig.get_unique_id(benchmark,config)
 
-    for config in pbsconfig.configs:
-        resID = pbsconfig.get_unique_id(benchmark,config)
+    innerIPC = 0.0
+    minimum = 5000000
+    maximum = -5000000
+    try:
+      resultfile = open(resID+'/'+resID+'.txt')
+    except:
+      print '-',
 
-        innerIPC = 0.0
-        try:
-          resultfile = open(resID+'/'+resID+'.txt')
-        except:
-          print '-',
+    if resultfile != None:
+        foo = resultfile.read()
+        res = patternIPC.findall(foo)
 
-        if resultfile != None:
-            foo = resultfile.read()
-            res = patternIPC.findall(foo)
+        for string in res:
+          innerIPC =  float(string.split()[1])
 
-            try: 
-              for string in res:
-                    innerIPC = innerIPC + float(string.split()[1])
-            except:
-              innerIPC = -1.0
+          #print '\t',
+          #print innerIPC,
+          #print '\t',
+          #print referenceIPC[index],
 
-            array.append(innerIPC)
 
-        innerIPC = (innerIPC - referenceIPC[bm])/referenceIPC[bm] * 100.0
-         
-        print '\t',
-        print innerIPC,
-        L[index] = L[index] + innerIPC
-        index = index +1
+          degradation = (innerIPC - referenceIPC[index]) / referenceIPC[index] * 100.0
+
+          if (minimum > degradation):
+            minimum = degradation
+       
+          if (maximum < degradation):
+            maximum = degradation
+       
+          index = index+1
+
+     
+    print '\t',
+    print minimum,
+    #print '\t',
+    #print maximum,
     print ' '
 
-print "41,",
-index = 0
-for config in pbsconfig.configs:
-  print L[index] / len(pbsconfig.benchmarks),
-  print "\t",
-  index = index + 1
-  
