@@ -309,49 +309,47 @@ if fairness_metric != NO_FAIRNESS:
             newres[wl] = {}
         
         for key in results[wl]:
-            if key != pbsconfig.fairkey:
-                
-                #compute fairness metric
-                if fairness_metric == HARMONIC_SPEEDUP:
-                    invsum = 0
-                    for i in range(np):
-                        if str(i) in results[wl][key]:
-                            invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)]))
-                        else:
-                            invsum = -1
-                            break
-                    if invsum == -1:
-                        newres[wl][key] = "N/A"
+            #compute fairness metric
+            if fairness_metric == HARMONIC_SPEEDUP:
+                invsum = 0
+                for i in range(np):
+                    if str(i) in results[wl][key]:
+                        invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)]))
                     else:
-                        newres[wl][key] = np / invsum
-                    
-                elif fairness_metric == WEIGHTED_SUM_IPC:
-                    sum = 0
-                    for i in range(np):
-                        if str(i) in results[wl][key]:
-                            sum = sum + (float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))
-                        else:
-                            sum = -1
-                            break
-                    if sum == -1:
-                        newres[wl][key] = "N/A"
-                    else:
-                        newres[wl][key] = sum
-                elif fairness_metric == QOS:
-                    val = 0
-                    for i in range(np):
-                        if str(i) in results[wl][key]:
-                            val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
-                        else:
-                            val = -1
-                            break
-                    if val == -1:
-                        newres[wl][key] = "N/A"
-                    else:
-                        newres[wl][key] = val
+                        invsum = -1
+                        break
+                if invsum == -1:
+                    newres[wl][key] = "N/A"
                 else:
-                    print "Unknown fairness metric specified, quitting..."
-                    sys.exit()
+                    newres[wl][key] = np / invsum
+                
+            elif fairness_metric == WEIGHTED_SUM_IPC:
+                sum = 0
+                for i in range(np):
+                    if str(i) in results[wl][key]:
+                        sum = sum + (float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))
+                    else:
+                        sum = -1
+                        break
+                if sum == -1:
+                    newres[wl][key] = "N/A"
+                else:
+                    newres[wl][key] = sum
+            elif fairness_metric == QOS:
+                val = 0
+                for i in range(np):
+                    if str(i) in results[wl][key]:
+                        val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
+                    else:
+                        val = -1
+                        break
+                if val == -1:
+                    newres[wl][key] = "N/A"
+                else:
+                    newres[wl][key] = val
+            else:
+                print "Unknown fairness metric specified, quitting..."
+                sys.exit()
 
     results = newres
                 
@@ -364,7 +362,7 @@ sortedResKeys.sort()
 
 if avg_type == PRINT_ALL or keys_vertical:
     bmWidth = 20
-    dataWidth = 20
+    dataWidth = 25
 else:
     bmWidth = 10
     dataWidth = 25
