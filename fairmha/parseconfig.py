@@ -5,7 +5,7 @@ import pbsconfig
 
 # Parse mandatory options =======================
 
-TOLERABLE_INST_OFFSET = 0.03
+TOLERABLE_INST_OFFSET = 0.08
 
 HARMONIC = 1
 ARITHMETIC = 2
@@ -32,6 +32,7 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "hmean_speedup": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, HARMONIC_SPEEDUP),
            "weighted_sum_ipc": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, WEIGHTED_SUM_IPC),
            "qos": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
+           "seconds": ('host_seconds.*', NO_AVG, NO_FAIRNESS)
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
