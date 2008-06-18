@@ -5,18 +5,21 @@ import popen2
 
 def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
     scriptfile = open(str(benchmark)+suffix+".g", "w")
-    scriptfile.write("set title \"Workload "+str(benchmark)+": Adaptive MHA Behaviour\n")
+    scriptfile.write("set title \"Workload "+str(benchmark)+": IPC Profile\n")
     scriptfile.write("set xlabel \"Million Clock Cycles\"\n")
     scriptfile.write("set ylabel \""+ylabel+"\"\n")
     scriptfile.write("set xr["+str(mintick)+":"+str(maxtick)+"]\n");
-    scriptfile.write("set yr[0:17]\n");
 
     scriptfile.write("set key outside below\n")
 
     scriptfile.write("set terminal postscript eps color enhanced 18\n")
     scriptfile.write("set output \""+str(benchmark)+suffix+".eps\"\n")
   
-    scriptfile.write("plot \""+input+"\" using 1:2 title \'MSHRs\' with lines, \""+input+"\" using 1:3 title \'Write Back Queue\' with lines\n")
+    scriptfile.write("plot ")
+    for i in range(np):
+        if i > 0:
+            scriptfile.write(", ")
+        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'CPU "+str(i)+"\' with lines")
 
     scriptfile.flush()
     scriptfile.close()
@@ -31,7 +34,7 @@ def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
 
 np = 4
 
-os.mkdir("adaptivePlot")
+os.mkdir("IPCPlot")
 
 for cmd, config in pbsconfig.commandlines:
 
@@ -42,15 +45,16 @@ for cmd, config in pbsconfig.commandlines:
     os.chdir(resID)    
     statsfile = None
     try:
-        statsfile = open("adaptiveMHATrace.txt")
+        statsfile = open("ipcTrace.txt")
     except:
         print "File not found for experiment "+resID
     
     if statsfile != None:
 
-        gpReadable = open("adaptiveMHATrace_gpInput.txt", 'w')
+        gpReadable = open("IPCPlot_gpInput.txt", 'w')
     
         first = True
+        second = True
         firstDataLine = True
         mintick = -1
         maxtick = -1
@@ -58,25 +62,25 @@ for cmd, config in pbsconfig.commandlines:
         for line in statsfile.readlines():
             if first:
                 fields = line.split(';')
-                gpReadable.write(("Tick").ljust(30)+("Avg MSHRs").ljust(30)+("Avg WBs".ljust(30)))
+                gpReadable.write(("Tick").ljust(30))
+                for i in range(np):
+                    gpReadable.write(("CPU"+str(i)+" IPC").ljust(30))
                 first = False
-            
             else:
                 fields = line.split(';')
-                sum = 0.0
-                wbs = 0.0
+                gpReadable.write(fields[0].ljust(30))
                 for f in fields[1:5]:
-                    sum = sum + int(f)
-                
-                for wb in fields[5:9]:
-                    wbs = wbs + int(wb)
-
-                gpReadable.write(fields[0].ljust(30)+str(sum/np).ljust(30)+str(wbs/np).ljust(30))
+                    if not second:
+                        gpReadable.write(f.strip().ljust(30))
+                    else:
+                        gpReadable.write("0.0".ljust(30))
                                     
                 if firstDataLine:
                     mintick = int(fields[0])
                     firstDataLine = False
-                                    
+
+                if second:
+                    second = False
                 maxtick = int(fields[0])
             gpReadable.write("\n")
             
@@ -90,13 +94,12 @@ for cmd, config in pbsconfig.commandlines:
         name = writeFile(config[0],                  
                          "_adaptive_"+str(thresStr),
                          thresStr,
-                         "Resource Allocation",
+                         "IPC",
                          maxtick+100000,
                          mintick-100000,
-                         "adaptiveMHATrace_gpInput.txt")
+                         "IPCPlot_gpInput.txt")
 
-        os.rename(name, '../adaptivePlot/'+name)
-    
-            
+        os.rename(name, '../IPCPlot/'+name)
+
     os.chdir('..')
 

@@ -108,7 +108,7 @@ for option in sys.argv[2:]:
         selectedWls = std_wls + bw_wls
     
     if option == "print_max":
-        print_max = True
+       print_max = True
 
     if option == "one_benchmark":
         keys_vertical = True
@@ -118,8 +118,7 @@ for option in sys.argv[2:]:
 
 # Prepare for analysis ==========================
 
-#np = 4
-np = 1
+np = 4
 
 pattern = re.compile(patternString)
 
@@ -315,7 +314,7 @@ if fairness_metric != NO_FAIRNESS:
                 invsum = 0
                 for i in range(np):
                     if str(i) in results[wl][key]:
-                        invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)]))
+                        invsum = invsum + ((float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)])))
                     else:
                         invsum = -1
                         break
