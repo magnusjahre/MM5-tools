@@ -2,21 +2,27 @@
 import os
 import pbsconfig
 import popen2
+import workloads
 
 def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
     scriptfile = open(str(benchmark)+suffix+".g", "w")
     scriptfile.write("set title \"Workload "+str(benchmark)+": Adaptive MHA Behaviour\n")
     scriptfile.write("set xlabel \"Million Clock Cycles\"\n")
     scriptfile.write("set ylabel \""+ylabel+"\"\n")
-    scriptfile.write("set xr["+str(mintick)+":"+str(maxtick)+"]\n");
-    scriptfile.write("set yr[0:17]\n");
+    scriptfile.write("set xr["+str(mintick)+":"+str(maxtick)+"]\n")
+    scriptfile.write("set yr[0:17]\n")
 
     scriptfile.write("set key outside below\n")
 
     scriptfile.write("set terminal postscript eps color enhanced 18\n")
     scriptfile.write("set output \""+str(benchmark)+suffix+".eps\"\n")
   
-    scriptfile.write("plot \""+input+"\" using 1:2 title \'MSHRs\' with lines, \""+input+"\" using 1:3 title \'Write Back Queue\' with lines\n")
+    scriptfile.write("plot ")
+    for i in range(np):
+        if i != 0:
+            scriptfile.write(", ")
+        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'"+workloads.workloads[np][int(benchmark)][0][i]+"\' with lines")
+    scriptfile.write("\n")
 
     scriptfile.flush()
     scriptfile.close()
@@ -58,20 +64,18 @@ for cmd, config in pbsconfig.commandlines:
         for line in statsfile.readlines():
             if first:
                 fields = line.split(';')
-                gpReadable.write(("Tick").ljust(30)+("Avg MSHRs").ljust(30)+("Avg WBs".ljust(30)))
+                gpReadable.write(("Tick").ljust(30))
+                for i in range(np):
+                    gpReadable.write(("D-Cache "+str(i)+" MSHRs").ljust(30))
+
                 first = False
             
             else:
                 fields = line.split(';')
-                sum = 0.0
-                wbs = 0.0
-                for f in fields[1:5]:
-                    sum = sum + int(f)
-                
-                for wb in fields[5:9]:
-                    wbs = wbs + int(wb)
 
-                gpReadable.write(fields[0].ljust(30)+str(sum/np).ljust(30)+str(wbs/np).ljust(30))
+                gpReadable.write(fields[0].ljust(30))
+                for f in fields[1:5]:
+                    gpReadable.write(str(f).ljust(30))
                                     
                 if firstDataLine:
                     mintick = int(fields[0])

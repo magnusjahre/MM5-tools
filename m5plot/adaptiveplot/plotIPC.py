@@ -2,6 +2,7 @@
 import os
 import pbsconfig
 import popen2
+import workloads
 
 def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
     scriptfile = open(str(benchmark)+suffix+".g", "w")
@@ -19,7 +20,7 @@ def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
     for i in range(np):
         if i > 0:
             scriptfile.write(", ")
-        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'CPU "+str(i)+"\' with lines")
+        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'"+workloads.workloads[np][int(benchmark)][0][i]+"\' with lines")
 
     scriptfile.flush()
     scriptfile.close()
