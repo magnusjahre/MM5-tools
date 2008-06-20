@@ -5,7 +5,7 @@ import pbsconfig
 
 # Parse mandatory options =======================
 
-TOLERABLE_INST_OFFSET = 0.08
+TOLERABLE_INST_OFFSET = 0.15
 
 HARMONIC = 1
 ARITHMETIC = 2
