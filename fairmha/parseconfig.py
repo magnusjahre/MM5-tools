@@ -339,7 +339,10 @@ if fairness_metric != NO_FAIRNESS:
                 val = 0
                 for i in range(np):
                     if str(i) in results[wl][key]:
-                        val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
+                        try:
+                            val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
+                        except:
+                            val = -1
                     else:
                         val = -1
                         break
