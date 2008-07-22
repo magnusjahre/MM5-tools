@@ -2,6 +2,7 @@
 import re
 import sys
 import pbsconfig
+import deterministic_fw_wls as fair_workloads
 
 # Parse mandatory options =======================
 
@@ -59,7 +60,8 @@ optionalOptions = {"no_hog": "",
                    "print_max": "",
                    "one_benchmark":"",
                    "invert_dims":"",
-                   "disable_drift_check":""
+                   "disable_drift_check":"",
+                   "compare_to_alone":""
                   }
 
 SELECTED_WL = 1
@@ -76,6 +78,7 @@ wl_selection = ALL
 print_max = False
 keys_vertical = False
 disable_drift_check = False
+compare_to_alone = False
 
 std_wls = ['06', '08', '12', '15', '27', '28', '35']
 bw_wls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
@@ -115,6 +118,9 @@ for option in sys.argv[2:]:
 
     if option == "disable_drift_check":
         disable_drift_check = True
+
+    if option == "compare_to_alone":
+        compare_to_alone = True
 
 # Prepare for analysis ==========================
 
@@ -181,7 +187,47 @@ if not disable_drift_check:
                     if not testpass:
                         print "FATAL: The instruction drift after fast-forwarding was to large: "+str(diff)
                         sys.exit()
-                
+
+# RETRIVE ALONE RESULTS IF NEEDED  ==============
+
+wlAloneIPCs = {}
+
+if compare_to_alone:
+    aloneIPCs = {}
+    for cmd, config in pbsconfig.alonecommands:
+        resID = pbsconfig.get_unique_id(config)
+
+        resultfile = None
+        
+        try:
+            resultfile = open(resID+'/'+resID+'.txt')
+        except IOError:
+            print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
+        
+        if resultfile != None:
+            ipc = pattern.findall(resultfile.read())[0].split()[1]
+            aloneIPCs[getBenchmark(cmd)] = ipc
+
+    for wl in fair_workloads.workloads:
+        bms = fair_workloads.workloads[wl][0]
+        bmCnt = {}
+        transBms = []
+        for bm in bms:
+            if bm not in bmCnt:
+                bmCnt[bm] = 0
+            transBms.append(bm+str(bmCnt[bm]))
+            bmCnt[bm] = bmCnt[bm] + 1
+
+        key = ""
+        if wl < 10:
+            key = "fair0"+str(wl)
+        else:
+            key = "fair"+str(wl)
+
+        wlAloneIPCs[key] = []
+        for bm in transBms:
+            wlAloneIPCs[key].append(aloneIPCs[bm])
+            
 
 # MAIN SCIRPT ===================================
 
@@ -314,7 +360,11 @@ if fairness_metric != NO_FAIRNESS:
                 invsum = 0
                 for i in range(np):
                     if str(i) in results[wl][key]:
-                        invsum = invsum + ((float(results[wl][pbsconfig.fairkey][str(i)]) / float(results[wl][key][str(i)])))
+                        result = float(results[wl][key][str(i)])
+                        if compare_to_alone:
+                            invsum = invsum + float(wlAloneIPCs[wl][i]) / result
+                        else:
+                            invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / result)
                     else:
                         invsum = -1
                         break
@@ -327,7 +377,11 @@ if fairness_metric != NO_FAIRNESS:
                 sum = 0
                 for i in range(np):
                     if str(i) in results[wl][key]:
-                        sum = sum + (float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))
+                        result = float(results[wl][key][str(i)]) 
+                        if compare_to_alone:
+                            sum = sum + (result / float(wlAloneIPCs[wl][i]))
+                        else:
+                            sum = sum + (result / float(results[wl][pbsconfig.fairkey][str(i)]))
                     else:
                         sum = -1
                         break
@@ -339,8 +393,13 @@ if fairness_metric != NO_FAIRNESS:
                 val = 0
                 for i in range(np):
                     if str(i) in results[wl][key]:
+
+                        result = float(results[wl][key][str(i)])
                         try:
-                            val = val + min(0,(float(results[wl][key][str(i)]) / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
+                            if compare_to_alone:
+                                val = val + min(0,(result / float(wlAloneIPCs[wl][i]))-1)
+                            else:
+                                val = val + min(0,(result / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
                         except:
                             val = -1
                     else:
