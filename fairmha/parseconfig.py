@@ -143,8 +143,8 @@ def getBenchmark(cmd):
 
 # Control error from instruction drift ==========
 
+starts = {}
 if not disable_drift_check:
-    starts = {}
     for cmd, config in pbsconfig.commandlines:
         resID = pbsconfig.get_unique_id(config)
     
@@ -170,6 +170,8 @@ if not disable_drift_check:
             
             starts[bm][key] = insts
 
+    maxdiff = 0.0
+    mindiff = 1000.0
     for bm in starts:
         configs = starts[bm].keys()
         for x in configs:
@@ -178,6 +180,12 @@ if not disable_drift_check:
                 for z in range(len(starts[bm][x])):
                     diff = float(starts[bm][x][z]) / float(starts[bm][y][z])
                     testpass = True
+                    if diff > maxdiff:
+                        maxdiff = diff
+
+                    if diff < mindiff:
+                        mindiff = diff
+
                     if diff < 1.0:
                         if diff < (1.0 - TOLERABLE_INST_OFFSET):
                             testpass = False
@@ -188,12 +196,20 @@ if not disable_drift_check:
                         print "FATAL: The instruction drift after fast-forwarding was to large: "+str(diff)
                         sys.exit()
 
+    sys.stderr.write("Max difference in drift check: "+str(maxdiff)+"\n")
+    sys.stderr.write("Min difference in drift check: "+str(mindiff)+"\n")
+
 # RETRIVE ALONE RESULTS IF NEEDED  ==============
 
 wlAloneIPCs = {}
 
 if compare_to_alone:
+
+    assert len(pbsconfig.alonecommands) > 0
+
+    # Retrieve results
     aloneIPCs = {}
+    aloneStarts = {}
     for cmd, config in pbsconfig.alonecommands:
         resID = pbsconfig.get_unique_id(config)
 
@@ -208,6 +224,23 @@ if compare_to_alone:
             ipc = pattern.findall(resultfile.read())[0].split()[1]
             aloneIPCs[getBenchmark(cmd)] = ipc
 
+        switchfile = None
+        try:
+            switchfile = open(resID+'/cpuSwitchInsts.txt')
+        except IOError:
+            print "WARNING: could not open switch file!"
+
+        if switchfile != None:     
+            insts = []
+            for line in switchfile.readlines():
+                res = instPattern.findall(line)
+                insts.append(int(res[0]))
+            
+            assert len(insts) == 1
+            aloneStarts[getBenchmark(cmd)] = insts[0]
+
+    mindiff = 1000.0
+    maxdiff = 0.0
     for wl in fair_workloads.workloads:
         bms = fair_workloads.workloads[wl][0]
         bmCnt = {}
@@ -227,6 +260,27 @@ if compare_to_alone:
         wlAloneIPCs[key] = []
         for bm in transBms:
             wlAloneIPCs[key].append(aloneIPCs[bm])
+
+        # Compute maximum drift
+        if not disable_drift_check:
+            assert len(starts) > 0
+            wlStarts = starts[key]
+
+            for configs in wlStarts:
+                startArray = wlStarts[configs]
+                assert len(startArray) == len(transBms)
+                for i in range(len(startArray)):
+                    diff = float(startArray[i]) / float(aloneStarts[transBms[i]])
+                    
+                    if diff > maxdiff:
+                        maxdiff = diff
+                    if diff < mindiff:
+                        mindiff = diff
+
+            
+    if not disable_drift_check:
+        sys.stderr.write("Max difference in drift check with alone: "+str(maxdiff)+"\n")
+        sys.stderr.write("Min difference in drift check with alone: "+str(mindiff)+"\n")
             
 
 # MAIN SCIRPT ===================================
