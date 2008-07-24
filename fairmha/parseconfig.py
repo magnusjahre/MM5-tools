@@ -133,6 +133,7 @@ cpuIDPattern = re.compile("[0-9]+")
 bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 
 instPattern = re.compile(" [0-9]+ ")
+simpleCPUStringPattern = re.compile("simpleCPU[0-9]")
 
 # PROCEDURES ====================================
 
@@ -164,10 +165,14 @@ if not disable_drift_check:
                 starts[bm][key] = {}
 
             insts = []
+            for i in range(np):
+                insts.append(-1)
             for line in switchfile.readlines():
                 res = instPattern.findall(line)
-                insts.append(int(res[0]))
-            
+                scpuRes = simpleCPUStringPattern.findall(line)
+                cpuIDRes = cpuIDPattern.findall(scpuRes[0])
+                insts[int(cpuIDRes[0])]= int(res[0])
+
             starts[bm][key] = insts
 
     maxdiff = 0.0
@@ -239,8 +244,16 @@ if compare_to_alone:
             assert len(insts) == 1
             aloneStarts[getBenchmark(cmd)] = insts[0]
 
+    warningTolerance = 0.5
+
     mindiff = 1000.0
+    minkey = ""
     maxdiff = 0.0
+    maxkey = ""
+
+    sum = 0.0
+    cnt = 0.0
+
     for wl in fair_workloads.workloads:
         bms = fair_workloads.workloads[wl][0]
         bmCnt = {}
@@ -274,13 +287,22 @@ if compare_to_alone:
                     
                     if diff > maxdiff:
                         maxdiff = diff
+                        maxkey = str(key)+"_"+str(configs)
                     if diff < mindiff:
                         mindiff = diff
+                        minkey = str(key)+"_"+str(configs)
 
+                    if diff < 1.0:
+                        sum = sum + diff
+                        cnt = cnt + 1
+
+                    if diff < warningTolerance:
+                        sys.stderr.write("WARNING: experiment "+str(key)+"_"+str(configs)+" has a difference of "+str(diff)+"\n")
             
     if not disable_drift_check:
-        sys.stderr.write("Max difference in drift check with alone: "+str(maxdiff)+"\n")
-        sys.stderr.write("Min difference in drift check with alone: "+str(mindiff)+"\n")
+        sys.stderr.write("Max difference in drift check with alone: "+str(maxdiff)+" for experiment "+maxkey+"\n")
+        sys.stderr.write("Min difference in drift check with alone: "+str(mindiff)+", for experiment "+minkey+"\n")
+        sys.stderr.write("Average difference where alone outperforms workload: "+str(sum / cnt)+"\n")
             
 
 # MAIN SCIRPT ===================================
