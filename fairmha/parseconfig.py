@@ -3,6 +3,7 @@ import re
 import sys
 import pbsconfig
 import deterministic_fw_wls as fair_workloads
+import single_core_fw as single_core
 
 # Parse mandatory options =======================
 
@@ -18,6 +19,7 @@ NO_FAIRNESS = 10
 HARMONIC_SPEEDUP = 11
 WEIGHTED_SUM_IPC = 12
 QOS = 13
+UNFARINESS_INDEX = 14
 
 options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL, NO_FAIRNESS),
@@ -30,10 +32,11 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "l2_blocked_mshrs": ('L2Bank..blocked_no_mshr.*', ARITHMETIC, NO_FAIRNESS),
            "l2_blocked_targets": ('L2Bank..blocked_no_targets.*', ARITHMETIC, NO_FAIRNESS),
            "total_l2_misses": ('L2Bank..overall_misses.*', SUM, NO_FAIRNESS),
-           "hmean_speedup": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, HARMONIC_SPEEDUP),
+           "HMoS": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, HARMONIC_SPEEDUP),
            "weighted_sum_ipc": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, WEIGHTED_SUM_IPC),
-           "qos": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
-           "seconds": ('host_seconds.*', NO_AVG, NO_FAIRNESS)
+           "QoS": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
+           "seconds": ('host_seconds.*', NO_AVG, NO_FAIRNESS),
+           "UI": ('detailedCPU..COM:total_ticks_stalled_for_memory.*', PRINT_ALL, UNFARINESS_INDEX)
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
@@ -61,7 +64,8 @@ optionalOptions = {"no_hog": "",
                    "one_benchmark":"",
                    "invert_dims":"",
                    "disable_drift_check":"",
-                   "compare_to_alone":""
+                   "compare_to_alone":"",
+                   "print_commit_diffs":""
                   }
 
 SELECTED_WL = 1
@@ -79,6 +83,7 @@ print_max = False
 keys_vertical = False
 disable_drift_check = False
 compare_to_alone = False
+print_commit_diffs = False
 
 std_wls = ['06', '08', '12', '15', '27', '28', '35']
 bw_wls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
@@ -122,6 +127,9 @@ for option in sys.argv[2:]:
     if option == "compare_to_alone":
         compare_to_alone = True
 
+    if option == "print_commit_diffs":
+        print_commit_diffs = True
+
 # Prepare for analysis ==========================
 
 np = 4
@@ -133,6 +141,7 @@ cpuIDPattern = re.compile("[0-9]+")
 bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 
 instPattern = re.compile(" [0-9]+ ")
+instCntPattern = re.compile("detailedCPU..COM:count.*")
 simpleCPUStringPattern = re.compile("simpleCPU[0-9]")
 
 # PROCEDURES ====================================
@@ -206,14 +215,17 @@ if not disable_drift_check:
 
 # RETRIVE ALONE RESULTS IF NEEDED  ==============
 
-wlAloneIPCs = {}
+aloneValues = {}
+aloneInstCounts = {}
+aloneInstCntPerBM = {}
 
 if compare_to_alone:
 
     assert len(pbsconfig.alonecommands) > 0
 
     # Retrieve results
-    aloneIPCs = {}
+    tmpAloneVals = {}
+    tmpICounts = {}
     aloneStarts = {}
     for cmd, config in pbsconfig.alonecommands:
         resID = pbsconfig.get_unique_id(config)
@@ -226,8 +238,11 @@ if compare_to_alone:
             print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
         
         if resultfile != None:
-            ipc = pattern.findall(resultfile.read())[0].split()[1]
-            aloneIPCs[getBenchmark(cmd)] = ipc
+            tmpText = resultfile.read()
+            ipc = pattern.findall(tmpText)[0].split()[1]
+            tmpAloneVals[getBenchmark(cmd)] = ipc
+            iCount = instCntPattern.findall(tmpText)[0].split()[1]
+            tmpICounts[getBenchmark(cmd)] = iCount
 
         switchfile = None
         try:
@@ -270,9 +285,14 @@ if compare_to_alone:
         else:
             key = "fair"+str(wl)
 
-        wlAloneIPCs[key] = []
+        aloneValues[key] = []
+        aloneInstCounts[key] = []
         for bm in transBms:
-            wlAloneIPCs[key].append(aloneIPCs[bm])
+            aloneValues[key].append(tmpAloneVals[bm])
+            aloneInstCounts[key].append(tmpICounts[bm])
+
+            if bm not in aloneInstCntPerBM:
+                aloneInstCntPerBM[bm] = tmpICounts[bm]
 
         # Compute maximum drift
         if not disable_drift_check:
@@ -298,16 +318,16 @@ if compare_to_alone:
 
                     if diff < warningTolerance:
                         sys.stderr.write("WARNING: experiment "+str(key)+"_"+str(configs)+" has a difference of "+str(diff)+"\n")
-            
     if not disable_drift_check:
         sys.stderr.write("Max difference in drift check with alone: "+str(maxdiff)+" for experiment "+maxkey+"\n")
         sys.stderr.write("Min difference in drift check with alone: "+str(mindiff)+", for experiment "+minkey+"\n")
         sys.stderr.write("Average difference where alone outperforms workload: "+str(sum / cnt)+"\n")
-            
 
-# MAIN SCIRPT ===================================
+
+# RETRIEVE SIMULATION STATISTICS ================================
 
 results = {}
+instCounts = {}
 
 for cmd, config in pbsconfig.commandlines:
 
@@ -328,10 +348,27 @@ for cmd, config in pbsconfig.commandlines:
         print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
         
     if resultfile != None:
-        res = pattern.findall(resultfile.read())
+        fileText = resultfile.read()
+        res = pattern.findall(fileText)
+        instCntRes = instCntPattern.findall(fileText)
         sum = 0.0
         avg = 0.0
         data = []
+
+        for string in instCntRes:
+            tmp = string.split()
+            cpuID = cpuIDPattern.findall(tmp[0])[0]
+            benchmark = getBenchmark(cmd)
+            key = pbsconfig.get_key(cmd, config)
+
+ 
+            if benchmark not in instCounts:
+                instCounts[benchmark] = {}
+            
+            if str(key) not in instCounts[benchmark]:
+                instCounts[benchmark][str(key)] = {}
+
+            instCounts[benchmark][str(key)][cpuID] = tmp[1]
  
         for string in res:
             try:
@@ -412,6 +449,7 @@ for cmd, config in pbsconfig.commandlines:
                 assert resKey not in results[lineKey]
                 results[lineKey][resKey] = str(r)
 
+# INVERT DICTIONARY IF NEEDED ================================
 if keys_vertical and avg_type != PRINT_ALL:
     r2 = {}
     for k1 in results:
@@ -424,6 +462,7 @@ if keys_vertical and avg_type != PRINT_ALL:
 
     results = r2
 
+# COMPUTE FAIRNESS METRICS ===================================
 if fairness_metric != NO_FAIRNESS:
     newres = {}
     for wl in results:
@@ -438,7 +477,7 @@ if fairness_metric != NO_FAIRNESS:
                     if str(i) in results[wl][key]:
                         result = float(results[wl][key][str(i)])
                         if compare_to_alone:
-                            invsum = invsum + float(wlAloneIPCs[wl][i]) / result
+                            invsum = invsum + float(aloneValues[wl][i]) / result
                         else:
                             invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / result)
                     else:
@@ -455,7 +494,7 @@ if fairness_metric != NO_FAIRNESS:
                     if str(i) in results[wl][key]:
                         result = float(results[wl][key][str(i)]) 
                         if compare_to_alone:
-                            sum = sum + (result / float(wlAloneIPCs[wl][i]))
+                            sum = sum + (result / float(aloneValues[wl][i]))
                         else:
                             sum = sum + (result / float(results[wl][pbsconfig.fairkey][str(i)]))
                     else:
@@ -473,7 +512,7 @@ if fairness_metric != NO_FAIRNESS:
                         result = float(results[wl][key][str(i)])
                         try:
                             if compare_to_alone:
-                                val = val + min(0,(result / float(wlAloneIPCs[wl][i]))-1)
+                                val = val + min(0,(result / float(aloneValues[wl][i]))-1)
                             else:
                                 val = val + min(0,(result / float(results[wl][pbsconfig.fairkey][str(i)]))-1)
                         except:
@@ -485,12 +524,93 @@ if fairness_metric != NO_FAIRNESS:
                     newres[wl][key] = "N/A"
                 else:
                     newres[wl][key] = val
+
+            elif fairness_metric == UNFARINESS_INDEX:
+                values = []
+                
+                for i in range(np):
+                    if str(i) in results[wl][key]:
+                        result = float(results[wl][key][str(i)]) / float(instCounts[wl][key][str(i)])
+                        if compare_to_alone:
+                            tmp = float(aloneValues[wl][i]) / float(aloneInstCounts[wl][i])
+                            values.append(result / tmp)
+                        else:
+                            tmp = float(results[wl][pbsconfig.fairkey][str(i)]) / float(instCounts[wl][pbsconfig.fairkey][str(i)])
+                            values.append(result / tmp)
+                    else:
+                        values = []
+                        break
+
+                ui = max(values) / min(values)
+
+                if values == []:
+                    newres[wl][key] = "N/A"
+                else:
+                    newres[wl][key] = ui
+
             else:
                 print "Unknown fairness metric specified, quitting..."
                 sys.exit()
 
     results = newres
-                
+
+# CONTROL COMMITTED INSTRUCTION DRIFT =============
+
+if print_commit_diffs:
+
+    bmDict = {}
+
+    for bm in single_core.configuration:
+        bmDict[bm] = {}
+
+    for wl in instCounts:
+        wlID = int(cpuIDPattern.findall(wl)[0])
+
+        bms = fair_workloads.workloads[wlID][0]
+        bmCnt = {}
+        transBms = []
+        for bm in bms:
+            if bm not in bmCnt:
+                bmCnt[bm] = 0
+            transBms.append(bm+str(bmCnt[bm]))
+            bmCnt[bm] = bmCnt[bm] + 1
+
+        for key in instCounts[wl]:
+            for i in range(np):
+                uniqueKey = str(wl)+"_"+str(key)
+                assert uniqueKey not in bmDict[transBms[i]]
+                bmDict[transBms[i]][uniqueKey] = int(instCounts[wl][key][str(i)])
+
+    print
+    print "Printing larges instruction commit difference between configurations:"
+    print
+    for bm in bmDict:
+        iList = []
+        for n, i in bmDict[bm].items():
+            iList.append(i)
+
+        print "Diff for "+bm+": "+str(float(max(iList))/float(min(iList)))
+
+
+    if compare_to_alone:
+        print
+        print "Printing largest difference with Alone"
+        print
+
+        for bm in bmDict:
+            iList = []
+            for n, i in bmDict[bm].items():
+                iList.append(i)
+
+            print "Maxdiff for "+bm+": "+str(float(max(iList))/float(aloneInstCntPerBM[bm]))
+            print "Mindiff for "+bm+": "+str(float(min(iList))/float(aloneInstCntPerBM[bm]))
+
+    print
+    print "Finished printing commit drift, quitting..."
+    print
+    sys.exit()
+
+# PRINT RESULTS ===================================
 
 sortedKeys = results.keys()
 sortedKeys.sort()
@@ -500,10 +620,10 @@ sortedResKeys.sort()
 
 if avg_type == PRINT_ALL or keys_vertical:
     bmWidth = 20
-    dataWidth = 25
+    dataWidth = 35
 else:
     bmWidth = 10
-    dataWidth = 25
+    dataWidth = 35
 
 print " ".ljust(bmWidth),
 for k in sortedResKeys:
