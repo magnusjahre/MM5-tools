@@ -20,6 +20,7 @@ HARMONIC_SPEEDUP = 11
 WEIGHTED_SUM_IPC = 12
 QOS = 13
 UNFARINESS_INDEX = 14
+IPC_UNFAIRNESS_INDEX = 15
 
 options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL, NO_FAIRNESS),
@@ -36,7 +37,8 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "weighted_sum_ipc": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, WEIGHTED_SUM_IPC),
            "QoS": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
            "seconds": ('host_seconds.*', NO_AVG, NO_FAIRNESS),
-           "UI": ('detailedCPU..COM:total_ticks_stalled_for_memory.*', PRINT_ALL, UNFARINESS_INDEX)
+           "UI": ('detailedCPU..COM:total_ticks_stalled_for_memory.*', PRINT_ALL, UNFARINESS_INDEX),
+           "UI_IPC": ('detailedCPU..COM:IPC.*', PRINT_ALL, IPC_UNFAIRNESS_INDEX)
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
@@ -548,9 +550,32 @@ if fairness_metric != NO_FAIRNESS:
                 else:
                     newres[wl][key] = ui
 
+            elif fairness_metric == IPC_UNFAIRNESS_INDEX:
+
+                values = []
+                
+                for i in range(np):
+                    if str(i) in results[wl][key]:
+                        result = float(results[wl][key][str(i)])
+                        if compare_to_alone:
+                            values.append(result / float(aloneValues[wl][i]))
+                        else:
+                            values.append(result / float(results[wl][pbsconfig.fairkey][str(i)]))
+                    else:
+                        values = []
+                        break
+
+                ui = max(values) / min(values)
+
+                if values == []:
+                    newres[wl][key] = "N/A"
+                else:
+                    newres[wl][key] = ui
+
             else:
                 print "Unknown fairness metric specified, quitting..."
                 sys.exit()
+            
 
     results = newres
 
