@@ -479,9 +479,17 @@ if fairness_metric != NO_FAIRNESS:
                     if str(i) in results[wl][key]:
                         result = float(results[wl][key][str(i)])
                         if compare_to_alone:
-                            invsum = invsum + float(aloneValues[wl][i]) / result
+                            try:
+                                invsum = invsum + float(aloneValues[wl][i]) / result
+                            except:
+                                invsum = -1
+                                break
                         else:
-                            invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / result)
+                            try:
+                                invsum = invsum + (float(results[wl][pbsconfig.fairkey][str(i)]) / result)
+                            except:
+                                invsum = -1
+                                break
                     else:
                         invsum = -1
                         break
@@ -558,18 +566,25 @@ if fairness_metric != NO_FAIRNESS:
                     if str(i) in results[wl][key]:
                         result = float(results[wl][key][str(i)])
                         if compare_to_alone:
-                            values.append(result / float(aloneValues[wl][i]))
+                            try:
+                                values.append(result / float(aloneValues[wl][i]))
+                            except:
+                                values = []
+                                break
                         else:
-                            values.append(result / float(results[wl][pbsconfig.fairkey][str(i)]))
+                            try:
+                                values.append(result / float(results[wl][pbsconfig.fairkey][str(i)]))
+                            except:
+                                values = []
+                                break
                     else:
                         values = []
                         break
 
-                ui = max(values) / min(values)
-
                 if values == []:
                     newres[wl][key] = "N/A"
                 else:
+                    ui = max(values) / min(values)
                     newres[wl][key] = ui
 
             else:
@@ -645,7 +660,7 @@ sortedResKeys.sort()
 
 if avg_type == PRINT_ALL or keys_vertical:
     bmWidth = 20
-    dataWidth = 35
+    dataWidth = 50
 else:
     bmWidth = 10
     dataWidth = 35
