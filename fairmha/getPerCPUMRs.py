@@ -106,7 +106,10 @@ for b in range(CACHE_BANK_COUNT):
     print "Cache bank "+str(b)+":"
     for i in range(np):
         tmp = cacheData["misses"][b][i] / cacheData["accesses"][b][i]
-        print ("CPU"+str(i)).ljust(10)+str(tmp).rjust(20)
+        missesPerInst = cacheData["misses"][b][i] / cpuData["committed"][i]
+        print ("CPU"+str(i)).ljust(10) \
+              +str(tmp).rjust(20) \
+              +str(missesPerInst*1000).rjust(20)
 
 print
 print "Per CPU Memory Page Miss rates:"
