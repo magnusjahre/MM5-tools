@@ -20,7 +20,7 @@ HARMONIC_SPEEDUP = 11
 WEIGHTED_SUM_IPC = 12
 QOS = 13
 UNFARINESS_INDEX = 14
-IPC_UNFAIRNESS_INDEX = 15
+IPC_FAIRNESS = 15
 
 options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL, NO_FAIRNESS),
@@ -38,7 +38,7 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "QoS": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
            "seconds": ('host_seconds.*', NO_AVG, NO_FAIRNESS),
            "UI": ('detailedCPU..COM:total_ticks_stalled_for_memory.*', PRINT_ALL, UNFARINESS_INDEX),
-           "UI_IPC": ('detailedCPU..COM:IPC.*', PRINT_ALL, IPC_UNFAIRNESS_INDEX)
+           "fairness": ('detailedCPU..COM:IPC.*', PRINT_ALL, IPC_FAIRNESS)
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
@@ -558,7 +558,7 @@ if fairness_metric != NO_FAIRNESS:
                 else:
                     newres[wl][key] = ui
 
-            elif fairness_metric == IPC_UNFAIRNESS_INDEX:
+            elif fairness_metric == IPC_FAIRNESS:
 
                 values = []
                 
@@ -584,7 +584,7 @@ if fairness_metric != NO_FAIRNESS:
                 if values == []:
                     newres[wl][key] = "N/A"
                 else:
-                    ui = max(values) / min(values)
+                    ui = min(values) / max(values)
                     newres[wl][key] = ui
 
             else:
