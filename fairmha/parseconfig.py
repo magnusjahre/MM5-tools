@@ -67,7 +67,8 @@ optionalOptions = {"no_hog": "",
                    "invert_dims":"",
                    "disable_drift_check":"",
                    "compare_to_alone":"",
-                   "print_commit_diffs":""
+                   "print_commit_diffs":"",
+                   "print_best_w_key":""
                   }
 
 SELECTED_WL = 1
@@ -86,6 +87,8 @@ keys_vertical = False
 disable_drift_check = False
 compare_to_alone = False
 print_commit_diffs = False
+print_best_w_key = False
+invert_dims = False
 
 std_wls = ['06', '08', '12', '15', '27', '28', '35']
 bw_wls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
@@ -132,6 +135,12 @@ for option in sys.argv[2:]:
     if option == "print_commit_diffs":
         print_commit_diffs = True
 
+    if option == "print_best_w_key":
+        print_best_w_key = True
+
+    if option == "invert_dims":
+        invert_dims = True
+
 # Prepare for analysis ==========================
 
 np = 4
@@ -164,7 +173,7 @@ if not disable_drift_check:
         try:
             switchfile = open(resID+'/cpuSwitchInsts.txt')
         except IOError:
-            print "WARNING: could not open switch file!"
+            sys.stderr.write("WARNING: could not open switch file for experiment "+resID+"!\n")
 
         if switchfile != None:
             bm = getBenchmark(cmd)
@@ -237,7 +246,7 @@ if compare_to_alone:
         try:
             resultfile = open(resID+'/'+resID+'.txt')
         except IOError:
-            print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
+            sys.stderr.write("WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt\n')
         
         if resultfile != None:
             tmpText = resultfile.read()
@@ -250,7 +259,7 @@ if compare_to_alone:
         try:
             switchfile = open(resID+'/cpuSwitchInsts.txt')
         except IOError:
-            print "WARNING: could not open switch file!"
+            sys.stderr.write("WARNING: could not open switch file!\n")
 
         if switchfile != None:     
             insts = []
@@ -272,7 +281,12 @@ if compare_to_alone:
     cnt = 0.0
 
     for wl in fair_workloads.workloads:
+        if wl not in pbsconfig.bmints: #hack
+            # Skip workloads that are not part of the experiment
+            continue
+
         bms = fair_workloads.workloads[wl][0]
+        
         bmCnt = {}
         transBms = []
         for bm in bms:
@@ -347,7 +361,7 @@ for cmd, config in pbsconfig.commandlines:
     try:
         resultfile = open(resID+'/'+resID+'.txt')
     except IOError:
-        print "WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt'
+        sys.stderr.write("WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt\n')
         
     if resultfile != None:
         fileText = resultfile.read()
@@ -451,18 +465,6 @@ for cmd, config in pbsconfig.commandlines:
                 assert resKey not in results[lineKey]
                 results[lineKey][resKey] = str(r)
 
-# INVERT DICTIONARY IF NEEDED ================================
-if keys_vertical and avg_type != PRINT_ALL:
-    r2 = {}
-    for k1 in results:
-        for k2 in results[k1]:
-            if k2 not in r2:
-                r2[k2] = {}
-            if k1 not in r2[k2]:
-                r2[k2][k1] = {}
-            r2[k2][k1] = results[k1][k2]
-
-    results = r2
 
 # COMPUTE FAIRNESS METRICS ===================================
 if fairness_metric != NO_FAIRNESS:
@@ -650,6 +652,20 @@ if print_commit_diffs:
     print
     sys.exit()
 
+# INVERT DICTIONARY IF NEEDED ================================
+if (keys_vertical and avg_type != PRINT_ALL) or invert_dims:
+    r2 = {}
+    for k1 in results:
+        for k2 in results[k1]:
+            if k2 not in r2:
+                r2[k2] = {}
+            if k1 not in r2[k2]:
+                r2[k2][k1] = {}
+            r2[k2][k1] = results[k1][k2]
+
+    results = r2
+
+
 # PRINT RESULTS ===================================
 
 sortedKeys = results.keys()
@@ -665,32 +681,53 @@ else:
     bmWidth = 10
     dataWidth = 35
 
-print " ".ljust(bmWidth),
-for k in sortedResKeys:
-    print str(k).rjust(dataWidth),
-if print_max:
-    print "Max".rjust(dataWidth),
-print
+if print_best_w_key:
+    print " ".ljust(bmWidth),
+    print "Best Value".rjust(dataWidth),
+    print "Key".rjust(dataWidth)
 
-for key in sortedKeys:
-    
-    if print_wls == NOT_SELECTED_WL and key in selectedWls:
-        continue
-    
-    if print_wls == SELECTED_WL and key not in selectedWls:
-        continue
-    
-
-    max = 0
-    print (str(key)).ljust(bmWidth),
-    for res in sortedResKeys:
-        if res in results[key]:
-            print (str(results[key][res])).rjust(dataWidth),
-            if results[key][res] > max:
+    for key in sortedKeys:
+        
+        max = 0
+        maxKey = "null"
+        for res in sortedResKeys:
+            assert res in results[key]
+            if results[key][res] > max and res != pbsconfig.fairkey:
                 max = results[key][res]
-        else:
-            print ("N/A").rjust(dataWidth),
-    if print_max:
+                maxKey = str(res)
+
+
+        print str(key).ljust(bmWidth),
         print str(max).rjust(dataWidth),
+        print maxKey.rjust(dataWidth)
+
+else:
+    print " ".ljust(bmWidth),
+    for k in sortedResKeys:
+        print str(k).rjust(dataWidth),
+        if print_max:
+            print "Max".rjust(dataWidth),
     print
 
+    for key in sortedKeys:
+    
+        if print_wls == NOT_SELECTED_WL and key in selectedWls:
+            continue
+    
+        if print_wls == SELECTED_WL and key not in selectedWls:
+            continue
+    
+
+        max = 0
+        print (str(key)).ljust(bmWidth),
+        for res in sortedResKeys:
+            if res in results[key]:
+                print (str(results[key][res])).rjust(dataWidth),
+                if results[key][res] > max:
+                    max = results[key][res]
+            else:
+                print ("N/A").rjust(dataWidth),
+            if print_max:
+                print str(max).rjust(dataWidth),
+        print
+    

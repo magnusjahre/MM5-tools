@@ -12,16 +12,17 @@ def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
     scriptfile.write("set xr["+str(mintick)+":"+str(maxtick)+"]\n")
     scriptfile.write("set yr[0:17]\n")
 
-    scriptfile.write("set key outside below\n")
+    scriptfile.write("set key outside above\n")
 
-    scriptfile.write("set terminal postscript eps color enhanced 18\n")
+    scriptfile.write("set terminal postscript eps enhanced 18\n")
     scriptfile.write("set output \""+str(benchmark)+suffix+".eps\"\n")
   
     scriptfile.write("plot ")
     for i in range(np):
         if i != 0:
             scriptfile.write(", ")
-        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'"+workloads.workloads[np][int(benchmark)][0][i]+"\' with lines")
+        # scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'"+workloads.workloads[np][int(benchmark)][0][i]+"\' with lines")
+        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'A\' with lines")
     scriptfile.write("\n")
 
     scriptfile.flush()
