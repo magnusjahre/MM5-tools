@@ -5,13 +5,35 @@ import re
 import deterministic_fw_wls as fair_wls
 import single_core_fw as single_wls
 
+#MPB best 1,1,66,46,1,0
+#SPB best 1,1,1,21,1,0
 
-icWeights = [1]
-L2BWWeights = [1]
-L2CapWeights = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 5, 10, 20, 50, 100]
-BusBusWeights = [40]
-BusConflictWeights = [10, 20, 30, 40, 60, 80, 100, 120, 140, 160, 200]
+icWeights = [1] #[1]
+L2BWWeights = [1] #[1]
+#L2CapWeights = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 5, 10, 20, 50, 100]
+L2CapWeights = [66]
+BusBusWeights = [46] #[40]
+#BusConflictWeights = [10, 20, 30, 40, 60, 80, 100, 120, 140, 160, 200]
+BusConflictWeights = [1]
 BusHtMWeights = [0]
+
+short = 11
+long = 202
+
+#for i in range(1,2):
+#    icWeights.append(i)
+
+#for i in range(1,2):
+#    L2BWWeights.append(i)
+
+#for i in range(1,102)[::5]:
+#    BusBusWeights.append(i)
+
+#for i in range(1,long)[::5]:
+#    L2CapWeights.append(i)
+
+#for i in range(1,long)[::5]:
+#    BusConflictWeights.append(i)
 
 RESULT_KEY = "Conventional_RDFCFS_ConventionalCB"
 
@@ -170,7 +192,7 @@ def normalizeIPs(IPs):
 
 def evaluateWeights(ic, l2bw, l2cap, bus, conflict, htm, bestMPB, bestSPB):
 
-    print "Evaluating cap cost "+str(l2cap)+", bus conflict "+str(conflict)
+    print "Evaluating "+str(ic)+", "+str(l2bw)+", cap cost "+str(l2cap)+", "+str(bus)+", bus conflict "+str(conflict)
 
     ips = computeIPs(ic, l2bw, l2cap, bus, conflict, htm)
 
@@ -186,7 +208,7 @@ def evaluateWeights(ic, l2bw, l2cap, bus, conflict, htm, bestMPB, bestSPB):
         spbDiff = predFair / spbFair
         mpbDiff = predFair /mpbFair
         
-        print wl+": SPB diff = "+str(spbDiffSum)+", MPB diff = "+str(mpbDiffSum)
+        print wl+": SPB diff = "+str(spbDiff)+", MPB diff = "+str(mpbDiff)
 
         cnt = cnt + 1
         spbDiffSum = spbDiffSum + spbDiff
@@ -199,11 +221,11 @@ def evaluateWeights(ic, l2bw, l2cap, bus, conflict, htm, bestMPB, bestSPB):
 
     if mpbOffset < bestMPB[0]:
         print "New best MTB!"
-        bestMPB = [mpbOffset, l2cap, conflict]
+        bestMPB = [mpbOffset, ic, l2bw, l2cap, bus, conflict]
 
     if spbOffset < bestSPB[0]:
         print "New best STB!"
-        bestSPB = [spbOffset, l2cap, conflict]
+        bestSPB = [spbOffset, ic, l2bw, l2cap, bus, conflict]
 
     print
 
@@ -337,8 +359,8 @@ mpbStallRatios = getRatios(runMCPI, staticMCPI, False)
 spbStallRatios = getRatios(runMCPI, aloneMCPI, True)
 
 
-bestMPB = [1000000.0, -1, -1]
-bestSPB = [1000000.0, -1, -1]
+bestMPB = [1000000.0, -1, -1, -1, -1, -1]
+bestSPB = [1000000.0, -1, -1, -1, -1, -1]
 
 for ic in icWeights:
     for l2bw in L2BWWeights:
@@ -347,7 +369,7 @@ for ic in icWeights:
                 for conflict in BusConflictWeights:
                     for htm in BusHtMWeights:
                         bestMPB, bestSPB = evaluateWeights(ic, l2bw, l2cap, bus, conflict, htm, bestMPB, bestSPB)
-                        #printStats(ic, l2bw, l2cap, bus, conflict, htm)
+                        printStats(ic, l2bw, l2cap, bus, conflict, htm)
 
 
 print "Best configurations"
