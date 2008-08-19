@@ -5,9 +5,21 @@ import re
 import deterministic_fw_wls as fair_wls
 import single_core_fw as single_wls
 
+
+icWeights = [1]
+L2BWWeights = [1]
+L2CapWeights = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 5, 10, 20, 50, 100]
+BusBusWeights = [40]
+BusConflictWeights = [10, 20, 30, 40, 60, 80, 100, 120, 140, 160, 200]
+BusHtMWeights = [0]
+
+RESULT_KEY = "Conventional_RDFCFS_ConventionalCB"
+
 bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 startPattern = re.compile("^[0-9]:")
 ipcPattern = re.compile("detailedCPU[0-9].COM:IPC.*")
+stallPattern = re.compile("detailedCPU[0-9].COM:total_ticks_stalled_for_memory.*")
+instCountPattern = re.compile("detailedCPU[0-9].COM:count.*")
 idPattern = re.compile("[0-9]+")
 
 np = 4
@@ -46,7 +58,19 @@ def getMatrix(infile):
         if findCnt == np:
             return matrix
 
-def getIPCs(resIDs, results, useKey):
+def getWorkload(wlNum):
+    bms = ["" for i in range(np)]
+    
+    for i in range(np):
+        bmName = fair_wls.workloads[wlNum][0][i]
+        fw = fair_wls.workloads[wlNum][1][i]
+
+        offset = fw - 1000000000
+        bmName = bmName+str(offset / 20000000)
+        bms[i] = bmName
+    return bms
+
+def getPattern(resIDs, results, useKey, pattern):
     for resID in resIDs:
         bm = getBMFromKey(resID)
         wlNum = int(idPattern.findall(bm)[0])
@@ -66,7 +90,7 @@ def getIPCs(resIDs, results, useKey):
                 if key not in results:
                     results[bm][key] = {}
 
-            res = ipcPattern.findall(infile.read())
+            res = pattern.findall(infile.read())
             for r in res:
                 resAr = r.split()
                 if len(res) == 1:
@@ -84,7 +108,7 @@ def getIPCs(resIDs, results, useKey):
                         results[bm][key][bmName] = float(resAr[1])
                     else:
                         results[bm][bmName] = float(resAr[1])
-                    
+                   
 def getRatios(data, baseline, alone):
     ratios = {}
     for wl in data:
@@ -105,8 +129,141 @@ def getRatios(data, baseline, alone):
                 ratios[wl][key][bm] = sharedIPC / baselineIPC
 
     return ratios
-                
 
+def addMatrix(ipKey, cost, outMat, wl, resKey):
+    for i in range(np):
+        for j in range(np):
+            outMat[i][j] = outMat[i][j] + (cost * interferenceRes[wl][resKey][ipKey][i][j])
+
+def computeIPs(ic, l2bw, l2cap, bus, conflict, htm):
+
+    allIPs = {}
+
+    for wl in interferenceRes:
+
+        tmpIPs = [[0 for x in range(np)] for x in range(np)]
+        addMatrix("ic", ic, tmpIPs, wl, RESULT_KEY)
+
+        for i in range(banks):            
+            addMatrix("L2bank"+str(i)+"BW", l2bw, tmpIPs, wl, RESULT_KEY)        
+            addMatrix("L2bank"+str(i)+"CP", l2cap, tmpIPs, wl, RESULT_KEY)
+            
+        addMatrix("MemBus", bus, tmpIPs, wl, RESULT_KEY)
+        addMatrix("MemCon", conflict, tmpIPs, wl, RESULT_KEY)
+        addMatrix("MemHtM", htm, tmpIPs, wl, RESULT_KEY)
+
+        allIPs[wl] = [0 for x in range(np)]
+        for i in range(np):
+            for j in range(np):
+                allIPs[wl][i] = allIPs[wl][i] + tmpIPs[i][j]
+        
+    return allIPs
+
+def normalizeIPs(IPs):
+    normIPs = {}
+    for wl in IPs:
+        normIPs[wl] = [0 for x in range(np)]
+        maxVal = float(max(IPs[wl]))
+        for i in range(np):
+            normIPs[wl][i] = float(IPs[wl][i]) / maxVal
+    return normIPs
+
+def evaluateWeights(ic, l2bw, l2cap, bus, conflict, htm, bestMPB, bestSPB):
+
+    print "Evaluating cap cost "+str(l2cap)+", bus conflict "+str(conflict)
+
+    ips = computeIPs(ic, l2bw, l2cap, bus, conflict, htm)
+
+    cnt = 0
+    spbDiffSum = 0
+    mpbDiffSum = 0
+    for wl in ips:
+        bms = getWorkload(int(wl[4:6]))
+        
+        predFair = float(min(ips[wl])) / float(max(ips[wl]))
+        spbFair = float(min(aloneRatios[wl][RESULT_KEY].itervalues())) / float(max(aloneRatios[wl][RESULT_KEY].itervalues()))
+        mpbFair = float(min(staticRatios[wl][RESULT_KEY].itervalues())) / float(max(staticRatios[wl][RESULT_KEY].itervalues()))
+        spbDiff = predFair / spbFair
+        mpbDiff = predFair /mpbFair
+        
+        print wl+": SPB diff = "+str(spbDiffSum)+", MPB diff = "+str(mpbDiffSum)
+
+        cnt = cnt + 1
+        spbDiffSum = spbDiffSum + spbDiff
+        mpbDiffSum = mpbDiffSum + mpbDiff
+
+    mpbOffset = abs((mpbDiffSum/cnt)-1)
+    spbOffset = abs((spbDiffSum/cnt)-1)
+
+    print "AVERAGE: SPB = "+str(spbOffset)+", MPB = "+str(mpbOffset)
+
+    if mpbOffset < bestMPB[0]:
+        print "New best MTB!"
+        bestMPB = [mpbOffset, l2cap, conflict]
+
+    if spbOffset < bestSPB[0]:
+        print "New best STB!"
+        bestSPB = [spbOffset, l2cap, conflict]
+
+    print
+
+    return (bestMPB, bestSPB)
+
+        
+
+def printStats(ic, l2bw, l2cap, bus, conflict, htm):
+    baseName = str(ic)+"_"+str(l2bw)+"_"+str(l2cap)+"_"+str(bus)+"_"+str(conflict)+"_"+str(htm)
+    ipFile = open("ips_"+baseName+".txt", "w")
+    spbFile = open("spb_"+baseName+".txt", "w")
+    mpbFile = open("mpb_"+baseName+".txt", "w")
+    stallFile = open("spb_stall_"+baseName+".txt", "w")
+    mpbStallFile = open("mpb_stall_"+baseName+".txt", "w")
+
+    ips = computeIPs(ic, l2bw, l2cap, bus, conflict, htm)
+    wls = ips.keys()
+    wls.sort()
+
+    for wl in wls:
+        ipFile.write(str(wl).ljust(20))
+        spbFile.write(str(wl).ljust(20))
+        mpbFile.write(str(wl).ljust(20))
+        stallFile.write(str(wl).ljust(20))
+        mpbStallFile.write(str(wl).ljust(20))
+
+        for i in range(np):
+            ipFile.write(str(ips[wl][i]).rjust(20))
+        ipFile.write("\n")
+
+        for bm in getWorkload(int(wl[4:6])):
+            mpbFile.write(str(staticRatios[wl][RESULT_KEY][bm]).rjust(20))
+        mpbFile.write("\n")
+
+        for bm in getWorkload(int(wl[4:6])):
+            spbFile.write(str(aloneRatios[wl][RESULT_KEY][bm]).rjust(20))
+        spbFile.write("\n")
+
+        for bm in getWorkload(int(wl[4:6])):
+            stallFile.write(str(spbStallRatios[wl][RESULT_KEY][bm]).rjust(20))
+        stallFile.write("\n")
+
+        for bm in getWorkload(int(wl[4:6])):
+            mpbStallFile.write(str(mpbStallRatios[wl][RESULT_KEY][bm]).rjust(20))
+        mpbStallFile.write("\n")
+
+def divideRes(divisor, dividend, dims):
+    assert dims >= 1 and dims <= 3
+    for wl in divisor:
+        if dims == 1:
+            divisor[wl] = divisor[wl] / dividend[wl]
+        else:
+            for a in divisor[wl]:
+                if dims == 3:
+                    for b in divisor[wl][a]:
+                        divisor[wl][a][b] = divisor[wl][a][b] / dividend[wl][a][b]
+                else:
+                    divisor[wl][a] = divisor[wl][a] / dividend[wl][a]
+    return divisor
+    
 
 staticIDs = []
 for cmd, config in pbsconfig.staticcommands:
@@ -146,18 +303,54 @@ for cmd, config in pbsconfig.commandlines:
                 interferenceRes[bm][key]["L2bank"+str(i)+"BW"] = getMatrix(infile)
                 interferenceRes[bm][key]["L2bank"+str(i)+"CP"] = getMatrix(infile)
 
-            interferenceRes[bm][key]["Mem"+str(i)+"Bus"] = getMatrix(infile)
-            interferenceRes[bm][key]["Mem"+str(i)+"Con"] = getMatrix(infile)
-            interferenceRes[bm][key]["Mem"+str(i)+"HtM"] = getMatrix(infile)
+            interferenceRes[bm][key]["MemBus"] = getMatrix(infile)
+            interferenceRes[bm][key]["MemCon"] = getMatrix(infile)
+            interferenceRes[bm][key]["MemHtM"] = getMatrix(infile)
    
 runIPCs = {}
-getIPCs(runIDs, runIPCs, True)
+getPattern(runIDs, runIPCs, True, ipcPattern)
 staticIPCs = {}
-getIPCs(staticIDs, staticIPCs, False)
+getPattern(staticIDs, staticIPCs, False, ipcPattern)
 aloneIPCs = {}
-getIPCs(aloneIDs, aloneIPCs, False)
+getPattern(aloneIDs, aloneIPCs, False, ipcPattern)
+
+runStalls = {}
+getPattern(runIDs, runStalls, True, stallPattern)
+runInsts = {}
+getPattern(runIDs, runInsts, True, instCountPattern)
+staticStalls = {}
+getPattern(staticIDs, staticStalls, False, stallPattern)
+staticInsts = {}
+getPattern(staticIDs, staticInsts, False, instCountPattern)
+aloneStalls = {}
+getPattern(aloneIDs, aloneStalls, False, stallPattern)
+aloneInsts = {}
+getPattern(aloneIDs, aloneInsts, False, instCountPattern)
+
+runMCPI = divideRes(runStalls, runInsts, 3)
+staticMCPI = divideRes(staticStalls, staticInsts, 2)
+aloneMCPI = divideRes(aloneStalls, aloneInsts, 1)
 
 staticRatios = getRatios(runIPCs, staticIPCs, False)
 aloneRatios = getRatios(runIPCs, aloneIPCs, True)
+mpbStallRatios = getRatios(runMCPI, staticMCPI, False)
+spbStallRatios = getRatios(runMCPI, aloneMCPI, True)
 
 
+bestMPB = [1000000.0, -1, -1]
+bestSPB = [1000000.0, -1, -1]
+
+for ic in icWeights:
+    for l2bw in L2BWWeights:
+        for l2cap in L2CapWeights:
+            for bus in BusBusWeights:
+                for conflict in BusConflictWeights:
+                    for htm in BusHtMWeights:
+                        bestMPB, bestSPB = evaluateWeights(ic, l2bw, l2cap, bus, conflict, htm, bestMPB, bestSPB)
+                        #printStats(ic, l2bw, l2cap, bus, conflict, htm)
+
+
+print "Best configurations"
+print "MPB: "+str(bestMPB)
+print "SPB: "+str(bestSPB)
+print
