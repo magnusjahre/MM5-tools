@@ -6,6 +6,10 @@ import pbsconfig
 import shutil
 import os
 import workloads
+import time
+import re
+
+SLEEP_TIME = 15*60
 
 PROJECT_NUM = "nn4650k"
 PPN = 8
@@ -87,5 +91,72 @@ for commandline,param in pbsconfig.commandlines:
 
 if latest_commands != []:
     flush_commands(file_counter)
+    file_counter += 1
+    command_counter = 0
 
 print "Submitted "+str(count)+" experiments in "+str(file_counter)+" files"
+
+if pbsconfig.spm_inst_commands != []:
+
+    ticksPattern = re.compile("sim_ticks.*")
+    comInstPattern = re.compile(".*COM:count.*")
+    idPattern = re.compile("[0-9]+")
+
+    print
+    print "Suspending before attempting to issue single program mode experiments at "+time.strftime("%H:%M, %d. %b")
+    time.sleep(SLEEP_TIME)
+
+    while pbsconfig.spm_inst_commands != {}:
+        print
+        print "Checking for experiments that can be submitted at "+time.stftime("%H:%M, %d. %b")
+
+        for cmd,params in pbsconfig.commandlines:
+            resID = pbsconfig.get_unique_id(params)
+            wl = pbsconfig.get_workload(params)
+            filename = resID+"/"+resID+".txt"
+            text = ""
+            try:
+                file = open(filename)
+                text = file.read()
+                file.close()
+            except:
+                pass
+
+            if text != "" and wl in pbsconfig.spm_inst_commands:
+                ticks = ticksPattern.findall(text)
+                if ticks != []:
+                    threshold = int(float(pbsconfig.simticks) * 0.99)
+                    if int(ticks[0].split()[1]) > threshold:
+                        icounts = comInstPattern.findall(text)
+                        # make sure the simulator has finished printing the results
+                        if len(icounts) == pbsconfig.get_np(params): 
+                            print "Experiment with wl "+wl+" has finished, adding new experiments"
+                            for icount in icounts:
+                                id = int(idPattern.findall(icount.split()[0])[0])
+                                cnt = int(icount.split()[1])
+                            
+                                singleParams = pbsconfig.spm_inst_commands[wl][id]
+                                singleParams = pbsconfig.set_inst_count(singleParams, cnt)
+                                cmd,singleParams = pbsconfig.get_command(singleParams)
+                                expID = pbsconfig.get_unique_id(singleParams)
+
+                                incFile = commit_command(expID, cmd, command_counter, file_counter)
+                                if incFile:
+                                    file_counter = file_counter + 1
+                                command_counter = (command_counter + 1) % PPN
+                                count = count + 1
+                            del pbsconfig.spm_inst_commands[wl]
+                        
+
+
+        print "Suspending..."
+        time.sleep(SLEEP_TIME)
+
+    # all commands ready, check if we need to flush
+    if latest_commands != []:
+        flush_commands(file_counter)
+        file_counter += 1
+        command_counter = 0
+
+    print "Finished submitting all "+str(count)+" experiments in "+str(file_counter)+" files"
+    print
