@@ -108,7 +108,7 @@ if pbsconfig.spm_inst_commands != []:
 
     while pbsconfig.spm_inst_commands != {}:
         print
-        print "Checking for experiments that can be submitted at "+time.stftime("%H:%M, %d. %b")
+        print "Checking for experiments that can be submitted at "+time.strftime("%H:%M, %d. %b")
 
         for cmd,params in pbsconfig.commandlines:
             resID = pbsconfig.get_unique_id(params)
