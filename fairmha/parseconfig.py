@@ -4,6 +4,8 @@ import sys
 import pbsconfig
 import deterministic_fw_wls as fair_workloads
 import single_core_fw as single_core
+import fairmha.getInterference
+import parsemethods
 
 # Parse mandatory options =======================
 
@@ -21,6 +23,7 @@ WEIGHTED_SUM_IPC = 12
 QOS = 13
 UNFARINESS_INDEX = 14
 IPC_FAIRNESS = 15
+ERROR_METRIC = 16
 
 options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL, NO_FAIRNESS),
@@ -38,7 +41,8 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "QoS": ('detailedCPU..COM:IPC'+'.*', PRINT_ALL, QOS),
            "seconds": ('host_seconds.*', NO_AVG, NO_FAIRNESS),
            "UI": ('detailedCPU..COM:total_ticks_stalled_for_memory.*', PRINT_ALL, UNFARINESS_INDEX),
-           "fairness": ('detailedCPU..COM:IPC.*', PRINT_ALL, IPC_FAIRNESS)
+           "fairness": ('detailedCPU..COM:IPC.*', PRINT_ALL, IPC_FAIRNESS),
+           "avg_mem_lat_error": ('not a pattern', PRINT_ALL, ERROR_METRIC)
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
@@ -149,18 +153,8 @@ pattern = re.compile(patternString)
 
 cpuIDPattern = re.compile("[0-9]+")
 
-bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
-
-instPattern = re.compile(" [0-9]+ ")
 instCntPattern = re.compile("detailedCPU..COM:count.*")
 simpleCPUStringPattern = re.compile("simpleCPU[0-9]")
-
-# PROCEDURES ====================================
-
-def getBenchmark(cmd):
-    res = bmPattern.findall(cmd)
-    bm = res[0].split('=')[1]
-    return bm
 
 # Control error from instruction drift ==========
 
@@ -176,7 +170,7 @@ if not disable_drift_check:
             sys.stderr.write("WARNING: could not open switch file for experiment "+resID+"!\n")
 
         if switchfile != None:
-            bm = getBenchmark(cmd)
+            bm = parsemethods.getBenchmark(cmd)
             key = pbsconfig.get_key(cmd, config)
             if bm not in starts:
                 starts[bm] = {}
@@ -188,7 +182,7 @@ if not disable_drift_check:
             for i in range(np):
                 insts.append(-1)
             for line in switchfile.readlines():
-                res = instPattern.findall(line)
+                res = parsemethods.instPattern.findall(line)
                 scpuRes = simpleCPUStringPattern.findall(line)
                 cpuIDRes = cpuIDPattern.findall(scpuRes[0])
                 insts[int(cpuIDRes[0])]= int(res[0])
@@ -251,9 +245,9 @@ if compare_to_alone:
         if resultfile != None:
             tmpText = resultfile.read()
             ipc = pattern.findall(tmpText)[0].split()[1]
-            tmpAloneVals[getBenchmark(cmd)] = ipc
+            tmpAloneVals[parsemethods.getBenchmark(cmd)] = ipc
             iCount = instCntPattern.findall(tmpText)[0].split()[1]
-            tmpICounts[getBenchmark(cmd)] = iCount
+            tmpICounts[parsemethods.getBenchmark(cmd)] = iCount
 
         switchfile = None
         try:
@@ -264,11 +258,11 @@ if compare_to_alone:
         if switchfile != None:     
             insts = []
             for line in switchfile.readlines():
-                res = instPattern.findall(line)
+                res = parsemethods.instPattern.findall(line)
                 insts.append(int(res[0]))
             
             assert len(insts) == 1
-            aloneStarts[getBenchmark(cmd)] = insts[0]
+            aloneStarts[parsemethods.getBenchmark(cmd)] = insts[0]
 
     warningTolerance = 0.5
 
@@ -348,7 +342,7 @@ instCounts = {}
 for cmd, config in pbsconfig.commandlines:
 
     if wl_selection != ALL:
-        desicionBM = getBenchmark(cmd)
+        desicionBM = parsemethods.getBenchmark(cmd)
         if wl_selection == STD_WLS and desicionBM.startswith("bw"):
             continue
         elif wl_selection == BW_WLS and desicionBM.isdigit():
@@ -374,7 +368,7 @@ for cmd, config in pbsconfig.commandlines:
         for string in instCntRes:
             tmp = string.split()
             cpuID = cpuIDPattern.findall(tmp[0])[0]
-            benchmark = getBenchmark(cmd)
+            benchmark = parsemethods.getBenchmark(cmd)
             key = pbsconfig.get_key(cmd, config)
 
  
@@ -427,7 +421,7 @@ for cmd, config in pbsconfig.commandlines:
                     avg = sum
 
                 # store result
-                benchmark = getBenchmark(cmd)
+                benchmark = parsemethods.getBenchmark(cmd)
                 key = pbsconfig.get_key(cmd, config)
                 if avg_type != PRINT_ALL:
                     if benchmark not in results:
@@ -437,7 +431,7 @@ for cmd, config in pbsconfig.commandlines:
 
         key = pbsconfig.get_key(cmd, config)
         if fairness_metric != NO_FAIRNESS:
-            benchmark = getBenchmark(cmd)
+            benchmark = parsemethods.getBenchmark(cmd)
             key = pbsconfig.get_key(cmd, config)
 
             if benchmark not in results:
@@ -465,9 +459,40 @@ for cmd, config in pbsconfig.commandlines:
                 assert resKey not in results[lineKey]
                 results[lineKey][resKey] = str(r)
 
-
 # COMPUTE FAIRNESS METRICS ===================================
-if fairness_metric != NO_FAIRNESS:
+
+if fairness_metric == ERROR_METRIC:
+    results = {}
+    IDs = {}
+    for cmd, config in pbsconfig.commandlines:
+        resID = pbsconfig.get_unique_id(config)
+        wlName = pbsconfig.get_workload(config)
+        wlNum = int(wlName.replace("fair",""))
+        bmNames = pbsconfig.get_bm_names(fair_workloads.workloads[wlNum], np)
+        
+        interference = fairmha.getInterference.getInterference(resID+"/"+resID+".txt", np, False)
+        assert wlName not in results
+        results[wlName] = {}
+        
+        cpuID = 0
+        aloneIDs = []
+        for bm in bmNames:
+            bmID = pbsconfig.get_bm_id(config, bm)
+            aloneIDs.append(bmID)
+            aloneTmp = fairmha.getInterference.getInterference(bmID+"/"+bmID+".txt", 1, False)
+            aloneLat = float(aloneTmp[1][0])
+            sharedInt = float(interference[0][cpuID])
+            sharedLat = float(interference[1][cpuID])
+        
+            results[wlName][cpuID] = ((aloneLat + sharedInt) / sharedLat) - 1
+            
+            cpuID += 1
+        
+        IDs[wlName] = (resID, aloneIDs)
+    if not disable_drift_check:
+        parsemethods.checkAvgLatDriftError(IDs)
+
+elif fairness_metric != NO_FAIRNESS:
     newres = {}
     for wl in results:
         if wl not in newres:
@@ -676,7 +701,7 @@ sortedResKeys.sort()
 
 if avg_type == PRINT_ALL or keys_vertical:
     bmWidth = 20
-    dataWidth = 50
+    dataWidth = 35
 else:
     bmWidth = 10
     dataWidth = 35
