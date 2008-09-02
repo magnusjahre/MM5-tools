@@ -9,7 +9,7 @@ import workloads
 import time
 import re
 
-SLEEP_TIME = 15*60
+SLEEP_TIME = 5*60
 
 PROJECT_NUM = "nn4650k"
 PPN = 8
