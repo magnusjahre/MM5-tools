@@ -2,11 +2,14 @@
 import sys
 import re
 
-def getResult(r, array):
+def getResult(r, array, add):
     value = int(r.split()[1])
     text = r.split()[0]
     cpuID = int(text.split("_")[3])
-    array[cpuID] += value
+    if add:
+        array[cpuID] += value
+    else:
+        array[cpuID] -= value
     return array
 
 def getInterference(filename, np, doPrint):
@@ -18,13 +21,14 @@ def getInterference(filename, np, doPrint):
     l2CapPattern = re.compile("L2Bank[0-9].cpu_capacity_interference_0-9].*")
     
     patterns = {
-        "ic":re.compile("interconnect.cpu_interference_cycles_[0-9].*"),
-        "l2BW": re.compile("L2Bank[0-9].cpu_interference_cycles_[0-9].*"),
-        "l2cap": re.compile("L2Bank[0-9].cpu_extra_latency_[0-9].*"),
-        "bus": re.compile("toMemBus.cpu_interference_bus_[0-9].*"),
-        "busConflict": re.compile("toMemBus.cpu_interference_conflict_[0-9].*"),
-        "busHtM": re.compile("toMemBus.cpu_interference_htm_[0-9].*"),
-        "busBlocked": re.compile("toMemBus.blocking_interference_cycles_[0-9].*")
+        "ic": [re.compile("interconnect.cpu_interference_cycles_[0-9].*"), True],
+        "l2BW": [re.compile("L2Bank[0-9].cpu_interference_cycles_[0-9].*"), True],
+        "l2cap": [re.compile("L2Bank[0-9].cpu_extra_latency_[0-9].*"), True],
+        "bus": [re.compile("toMemBus.cpu_interference_bus_[0-9].*"), True],
+#        "busConflict": [re.compile("toMemBus.cpu_interference_conflict_[0-9].*"), True],
+#        "busHtM": [re.compile("toMemBus.cpu_interference_htm_[0-9].*"), True],
+        "busBlocked": [re.compile("toMemBus.blocking_interference_cycles_[0-9].*"), True],
+        "shadowBlocked": [re.compile("toMemBus.shadow_blocked_cycles_[0-9].*"), False]
     }
     
     accessPatterns = {
@@ -35,9 +39,9 @@ def getInterference(filename, np, doPrint):
     totalInterference = [0 for i in range(np)]
     
     for p in patterns:
-        res = patterns[p].findall(filetext)
+        res = patterns[p][0].findall(filetext)
         for r in res:
-            totalInterference = getResult(r, totalInterference)
+            totalInterference = getResult(r, totalInterference, patterns[p][1])
     
     mshrMissTotLat = [0 for i in range(np)]
     mshrMisses = [0 for i in range(np)]
