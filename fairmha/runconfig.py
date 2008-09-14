@@ -9,7 +9,7 @@ import workloads
 import time
 import re
 
-SLEEP_TIME = 5*60
+SLEEP_TIME = 1*60
 
 PROJECT_NUM = "nn4650k"
 PPN = 8
@@ -122,7 +122,7 @@ if pbsconfig.spm_inst_commands != []:
             except:
                 pass
 
-            if text != "" and wl in pbsconfig.spm_inst_commands:
+            if text != "" and pbsconfig.not_started(wl, params):
                 ticks = ticksPattern.findall(text)
                 if ticks != []:
                     threshold = int(float(pbsconfig.simticks) * 0.99)
@@ -135,7 +135,7 @@ if pbsconfig.spm_inst_commands != []:
                                 id = int(idPattern.findall(icount.split()[0])[0])
                                 cnt = int(icount.split()[1])
                             
-                                singleParams = pbsconfig.spm_inst_commands[wl][id]
+                                singleParams = pbsconfig.get_alone_params(wl, id, params)
                                 singleParams = pbsconfig.set_inst_count(singleParams, cnt)
                                 cmd,singleParams = pbsconfig.get_command(singleParams)
                                 expID = pbsconfig.get_unique_id(singleParams)
@@ -145,7 +145,7 @@ if pbsconfig.spm_inst_commands != []:
                                     file_counter = file_counter + 1
                                 command_counter = (command_counter + 1) % PPN
                                 count = count + 1
-                            del pbsconfig.spm_inst_commands[wl]
+                            pbsconfig.remove_alone_cmds(wl, params)
                         
 
 
