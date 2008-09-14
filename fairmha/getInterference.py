@@ -1,11 +1,13 @@
 
 import sys
 import re
+import deterministic_fw_wls as fair_wls
 
 def getResult(r, array, add):
     value = int(r.split()[1])
     text = r.split()[0]
-    cpuID = int(text.split("_")[3])
+    splitted = text.split("_")
+    cpuID = int(splitted[len(splitted)-1])
     if add:
         array[cpuID] += value
     else:
@@ -13,6 +15,9 @@ def getResult(r, array, add):
     return array
 
 def getInterference(filename, np, doPrint):
+
+
+    useBusShadow = False
 
     file = open(filename)
     filetext = file.read()
@@ -24,12 +29,16 @@ def getInterference(filename, np, doPrint):
         "ic": [re.compile("interconnect.cpu_interference_cycles_[0-9].*"), True],
         "l2BW": [re.compile("L2Bank[0-9].cpu_interference_cycles_[0-9].*"), True],
         "l2cap": [re.compile("L2Bank[0-9].cpu_extra_latency_[0-9].*"), True],
-        "bus": [re.compile("toMemBus.cpu_interference_bus_[0-9].*"), True],
-#        "busConflict": [re.compile("toMemBus.cpu_interference_conflict_[0-9].*"), True],
-#        "busHtM": [re.compile("toMemBus.cpu_interference_htm_[0-9].*"), True],
-        "busBlocked": [re.compile("toMemBus.blocking_interference_cycles_[0-9].*"), True],
-        "shadowBlocked": [re.compile("toMemBus.shadow_blocked_cycles_[0-9].*"), False]
+        "busBlocked": [re.compile("toMemBus.blocking_interference_cycles_[0-9].*"), True]
     }
+
+    if useBusShadow:
+        patterns["bus"] = [re.compile("toMemBus.cpu_interference_bus_[0-9].*"), True]
+        patterns["shadowBlocked"] = [re.compile("toMemBus.shadow_blocked_cycles_[0-9].*"), False]
+    else:
+        patterns["bus"] = [re.compile("toMemBus.estimated_interference_[0-9].*"), True]
+        #TODO: Add bus private blocking estimate
+
     
     accessPatterns = {
         "misses": re.compile("L1[di]caches[0-9].overall_mshr_misses.*"),
@@ -85,10 +94,57 @@ def printError(sharedfile, alonefiles, np):
     cpuID = 0
     for a in alonefiles:
         alone = float(getInterference(a, 1, False)[1][0])
-        errs.append(( (alone+shared[0][cpuID]) / float(shared[1][cpuID]) )-1)
+        errs.append(( (float(shared[1][cpuID])+shared[0][cpuID]) / alone)-1)
         cpuID += 1
     
     i=0
     for e in errs:
         print "CPU"+str(i)+str(round(e*100, 2)).rjust(20)+" %"
         i+=1
+
+def getBmNames(wl,np):
+    newWl = []
+    i = 0
+    for i in range(np):
+        extra_fw = wl[1][i] - 1000000000
+        id = extra_fw / 20000000
+        newWl.append(wl[0][i]+str(id))
+        id += 1
+    return newWl
+
+
+def getBenchmarks(wl, printRes, np):
+    wlNum = int(wl.replace("fair",""))
+    bms = getBmNames(fair_wls.workloads[wlNum], np)
+
+    if printRes:
+        for b in bms:
+            print b+" ",
+        print
+
+    return bms
+        
+        
+def getSampleErrors(sharedFilename, aloneFilename):
+    sf = open(sharedFilename)
+    af = open(aloneFilename)
+    
+    sLines = sf.readlines()
+    aLines = af.readlines()
+    
+    sf.close()
+    af.close()
+
+    for i in range(len(sLines))[1:]:
+        sStats = sLines[i].split(";")
+        avgSharedLat = float(sStats[1])
+        avgInterference = float(sStats[2])
+
+        aloneLat = float(aLines[i].split(";")[1])
+
+        error = ((avgSharedLat - avgInterference) / aloneLat) - 1
+
+        print sStats[0].ljust(10)+(str(error*100)+" %").rjust(15)
+        
+
+    
