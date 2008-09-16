@@ -125,7 +125,7 @@ def getBenchmarks(wl, printRes, np):
     return bms
         
         
-def getSampleErrors(sharedFilename, aloneFilename):
+def getSampleErrors(sharedFilename, aloneFilename, printOutput):
     sf = open(sharedFilename)
     af = open(aloneFilename)
     
@@ -135,16 +135,28 @@ def getSampleErrors(sharedFilename, aloneFilename):
     sf.close()
     af.close()
 
+    data = []
+
     for i in range(len(sLines))[1:]:
+        
         sStats = sLines[i].split(";")
+        
         avgSharedLat = float(sStats[1])
         avgInterference = float(sStats[2])
 
-        aloneLat = float(aLines[i].split(";")[1])
+        try:
+            aloneLat = float(aLines[i].split(";")[1])
+        except:
+            break
 
         error = ((avgSharedLat - avgInterference) / aloneLat) - 1
 
-        print sStats[0].ljust(10)+(str(error*100)+" %").rjust(15)
+        if printOutput:
+            print sStats[0].ljust(10)+(str(error*100)+" %").rjust(15)
+
+        data.append([int(sStats[0]), avgSharedLat - avgInterference, aloneLat])
+
+    return data
         
 
     

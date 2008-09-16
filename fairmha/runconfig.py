@@ -35,7 +35,7 @@ if bmroot == None:
 latest_commands = []
 
 def commit_command(fileID, cmd, cnt, fcnt):
-    
+
     # make experiment directory
     os.mkdir(fileID)
     print 'Created an experiment directory for '+fileID
