@@ -40,3 +40,8 @@ workloads = {
 39:(['twolf', 'mesa', 'eon', 'eon'], [1000000000, 1000000000, 1000000000, 1020000000]),
 40:(['mcf', 'apsi', 'apsi', 'equake'], [1000000000, 1000000000, 1020000000, 1000000000])
 }
+
+
+def getBms(wl):
+    num = int(wl.replace("fair",""))
+    return workloads[num][0]

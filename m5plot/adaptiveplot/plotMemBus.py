@@ -71,7 +71,7 @@ for cmd, config in pbsconfig.commandlines:
     
     statsfile.close()
     
-    thresStr = pbsconfig.get_key(cmd, config)
+    thresStr = resID #pbsconfig.get_key(cmd, config)
     
     name = writeFile(config[0],
                      "_"+str(thresStr),

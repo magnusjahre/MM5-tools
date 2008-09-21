@@ -94,8 +94,8 @@ print_commit_diffs = False
 print_best_w_key = False
 invert_dims = False
 
-std_wls = ['06', '08', '12', '15', '27', '28', '35']
-bw_wls = ['bw04', 'bw07', 'bw10', 'bw11', 'bw15', 'bw16', 'bw18', 'bw23', 'bw31', 'bw32', 'bw37', 'bw40']
+std_wls = ['05', '07', '15', '20', '27', '28']
+bw_wls = ['bw03', 'bw18', 'bw23', 'bw27', 'bw31', 'bw35']
 
 for option in sys.argv[2:]:
     if option not in optionalOptions:

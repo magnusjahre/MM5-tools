@@ -2,7 +2,8 @@
 import os
 import pbsconfig
 import popen2
-import workloads
+#import workloads
+import deterministic_fw_wls as workloads
 
 def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
     scriptfile = open(str(benchmark)+suffix+".g", "w")
@@ -16,13 +17,15 @@ def writeFile(benchmark, suffix, thres, ylabel, maxtick, mintick, input):
 
     scriptfile.write("set terminal postscript eps enhanced 18\n")
     scriptfile.write("set output \""+str(benchmark)+suffix+".eps\"\n")
-  
+    
+    bms = workloads.getBms(benchmark)
+
     scriptfile.write("plot ")
     for i in range(np):
         if i != 0:
             scriptfile.write(", ")
         # scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'"+workloads.workloads[np][int(benchmark)][0][i]+"\' with lines")
-        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'A\' with lines")
+        scriptfile.write("\""+input+"\" using 1:"+str(i+2)+" title \'"+bms[i]+"\' with lines")
     scriptfile.write("\n")
 
     scriptfile.flush()
@@ -90,9 +93,9 @@ for cmd, config in pbsconfig.commandlines:
     
         statsfile.close()
                             
-        thresStr = pbsconfig.get_key(cmd, config)
+        thresStr = resID #pbsconfig.get_key(cmd, config)
                 
-        name = writeFile(config[0],                  
+        name = writeFile(pbsconfig.get_workload(config),                  
                          "_adaptive_"+str(thresStr),
                          thresStr,
                          "Resource Allocation",

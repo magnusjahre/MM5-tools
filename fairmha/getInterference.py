@@ -126,6 +126,7 @@ def getBenchmarks(wl, printRes, np):
         
         
 def getSampleErrors(sharedFilename, aloneFilename, printOutput):
+
     sf = open(sharedFilename)
     af = open(aloneFilename)
     
