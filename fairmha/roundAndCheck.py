@@ -1,8 +1,8 @@
 
-import workloads
+import tmp_workloads
 
 np = 4
-wls = range(1,41)
+wls = range(1,6)
 
 allCnt = {}
 
@@ -18,7 +18,7 @@ print
 newWls = {}
 
 for wl in wls:
-    names = workloads.workloads[np][wl][0]
+    names = tmp_workloads.workloads[np][wl][0]
     cntDict = {}
     for n in names:
         if n not in cntDict:

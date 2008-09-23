@@ -86,5 +86,7 @@ while resfiles != []:
     print "Sleeping"
     time.sleep(sleeptime)
 
+shutil.copy("pbsconfig.py", resdir)
+
 print "All results copied!"
     
