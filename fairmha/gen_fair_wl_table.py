@@ -2,7 +2,12 @@
 import deterministic_fw_wls as fair_workloads
 
 COLS = 5
-NAME = "fair_workloads.tex"
+NAME = "amf_workloads.tex"
+
+printStart = 40
+printEnd = 45
+
+print "Generating table for workloads "+str(fair_workloads.workloads.keys()[printStart])+" to "+str(fair_workloads.workloads.keys()[printEnd-1])
 
 header = """
 \\begin{table}[t]
@@ -32,11 +37,10 @@ for i in range(COLS-1):
 outfile.write("\\textbf{ID} & \\textbf{Benchmarks} \\tabularnewline")
 outfile.write("\\hline\n")
 
-
-bms_per_row = len(fair_workloads.workloads) / COLS
+bms_per_row = len(fair_workloads.workloads.keys()[printStart:printEnd]) / COLS
 rowdata = {}
 
-for num in fair_workloads.workloads:
+for num in fair_workloads.workloads.keys()[printStart:printEnd]:
     wl = fair_workloads.workloads[num][0]
     rowindex = (num-1) % bms_per_row
     if rowindex not in rowdata:
