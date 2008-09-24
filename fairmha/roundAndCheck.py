@@ -2,7 +2,7 @@
 import tmp_workloads
 
 np = 4
-wls = range(1,11)
+wls = range(1,41)
 
 allCnt = {}
 

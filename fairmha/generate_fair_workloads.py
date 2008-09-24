@@ -4,14 +4,14 @@ import random
 # Constants
 FASTFW_START = 1*10**9
 FASTFW_END = int(1.1*10**9)
-WORKLOAD_COUNT = 10
-SEED = 38
+WORKLOAD_COUNT = 40
+SEED = 5669
 BW_BM = 2
 REST_BM = 2
 
 
 # Benchmarks
-bw_benchmarks = ['facerec', 'galgel', 'mesa', 'swim']
+bw_benchmarks = ['mcf','gap','apsi','facerec', 'galgel', 'mesa', 'swim']
 other_benchmarks = ['wupwise', 'vortex1', 'sixtrack', 'gcc', 'art', 'gzip', 'mgrid', 'applu']
 
 #bw_benchmarks = ['gcc', 'wupwise', 'swim', 'mgrid', 'applu', 'art', 'facerec', 'ammp', 'lucas', 'apsi']
