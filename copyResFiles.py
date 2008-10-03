@@ -21,7 +21,8 @@ resultfiles = ["interconnect*.txt",
                "*MTPTrace.txt",
                "*HitStats.txt",
                "interferenceStats.txt",
-               "*InterferenceTrace.txt"]
+               "*InterferenceTrace.txt",
+               "amhaTrace.txt"]
 
 try:
     simticks = int(sys.argv[1])

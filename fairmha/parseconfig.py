@@ -27,11 +27,13 @@ ERROR_METRIC = 16
 
 options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "all_ipc":('detailedCPU..COM:IPC'+'.*', PRINT_ALL, NO_FAIRNESS),
+           "all_com_insts":('detailedCPU..COM:count'+'.*', PRINT_ALL, NO_FAIRNESS),
            "ticks": ('sim_ticks.*', NO_AVG, NO_FAIRNESS),
            "avg_blocked_mshrs": ('L1dcaches..blocked_no_mshr.*', ARITHMETIC, NO_FAIRNESS),
            "avg_blocked_targets": ('L1dcaches..blocked_no_targets.*', ARITHMETIC, NO_FAIRNESS),
            "bus_util": ('toMemBus.bus_utilization.*', NO_AVG, NO_FAIRNESS),
            "bus_latency": ('toMemBus.avg_queue_cycles.*', NO_AVG, NO_FAIRNESS),
+           "bus_accesses_per_cpu": ('toMemBus.accesses_per_cpu_[0-9].*', PRINT_ALL, NO_FAIRNESS),
            "bus_blocked": ('toMemBus.blocked_cycles.*',NO_AVG, NO_FAIRNESS),
            "l2_blocked_mshrs": ('L2Bank..blocked_no_mshr.*', ARITHMETIC, NO_FAIRNESS),
            "l2_blocked_targets": ('L2Bank..blocked_no_targets.*', ARITHMETIC, NO_FAIRNESS),
@@ -61,11 +63,11 @@ fairness_metric = options[sys.argv[1]][2]
 # Parse optional options ========================
 
 optionalOptions = {"no_hog": "",
-                   "selected_wls": "",
-                   "not_selected_wls": "",
-                   "bw_wl_only": "",
+                   "amha_wls": "",
+                   "not_amha_wls": "",
+                   "acp_wl_only": "",
                    "std_wl_only": "",
-                   "all_sel_wls": "",
+                   "all_amha_wls": "",
                    "print_max": "",
                    "one_benchmark":"",
                    "invert_dims":"",
@@ -75,8 +77,8 @@ optionalOptions = {"no_hog": "",
                    "print_best_w_key":""
                   }
 
-SELECTED_WL = 1
-NOT_SELECTED_WL = 2
+AMHA_WL = 1
+NOT_AMHA_WL = 2
 ALL = 3
 selectedWls = []
 BW_WLS = 5
@@ -94,8 +96,13 @@ print_commit_diffs = False
 print_best_w_key = False
 invert_dims = False
 
-std_wls = ['05', '07', '15', '20', '27', '28']
-bw_wls = ['bw03', 'bw18', 'bw23', 'bw27', 'bw31', 'bw35']
+random_wls = [i for i in range(1,41)]
+acp_wls = [i for i in range(41,81)]
+
+std_wls = ['fair08','fair11','fair14','fair27','fair32', 'fair38', 'fair40']  #['05', '07', '15', '20', '27', '28']
+
+bw_wls = ['fair47','fair49','fair52','fair53','fair55','fair60','fair61','fair68','fair76', 'fair79']
+#bw_wls = ['fair47','fair51','fair68','fair75','fair77','fair78','fair79'] #['bw03', 'bw18', 'bw23', 'bw27', 'bw31', 'bw35']
 
 for option in sys.argv[2:]:
     if option not in optionalOptions:
@@ -109,19 +116,20 @@ for option in sys.argv[2:]:
     if option == "no_hog":
         EXCLUDE_HOG = True
 
-    if option == "selected_wls":
-        print_wls = SELECTED_WL
-    if option == "not_selected_wls":
-        print_wls = NOT_SELECTED_WL
+    if option == "amha_wls":
+        print_wls = AMHA_WL
+    if option == "not_amha_wls":
+        print_wls = NOT_AMHA_WL
 
-    if option == "bw_wl_only":
+    if option == "acp_wl_only":
         wl_selection = BW_WLS
         selectedWls = bw_wls
     if option == "std_wl_only":
         wl_selection = STD_WLS
         selectedWls = std_wls
-    if option == "all_sel_wls":
+    if option == "all_amha_wls":
         wl_selection = ALL # simple, inefficent solution
+        print_wls = AMHA_WL
         selectedWls = std_wls + bw_wls
     
     if option == "print_max":
@@ -343,9 +351,13 @@ for cmd, config in pbsconfig.commandlines:
 
     if wl_selection != ALL:
         desicionBM = parsemethods.getBenchmark(cmd)
-        if wl_selection == STD_WLS and desicionBM.startswith("bw"):
+        
+        assert desicionBM.startswith("fair")
+
+        wlNum = int(desicionBM.replace("fair", ""))
+        if wl_selection == STD_WLS and wlNum not in random_wls:
             continue
-        elif wl_selection == BW_WLS and desicionBM.isdigit():
+        elif wl_selection == BW_WLS and wlNum not in acp_wls:
             continue
     
     resID = pbsconfig.get_unique_id(config)
@@ -400,9 +412,8 @@ for cmd, config in pbsconfig.commandlines:
                         sum = sum + float(string.split()[1])
                 elif avg_type == PRINT_ALL:
                     tmp = string.split()
-                    cpuID = cpuIDPattern.findall(tmp[0])[0]
+                    cpuID = cpuIDPattern.findall(string)[0]
                     data.append((cpuID, float(tmp[1])))
-
                 else:
                     sum = sum + float(string.split()[1])
             except ValueError:
@@ -736,10 +747,10 @@ else:
 
     for key in sortedKeys:
     
-        if print_wls == NOT_SELECTED_WL and key in selectedWls:
+        if print_wls == NOT_AMHA_WL and key in selectedWls:
             continue
     
-        if print_wls == SELECTED_WL and key not in selectedWls:
+        if print_wls == AMHA_WL and key not in selectedWls:
             continue
     
 

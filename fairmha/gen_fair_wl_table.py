@@ -2,10 +2,11 @@
 import deterministic_fw_wls as fair_workloads
 
 COLS = 5
-NAME = "amf_workloads.tex"
+NAME = "ag_workloads.tex"
 
 printStart = 40
-printEnd = 45
+printEnd = 80
+idoffset = 40
 
 print "Generating table for workloads "+str(fair_workloads.workloads.keys()[printStart])+" to "+str(fair_workloads.workloads.keys()[printEnd-1])
 
@@ -52,7 +53,7 @@ for rowindex in rowdata:
     row = rowdata[rowindex]
     cnt = 0
     for id, bms in row:
-        name = str(id)
+        name = str(id-idoffset)
         outfile.write(name)
 
         outfile.write(" & ")
