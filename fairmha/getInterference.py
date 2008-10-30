@@ -17,7 +17,7 @@ def getResult(r, array, add):
 def getInterference(filename, np, doPrint):
 
 
-    useBusShadow = False
+    useBusShadow = True
 
     file = open(filename)
     filetext = file.read()
@@ -41,8 +41,10 @@ def getInterference(filename, np, doPrint):
 
     
     accessPatterns = {
-        "misses": re.compile("L1[di]caches[0-9].overall_mshr_misses.*"),
-        "lat": re.compile("L1[di]caches[0-9].overall_mshr_miss_latency.*")
+        #"misses": re.compile("L1[di]caches[0-9].overall_mshr_misses.*"),
+        #"lat": re.compile("L1[di]caches[0-9].overall_mshr_miss_latency.*")
+        "misses": re.compile("L1[di]caches[0-9].num_roundtrip_responses.*"),
+        "lat": re.compile("L1[di]caches[0-9].sum_roundtrip_latency.*")
     }
     
     totalInterference = [0 for i in range(np)]
@@ -94,7 +96,7 @@ def printError(sharedfile, alonefiles, np):
     cpuID = 0
     for a in alonefiles:
         alone = float(getInterference(a, 1, False)[1][0])
-        errs.append(( (float(shared[1][cpuID])+shared[0][cpuID]) / alone)-1)
+        errs.append(( (float(shared[1][cpuID])-shared[0][cpuID]) / alone)-1)
         cpuID += 1
     
     i=0
