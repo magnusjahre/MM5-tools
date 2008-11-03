@@ -18,6 +18,7 @@ def getInterference(filename, np, doPrint):
 
 
     useBusShadow = True
+    printInterferenceBreakdown = True
 
     file = open(filename)
     filetext = file.read()
@@ -49,10 +50,17 @@ def getInterference(filename, np, doPrint):
     
     totalInterference = [0 for i in range(np)]
     
+
+    allInterference = {}
+
     for p in patterns:
         res = patterns[p][0].findall(filetext)
+        tmpInterference = [0 for i in range(np)]
         for r in res:
             totalInterference = getResult(r, totalInterference, patterns[p][1])
+            tmpInterference = getResult(r, tmpInterference, patterns[p][1])
+        
+        allInterference[p] = tmpInterference
     
     mshrMissTotLat = [0 for i in range(np)]
     mshrMisses = [0 for i in range(np)]
@@ -87,6 +95,25 @@ def getInterference(filename, np, doPrint):
             print "CPU "+str(i)+": "+str(avgLat[i])+", "+str(mshrMisses[i])+" requests"
         print
         
+        if printInterferenceBreakdown and np > 1:
+            breakdownWidth = 15
+            print "Interference breakdown (per request):"
+            print "".ljust(breakdownWidth),
+            for i in range(np):
+                print ("CPU"+str(i)).rjust(breakdownWidth),
+            print
+            for p in allInterference:
+                print p.ljust(breakdownWidth),
+                for i in range(np):
+
+                    intPerReq = int(float(allInterference[p][i]) / mshrMisses[i])
+
+                    print str(intPerReq).rjust(breakdownWidth),
+                print
+            print
+                    
+
+
     return (avgInterference, avgLat)
     
 def printError(sharedfile, alonefiles, np):
