@@ -5,10 +5,6 @@ import getInterference
 import os
 import deterministic_fw_wls as workload_info
 
-
-# filename = plot.plotGraph("test", "x", "y", [[1,1,2,3], [2, 2, 3, 4]], ['a','b','c'], "morradi"+str(i), False)
-# plot.createSummaryPdf(graphs, "Doc Title", "Figure", ["a","b","c","d"], 0.48, "sweet")
-
 os.mkdir("estimationPlots")
 os.chdir("estimationPlots")
 os.mkdir("figures")
@@ -37,9 +33,9 @@ for cmd, params in pbsconfig.commandlines:
         data = getInterference.getSampleErrors(sharedFiles[i], aloneFiles[i], False)
         plotfile = plot.plotGraph("Interference Results", 
                                   "Number of Samples", 
-                                  "Average Memory Latency", 
+                                  "Mesurement Error (%)", 
                                   data, 
-                                  ['Estimated SPB','Actual SPB'], 
+                                  ['Measurement Error (%)'], 
                                   "figures/"+wl+"_"+bms[i],
                                   False)
         

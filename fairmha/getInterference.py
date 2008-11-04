@@ -179,14 +179,27 @@ def getSampleErrors(sharedFilename, aloneFilename, printOutput):
         except:
             break
 
-        error = ((avgSharedLat - avgInterference) / aloneLat) - 1
+        estimatedLatency = avgSharedLat - avgInterference
+        error = ((estimatedLatency - aloneLat) / aloneLat)
 
         if printOutput:
             print sStats[0].ljust(10)+(str(error*100)+" %").rjust(15)
 
-        data.append([int(sStats[0]), avgSharedLat - avgInterference, aloneLat])
+        #data.append([int(sStats[0]), avgSharedLat - avgInterference, aloneLat])
+        data.append([int(sStats[0]), error])
 
     return data
+
+def getAverageSampleError(sharedfile, alonefile):
+    data = getSampleErrors(sharedfile, alonefile, False)
+
+    sum = 0.0
+    count = 0
+    for tick, value in data:
+        sum += value
+        count += 1
+
+    return sum / float(count)
         
 
     
