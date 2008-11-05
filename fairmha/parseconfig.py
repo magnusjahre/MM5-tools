@@ -494,8 +494,9 @@ if fairness_metric == ERROR_METRIC:
             aloneLat = float(aloneTmp[1][0])
             sharedInt = float(interference[0][cpuID])
             sharedLat = float(interference[1][cpuID])
-        
-            results[wlName][cpuID] = ((aloneLat + sharedInt) / sharedLat) - 1
+
+            aloneEstimate = sharedLat - sharedInt
+            results[wlName][cpuID] = ((aloneEstimate - aloneLat) / aloneLat)
             
             cpuID += 1
         

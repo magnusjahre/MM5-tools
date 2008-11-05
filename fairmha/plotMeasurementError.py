@@ -33,9 +33,9 @@ for cmd, params in pbsconfig.commandlines:
         data = getInterference.getSampleErrors(sharedFiles[i], aloneFiles[i], False)
         plotfile = plot.plotGraph("Interference Results", 
                                   "Number of Samples", 
-                                  "Mesurement Error (%)", 
+                                  "Mesurement Error (x)", 
                                   data, 
-                                  ['Measurement Error (%)'], 
+                                  ['Measurement Error (x)'], 
                                   "figures/"+wl+"_"+bms[i],
                                   False)
         
