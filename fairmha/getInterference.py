@@ -202,4 +202,78 @@ def getAverageSampleError(sharedfile, alonefile):
     return sum / float(count)
         
 
+def getBusErrorEstimate(sharedFile, aloneFile, sharedCPUID):
+
+    sharedPatterns = []
+    sharedPatterns.append(re.compile("avg_estimated_private_queue_latency_"+str(sharedCPUID)+".*"))
+    sharedPatterns.append(re.compile("avg_predicted_service_latency_"+str(sharedCPUID)+".*"))
+    sharedPatterns.append(re.compile("service_latency_requests_"+str(sharedCPUID)+".*"))
+
+    file = open(sharedFile)
+    sharedText = file.read()
+    file.close()
+
+    sharedVals = []
+    for sp in sharedPatterns:
+        res = sp.findall(sharedText)
+        assert len(res) == 1
+        sharedVals.append(float(res[0].split()[1]))
+
+    alonePatterns= []
+    alonePatterns.append(re.compile("avg_actual_queue_delay.*"))
+    alonePatterns.append(re.compile("avg_actual_service_latency.*"))
+    alonePatterns.append(re.compile("actual_service_latency_requests.*"))
+
+    file = open(aloneFile)
+    aloneText = file.read()
+    file.close()
+
+    aloneVals = []
+    for sp in alonePatterns:
+        res = sp.findall(aloneText)
+        assert len(res) == 1
+        aloneVals.append(float(res[0].split()[1]))
+
+
+    queueError = "NaN"
+    try:
+        queueError = int(((aloneVals[0] - sharedVals[0]) / sharedVals[0]) * 100)
+    except:
+        pass
+
+    serviceError = "NaN"
+    try:
+        serviceError = int(((aloneVals[1] - sharedVals[1]) / sharedVals[1]) * 100)
+    except:
+        pass
+
+    w = 20
+    print "".ljust(w),
+    print "Estimate".rjust(w),
+    print "Measure".rjust(w),
+    print "Error (%)".rjust(w)
+
+    print "Queue latency:".ljust(w),
+    print str(sharedVals[0]).rjust(w),
+    print str(aloneVals[0]).rjust(w),
+    print str(queueError).rjust(w)
+
+    print "Service latency:".ljust(w),
+    print str(sharedVals[1]).rjust(w),
+    print str(aloneVals[1]).rjust(w),
+    print str(serviceError).rjust(w)
+
+    print
+    print "Number of requests: "+str(int(aloneVals[2]))+" alone, "+str(int(sharedVals[2]))+" shared"
+        
+    
+def printBusErrors(sharedFile, aloneFiles):
+    
+    print
+    print "Bus Latency Estimation results"
+    print
+    for i in range(len(aloneFiles)):
+        print "CPU "+str(i)+":"
+        getBusErrorEstimate(sharedFile, aloneFiles[i], i)
+        print
     
