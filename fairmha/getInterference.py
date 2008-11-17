@@ -277,3 +277,39 @@ def printBusErrors(sharedFile, aloneFiles):
         getBusErrorEstimate(sharedFile, aloneFiles[i], i)
         print
     
+
+def compareBusAccessTraces(sharedTrace, aloneTrace):
+
+    print
+    print "Validating DRAM access estimation"
+    print
+
+    sharedFile = open(sharedTrace)
+    sharedLines = sharedFile.readlines()
+    sharedFile.close()
+
+    aloneFile = open(aloneTrace)
+    aloneLines = aloneFile.readlines()
+    aloneFile.close()
+
+    errors = 0.0
+    correct = 0.0
+    for i in range(len(sharedLines)):
+        sdata = sharedLines[i].split(";")
+        adata = aloneLines[i].split(";")
+
+        if(sdata[1] != adata[1]):
+            print sdata[0]+": NOTE, saw different addresses, alone "+adata[1]+" ("+adata[4].strip()+"), shared "+sdata[1]+" ("+sdata[4].strip()+")"
+
+        if sdata[3] == adata[3]:
+            print sdata[0]+": correctly estimated "+sdata[3]
+            correct += 1.0
+        else:
+            print sdata[0]+": ERROR, estimated "+sdata[3]+" access was "+adata[3]
+            errors += 1.0
+
+    print
+    print "Validation stats"
+    print
+    print str(correct)+" requests correct ("+str(int((correct/(correct+errors)*100)))+" %)"
+    print str(errors)+" requests wrong ("+str(int((errors/(correct+errors)*100)))+" %)"
