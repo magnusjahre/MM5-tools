@@ -44,7 +44,13 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "seconds": ('host_seconds.*', NO_AVG, NO_FAIRNESS),
            "UI": ('detailedCPU..COM:total_ticks_stalled_for_memory.*', PRINT_ALL, UNFARINESS_INDEX),
            "fairness": ('detailedCPU..COM:IPC.*', PRINT_ALL, IPC_FAIRNESS),
-           "avg_mem_lat_error": ('not a pattern', PRINT_ALL, ERROR_METRIC)
+           "avg_mem_lat_error": ('not a pattern', PRINT_ALL, ERROR_METRIC),
+           "avg_hit_service_read": ('ram.average_page_hit_latency_read.*', NO_AVG, NO_FAIRNESS),
+           "avg_hit_service_write": ('ram.average_page_hit_latency_write.*', NO_AVG, NO_FAIRNESS),
+           "avg_miss_service_read": ('ram.average_page_miss_latency_read.*', NO_AVG, NO_FAIRNESS),
+           "avg_miss_service_write": ('ram.average_page_miss_latency_write.*', NO_AVG, NO_FAIRNESS),
+           "avg_conflict_service_read": ('ram.average_page_conflict_latency_read.*', NO_AVG, NO_FAIRNESS),
+           "avg_conflict_service_write": ('ram.average_page_conflict_latency_write.*', NO_AVG, NO_FAIRNESS)
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:
@@ -363,12 +369,12 @@ for cmd, config in pbsconfig.commandlines:
     resID = pbsconfig.get_unique_id(config)
 
     resultfile = None
-        
+
     try:
         resultfile = open(resID+'/'+resID+'.txt')
     except IOError:
         sys.stderr.write("WARNING (quickparse.py):\tCould not find file "+resID+'/'+resID+'.txt\n')
-        
+    
     if resultfile != None:
         fileText = resultfile.read()
         res = pattern.findall(fileText)
@@ -415,7 +421,12 @@ for cmd, config in pbsconfig.commandlines:
                     cpuID = cpuIDPattern.findall(string)[0]
                     data.append((cpuID, float(tmp[1])))
                 else:
-                    sum = sum + float(string.split()[1])
+                    assert avg_type == NO_AVG
+                    val = string.split()[1]
+                    outval = -1.0
+                    if val != "no":
+                        outval = float(val)
+                    sum = outval
             except ValueError:
                 avg = -1.0
                 break
@@ -437,7 +448,6 @@ for cmd, config in pbsconfig.commandlines:
                 if avg_type != PRINT_ALL:
                     if benchmark not in results:
                         results[benchmark] = {}
-                                
                     results[benchmark][key] = avg
 
         key = pbsconfig.get_key(cmd, config)
@@ -456,6 +466,7 @@ for cmd, config in pbsconfig.commandlines:
         elif not keys_vertical:
             for id, r in data:
                 thisKey = str(key) + "_CPU"+str(id)
+                print thisKey
                 if benchmark not in results:
                     results[benchmark] = {}
                 assert thisKey not in results[benchmark]

@@ -83,11 +83,12 @@ for cmd, params in pbsconfig.commandlines:
     
     resfiles.append(resID+"/"+resID+".txt")
 
-    wl = pbsconfig.get_workload(params)
-    for i in range(pbsconfig.get_np(params)):
-        aloneparams = pbsconfig.get_alone_params(wl,i,params)
-        aloneid = pbsconfig.get_unique_id(aloneparams)
-        alonefiles.append(aloneid+"/"+aloneid+".txt")
+    if pbsconfig.get_np(params) > 1:
+        wl = pbsconfig.get_workload(params)
+        for i in range(pbsconfig.get_np(params)):
+            aloneparams = pbsconfig.get_alone_params(wl,i,params)
+            aloneid = pbsconfig.get_unique_id(aloneparams)
+            alonefiles.append(aloneid+"/"+aloneid+".txt")
 
 print "done!"
 
