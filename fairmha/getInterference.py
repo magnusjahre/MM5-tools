@@ -485,7 +485,8 @@ def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint)
                 if not ("slat" in d and "alat" in d):
                     if doPrint:
                         print "Removing entry "+str(a)+" "+str(evalData[a])
-                    dropAddrs.append(a)
+                    if a not in dropAddrs:
+                        dropAddrs.append(a)
 
         for a in dropAddrs:
             del evalData[a]
