@@ -24,52 +24,45 @@ resultfiles = ["interconnect*.txt",
                "*InterferenceTrace.txt",
                "amhaTrace.txt"]
 
-def checkFile(filename, pattern, limit):
+finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
+
+def checkFile(filename):
     try:
         tmpfile = open(filename)
     except:
         tmpfile = None
 
     if tmpfile != None:
-        res = pattern.findall(tmpfile.read())
+        res = finResPrintPattern.findall(tmpfile.read())
         if res != []:
-            assert(len(res) == 1)
-            value = int(res[0].split()[1])
-            if value >= (limit * 0.99):
-                dirname,textfile = os.path.split(filename)
-                print "Copying results for exp "+dirname
-                curDest = resdir+"/"+dirname 
-                os.mkdir(curDest)
-                shutil.copy(filename, curDest)
-                for f in resultfiles:
-                    names = glob.glob(dirname+'/'+f)
-                    for name in names:
-                        shutil.copy(name, curDest)
-                return True
+            dirname,textfile = os.path.split(filename)
+            print "Copying results for exp "+dirname
+            curDest = resdir+"/"+dirname 
+            os.mkdir(curDest)
+            shutil.copy(filename, curDest)
+            for f in resultfiles:
+                names = glob.glob(dirname+'/'+f)
+                for name in names:
+                    shutil.copy(name, curDest)
+            return True
 
     return False
     
 
 
 try:
-    simticks = int(sys.argv[1])
-    resdir = sys.argv[2]
+    resdir = sys.argv[1]
 except:
     print "Cannot parse commandline..."
-    print "Usage: python -c \"import getResFiles\" simticks result_dir"
+    print "Usage: python -c \"import getResFiles\" result_dir"
     sys.exit()
 
 if not os.path.isdir(resdir):
     print "Destination directory is not valid, quitting"
     sys.exit()
 
-tickpattern = re.compile("sim_ticks.*")
-instpattern = re.compile("COM:count.*")
-
-
 print
 print "Starting result copy..."
-print "Ticks:       "+str(simticks)
 print "Destination: "+resdir
 print
 
@@ -97,12 +90,12 @@ while resfiles != [] or alonefiles != []:
     print "Checking for finished experiments..."
     rfcopy = list(resfiles)
     for rf in rfcopy:
-        if checkFile(rf, tickpattern, simticks):
+        if checkFile(rf):
             resfiles.remove(rf)
 
     alonecopy = list(alonefiles)
     for af in alonecopy:
-        if checkFile(af, instpattern, 0):
+        if checkFile(af):
             alonefiles.remove(af)
 
 

@@ -162,6 +162,101 @@ def printError(sharedfile, alonefiles, np):
         print str(int(a)).rjust(w)
         i+=1
 
+def printCommitOnceErrors(sharedFile, alonefiles):
+    
+    latPattern = re.compile("L1.caches..avg_roundtrip_latency.*")
+    intPattern = re.compile("L1.caches..avg_roundtrip_interference.*")
+    reqPattern = re.compile("L1.caches..num_roundtrip_responses.*")
+
+    sfile = open(sharedFile)
+    sharedtext = sfile.read()
+    sfile.close()
+    slatstrs = latPattern.findall(sharedtext)
+    sintstrs = intPattern.findall(sharedtext)
+    sreqstrs = reqPattern.findall(sharedtext)
+
+    blackCnt = 25
+
+    blacklist = {}
+    for r in sreqstrs:
+        keystr,reqstr = r.split()[0:2]
+        key = keystr.split('.')[0]
+        blacklist[key] =  int(reqstr) < blackCnt
+
+    slats = {}
+    for sl in slatstrs:
+        keystr,latstr = sl.split()[0:2]
+        try:
+            slats[keystr.split('.')[0]] = float(latstr)
+        except:
+            slats[keystr.split('.')[0]] = "N/A"
+
+    sints = {}
+    for sl in sintstrs:
+        keystr,latstr = sl.split()[0:2]
+        try:
+            sints[keystr.split('.')[0]] = float(latstr)
+        except:
+            sints[keystr.split('.')[0]] = "N/A"
+
+    estimates = {}
+    for cache in slats:
+        assert cache in sints
+        try:
+            estimates[cache] = slats[cache] - sints[cache]
+        except:
+            estimates[cache] = "N/A"
+
+    
+    alats = {}
+    for i in range(len(alonefiles)):
+        afile = open(alonefiles[i])
+        alatstr = latPattern.findall(afile.read())
+        afile.close()
+        
+        for d in alatstr:
+            keystr,latstr = d.split()[0:2]
+            key = keystr.split('.')[0] 
+            try:
+                alats[key[:len(key)-1]+str(i)] = float(latstr)
+            except:
+                alats[key[:len(key)-1]+str(i)] = "N/A"
+        
+    errors = {}
+    for c in estimates:
+        assert c in alats
+        try:
+            errors[c] = str(int(((estimates[c] - alats[c]) / alats[c]) * 100))+" %"
+        except:
+            errors[c] = "N/A"
+
+    print
+    print "Errors when interference and latency are added simultaneously:"
+    print
+
+    w = 20
+    print "Cache".ljust(w),
+    print "Estimate".rjust(w),
+    print "Alone".rjust(w),
+    print "Error".rjust(w)
+
+    keys = estimates.keys()
+    keys.sort()
+
+    for c in keys:
+        print c.ljust(w),
+        print str(estimates[c]).rjust(w),
+        print str(alats[c]).rjust(w),
+        if blacklist[c]:
+            print str("TFR").rjust(w)
+        else:
+            print str(errors[c]).rjust(w)
+
+    print
+        
+        
+
+
 def getBmNames(wl,np):
     newWl = []
     i = 0
@@ -481,15 +576,17 @@ def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint)
 
         dropAddrs = []
         for a in evalData:
+            index = 0
             for d in evalData[a]:
                 if not ("slat" in d and "alat" in d):
                     if doPrint:
-                        print "Removing entry "+str(a)+" "+str(evalData[a])
+                        print "Removing entry "+str(a)+", index "+str(index)+": "+str(evalData[a][index])
                     if a not in dropAddrs:
-                        dropAddrs.append(a)
+                        dropAddrs.append( (a, index))
+                index += 1
 
-        for a in dropAddrs:
-            del evalData[a]
+        for a,index in dropAddrs:
+            evalData[a][index] = {}
 
         if doPrint:
             print
@@ -515,29 +612,31 @@ def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint)
     evalEntries = 0
     for a in evalData:
         for d in evalData[a]:
-            evalEntries += 1
-            numEntries = len(d["slat"][0])
-            estimate = [0 for i in range(numEntries)]
+
+            if d != {}:
+                evalEntries += 1
+                numEntries = len(d["slat"][0])
+                estimate = [0 for i in range(numEntries)]
              
-            for i in range(numEntries):
-                estimate[i] = d["slat"][0][i] - d["sint"][0][i]
+                for i in range(numEntries):
+                    estimate[i] = d["slat"][0][i] - d["sint"][0][i]
                 
-            errs = [0.0 for i in range(numEntries)]
-            output = ["" for i in range(numEntries)]
-            for i in range(numEntries):
-                output[i] = str(estimate[i])+" / "+str(d["alat"][0][i])
+                errs = [0.0 for i in range(numEntries)]
+                output = ["" for i in range(numEntries)]
+                for i in range(numEntries):
+                    output[i] = str(estimate[i])+" / "+str(d["alat"][0][i])
                     
-                alonesums[i] += d["alat"][0][i]
-                estimatesums[i] += estimate[i]
+                    alonesums[i] += d["alat"][0][i]
+                    estimatesums[i] += estimate[i]
 
-                if d["alat"][0][i] != 0:
-                    entries[i] += 1.0
+                    if d["alat"][0][i] != 0:
+                        entries[i] += 1.0
 
-            if doPrint:
-                print str(a).ljust(w),
-                for e in output:
-                    print str(e).rjust(w),
-                print
+                if doPrint:
+                    print str(a).ljust(w),
+                    for e in output:
+                        print str(e).rjust(w),
+                    print
 
     if doPrint:
         print
@@ -603,7 +702,145 @@ def readRequestEstimateFile(filename, resultstorage, key):
             resultstorage[addr].append({key: (values, tick)})
 
 
+def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint):
+    
+    intpatterns = {"IC Entry":     re.compile("L1.*sum_ic_entry_interference.*"),
+                   "IC Transfer":  re.compile("L1.*sum_ic_transfer_interference.*"),
+                   "IC Delivery":  re.compile("L1.*sum_ic_delivery_interference.*"),
+                   "Bus Entry":    re.compile("L1.*sum_bus_entry_interference.*"),
+                   "Bus Delivery": re.compile("L1.*sum_bus_transfer_interference.*"),
+                   "Total":        re.compile("L1.*sum_roundtrip_interference.*"),
+                   "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
 
 
+    latpatterns = {"IC Entry":     re.compile("L1.*sum_ic_entry_latency.*"),
+                   "IC Transfer":  re.compile("L1.*sum_ic_transfer_latency.*"),
+                   "IC Delivery":  re.compile("L1.*sum_ic_delivery_latency.*"),
+                   "Bus Entry":    re.compile("L1.*sum_bus_entry_latency.*"),
+                   "Bus Delivery": re.compile("L1.*sum_bus_transfer_latency.*"),
+                   "Total":        re.compile("L1.*sum_roundtrip_latency.*"),
+                   "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
+
+    sfile = open(sharedfilen)
+    stext = sfile.read()
+    sfile.close()
+
+    sint = addBreakdownPatterns({}, intpatterns, stext, -1)
+    slat = addBreakdownPatterns({}, latpatterns, stext, -1)
+
+    alat = {}
+    cpu_num = 0
+    for afn in alonefilens:
+        afile = open(afn)
+        atext = afile.read()
+        afile.close()
+        
+        alat = addBreakdownPatterns(alat, latpatterns, atext, cpu_num)
+        
+        cpu_num += 1
+
+    results = [slat, sint, alat]
+
+    if doPrint:
+        printBreakdownError(results, len(alonefilens))
+
+    return results
+
+def addBreakdownPatterns(data, patterns, text, cpu_num):
+    
+    for p in patterns:
+        res = patterns[p].findall(text)
+        
+        if p not in data:
+            data[p] = {}
+        
+        for r in res:
+            rsplit = r.split()
+            rkey = rsplit[0].split(".")[0]
+            if cpu_num != -1:
+                rkey = rkey.replace("0", str(cpu_num))
+            rdata = int(rsplit[1])
+            data[p][rkey] = rdata
+
+    return data
+
+
+def printBreakdownError(results, np):
+    slat, sint, alat = results
+
+    print
+    print "Interference Summary"
+    print
+
+    width = 20
+    cpuidPattern = re.compile("[0-9]*")
+
+    types = slat.keys()
+    caches = slat[types[0]].keys()
+    types.sort()
+    caches.sort()
+
+    avgres = [[] for i in range(np)]
+
+    # Print per cache stats with subtotal
+    for cache in caches:
+            
+        print "Interference stats for "+cache
+        print
+        
+        
+        print "".ljust(width),
+        print "Shared lat".ljust(width),
+        print "Shared int".ljust(width),
+        print "Alone".ljust(width),
+        print "Estimate".ljust(width),
+        print "Error (%)".ljust(width)
+
+        sreqs = slat["Requests"][cache]
+        areqs = alat["Requests"][cache]
+
+        for t in types:
+            if t != "Requests":
+                
+                avgslat = computeAverage(slat[t][cache], sreqs)
+                avgsint = computeAverage(sint[t][cache], sreqs)
+                avgalat = computeAverage(alat[t][cache], sreqs)
+                estimate = computeEstimate(avgslat, avgsint)
+                error = computeError(estimate, avgalat)
+                
+                if t == "Total":
+                    print cache
+                    print cpuidPattern.findall(cache)
+                    cpuid = int(cpuidPattern.findall(cache)[0])
+                    print cache+" has id "+str(cpuid)
+                    avgres[cpuid].append([avgslat, avgsint, avgalat, sreqs, areqs])
+
+                print t.ljust(width),
+                print str(avgslat).ljust(width),
+                print str(avgsint).ljust(width),
+                print str(avgalat).ljust(width),
+                print str(estimate).ljust(width),
+                print str(error).ljust(width)
+                
+        print
+        
+    # Print total system summary
 
     
+    
+    
+
+def computeAverage(sum, num):
+    if num != 0:
+        return sum / num
+    return "NaN"
+
+def computeError(estimate, correct):
+    if correct != 0 and estimate != "NaN":
+        return int(((float(estimate) - float(correct)) / float(correct))*100)
+    return "NaN"
+
+def computeEstimate(lat, int):
+    if lat != "NaN" and int != "NaN":
+        return lat - int
+    return "NaN"
