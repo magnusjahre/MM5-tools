@@ -708,7 +708,7 @@ def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint):
                    "IC Transfer":  re.compile("L1.*sum_ic_transfer_interference.*"),
                    "IC Delivery":  re.compile("L1.*sum_ic_delivery_interference.*"),
                    "Bus Entry":    re.compile("L1.*sum_bus_entry_interference.*"),
-                   "Bus Delivery": re.compile("L1.*sum_bus_transfer_interference.*"),
+                   "Bus Transfer": re.compile("L1.*sum_bus_transfer_interference.*"),
                    "Total":        re.compile("L1.*sum_roundtrip_interference.*"),
                    "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
 
@@ -717,7 +717,7 @@ def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint):
                    "IC Transfer":  re.compile("L1.*sum_ic_transfer_latency.*"),
                    "IC Delivery":  re.compile("L1.*sum_ic_delivery_latency.*"),
                    "Bus Entry":    re.compile("L1.*sum_bus_entry_latency.*"),
-                   "Bus Delivery": re.compile("L1.*sum_bus_transfer_latency.*"),
+                   "Bus Transfer": re.compile("L1.*sum_bus_transfer_latency.*"),
                    "Total":        re.compile("L1.*sum_roundtrip_latency.*"),
                    "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
 
@@ -773,7 +773,7 @@ def printBreakdownError(results, np):
     print
 
     width = 20
-    cpuidPattern = re.compile("[0-9]*")
+    cpuidPattern = re.compile("[0-9]+$")
 
     types = slat.keys()
     caches = slat[types[0]].keys()
@@ -790,11 +790,11 @@ def printBreakdownError(results, np):
         
         
         print "".ljust(width),
-        print "Shared lat".ljust(width),
-        print "Shared int".ljust(width),
-        print "Alone".ljust(width),
-        print "Estimate".ljust(width),
-        print "Error (%)".ljust(width)
+        print "Shared lat".rjust(width),
+        print "Shared int".rjust(width),
+        print "Alone".rjust(width),
+        print "Estimate".rjust(width),
+        print "Error (%)".rjust(width)
 
         sreqs = slat["Requests"][cache]
         areqs = alat["Requests"][cache]
@@ -804,43 +804,103 @@ def printBreakdownError(results, np):
                 
                 avgslat = computeAverage(slat[t][cache], sreqs)
                 avgsint = computeAverage(sint[t][cache], sreqs)
-                avgalat = computeAverage(alat[t][cache], sreqs)
+                avgalat = computeAverage(alat[t][cache], areqs)
                 estimate = computeEstimate(avgslat, avgsint)
                 error = computeError(estimate, avgalat)
                 
                 if t == "Total":
-                    print cache
-                    print cpuidPattern.findall(cache)
                     cpuid = int(cpuidPattern.findall(cache)[0])
-                    print cache+" has id "+str(cpuid)
-                    avgres[cpuid].append([avgslat, avgsint, avgalat, sreqs, areqs])
+                    avgres[cpuid].append([avgslat, avgsint, avgalat, estimate, error, sreqs, areqs])
 
                 print t.ljust(width),
-                print str(avgslat).ljust(width),
-                print str(avgsint).ljust(width),
-                print str(avgalat).ljust(width),
-                print str(estimate).ljust(width),
-                print str(error).ljust(width)
+                print str(avgslat).rjust(width),
+                print str(avgsint).rjust(width),
+                print str(avgalat).rjust(width),
+                print str(estimate).rjust(width),
+                print str(error).rjust(width)
                 
         print
+
+    print
+    print "Requests counts: "
+    print
+    print "".ljust(width),
+    print "Shared".rjust(width),
+    print "Alone".rjust(width)
+    
+    for i in range(np):
+        print ("CPU"+str(i)).ljust(width),
+        print str(avgres[i][0][5] + avgres[i][1][5]).rjust(width),
+        print str(avgres[i][0][6] + avgres[i][1][6]).rjust(width)
+
         
     # Print total system summary
-
+    print
+    print "Total interference summary"
+    print
     
+    print "".ljust(width),
+    print "Shared lat".rjust(width),
+    print "Shared int".rjust(width),
+    print "Alone".rjust(width),
+    print "Estimate".rjust(width),
+    print "Error (%)".rjust(width)
+
+    reqCntLimit = 25
+    cntToLow = False
+
+    for i in range(np):
+        if (avgres[i][0][5]+avgres[i][1][5]) < reqCntLimit:
+            print ("CPU"+str(i)+"*").ljust(width),
+            cntToLow = True
+        else:
+            print ("CPU"+str(i)).ljust(width),
+        print str(computeWeightedAvg(avgres, i, 0)).rjust(width),
+        print str(computeWeightedAvg(avgres, i, 1)).rjust(width),
+        print str(computeWeightedAvg(avgres, i, 2)).rjust(width),
+        print str(computeWeightedAvg(avgres, i, 3)).rjust(width),
+        print str(computeWeightedAvg(avgres, i, 4)).rjust(width)
+
+    if cntToLow:
+        print
+        print "* - The number of requests is less than the threshold of "+str(reqCntLimit)
+    print
     
     
 
 def computeAverage(sum, num):
     if num != 0:
-        return sum / num
+        return int(float(sum) / float(num))
     return "NaN"
 
 def computeError(estimate, correct):
     if correct != 0 and estimate != "NaN":
         return int(((float(estimate) - float(correct)) / float(correct))*100)
+    elif correct == 0 and estimate == 0:
+        return 0
     return "NaN"
 
 def computeEstimate(lat, int):
     if lat != "NaN" and int != "NaN":
         return lat - int
     return "NaN"
+
+def computeWeightedAvg(avgres, cpuid, testnum):
+
+    data = []
+    for d in avgres[cpuid]:
+        data.append( (d[5] ,d[testnum]) )
+
+    tw = 0
+    for w,num in data:
+        tw += w
+
+    avg = 0.0
+    for w,num in data:
+        if num != "NaN":
+            avg += (float(w)/float(tw)) * float(num)
+        else:
+            assert w == 0
+    
+    return int(avg)
+
