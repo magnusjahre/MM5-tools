@@ -904,3 +904,61 @@ def computeWeightedAvg(avgres, cpuid, testnum):
     
     return int(avg)
 
+def getInterferenceErrors(sharedName, aloneNames):
+    
+    slat,sint,alat = getInterferenceBreakdownError(sharedName, aloneNames, False)
+
+    errors = {}
+
+    keys = slat.keys()
+    keys.sort()
+
+    caches = slat[keys[0]].keys()
+    caches.sort()
+
+    areqs = [0 for i in range(len(aloneNames))]
+    sreqs = [0 for i in range(len(aloneNames))]
+    
+    cpuidPattern = re.compile("[0-9]+$")
+    for c in caches:
+        cpuid = int(cpuidPattern.findall(c)[0])
+        areqs[cpuid] += alat["Requests"][c]
+        sreqs[cpuid] += slat["Requests"][c]
+
+    tslats = {}
+    tints = {}
+    talats ={}
+
+    for k in keys:
+        if k != "Requests":
+            tmpslats = [0 for i in range(len(aloneNames))]
+            tmpints = [0 for i in range(len(aloneNames))]
+            tmpalats = [0 for i in range(len(aloneNames))]
+
+            # create latency sums
+            for c in caches:
+                cpuid = int(cpuidPattern.findall(c)[0])
+                tmpslats[cpuid] += slat[k][c]
+                tmpints[cpuid] += sint[k][c]
+                tmpalats[cpuid] += alat[k][c]
+
+            # create latency avereges
+            for i in range(len(aloneNames)):
+                tmpslats[i] = computeAverage(tmpslats[i], sreqs[i])
+                tmpints[i] = computeAverage(tmpints[i], sreqs[i])
+                tmpalats[i] = computeAverage(tmpalats[i], areqs[i])
+
+
+            tslats[k] = tmpslats
+            tints[k] = tmpints
+            talats[k] = tmpalats
+    
+    errors = {}
+    for k in keys:
+        if k != "Requests":
+            errors[k] = [0 for i in range(len(aloneNames))]
+            for cpuid in range(len(aloneNames)):
+                estimate = computeEstimate(tslats[k][cpuid], tints[k][cpuid])
+                errors[k][cpuid] = computeError(estimate, talats[k][cpuid])
+    
+    return errors

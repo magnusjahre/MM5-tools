@@ -22,7 +22,8 @@ resultfiles = ["interconnect*.txt",
                "*HitStats.txt",
                "interferenceStats.txt",
                "*InterferenceTrace.txt",
-               "amhaTrace.txt"]
+               "amhaTrace.txt",
+               "MemoryBusQueueTime.txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
@@ -36,14 +37,25 @@ def checkFile(filename):
         res = finResPrintPattern.findall(tmpfile.read())
         if res != []:
             dirname,textfile = os.path.split(filename)
-            print "Copying results for exp "+dirname
             curDest = resdir+"/"+dirname 
-            os.mkdir(curDest)
-            shutil.copy(filename, curDest)
-            for f in resultfiles:
-                names = glob.glob(dirname+'/'+f)
-                for name in names:
-                    shutil.copy(name, curDest)
+            if os.path.exists(curDest):
+                print "Directory exists for experiment "+filename+", skipping"
+                if not os.path.exists(curDest+"/"+textfile):
+                    print "WARNING: no resultsfile found ("+textfile+")"
+                for f in resultfiles:
+                    names = glob.glob(dirname+'/'+f)
+                    for name in names:
+                        if not os.path.exists(name):
+                            print "WARNING: file not found ("+name+")"
+
+            else:
+                print "Copying results for exp "+dirname
+                os.mkdir(curDest)
+                shutil.copy(filename, curDest)
+                for f in resultfiles:
+                    names = glob.glob(dirname+'/'+f)
+                    for name in names:
+                        shutil.copy(name, curDest)
             return True
 
     return False
