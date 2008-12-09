@@ -25,7 +25,10 @@ def createOutputText(data, reskey):
         text += str(wl).ljust(w)
         for k in keys:
             for i in range(np):
-                text += str(data[k][wl][reskey][i]).rjust(w)
+                if reskey != None:
+                    text += str(data[k][wl][reskey][i]).rjust(w)
+                else:
+                    text += str(data[k][wl][i]).rjust(w)
         text += "\n"
 
     return text
@@ -53,12 +56,14 @@ options = {"ic_entry": "IC Entry",
            "bus_transfer": "Bus Transfer",
            "total": "Total",
            "all": "",
-           "one": ""}
+           "one": "",
+           "rwerror": ""}
 
-if sys.argv[2] not in options:
+if len(sys.argv) < 3 or sys.argv[2] not in options:
     print "Usage: python -c \"import fairmha.parseInterference\" np interference_type"
     print "Usage: python -c \"import fairmha.parseInterference\" np all"
     print "Usage: python -c \"import fairmha.parseInterference\" np one workload"
+    print "Usage: python -c \"import fairmha.parseInterference\" np rwerror"
     print
     print "Available Commands:"
     for a in options:
@@ -70,12 +75,15 @@ np = int(sys.argv[1])
 printAll = False
 printOne = False
 printWl = ""
+printRW = False
 if sys.argv[2] == "all":
     print "Writing all results to files..."
     printAll = True
 elif sys.argv[2] == "one":
     printOne = True
     printWl = sys.argv[3]
+elif sys.argv[2] == "rwerror":
+    printRW = True
 else:
     pattern = options[sys.argv[2]]
 
@@ -90,6 +98,7 @@ if printOne:
 
 
 data = {}
+reqerrors = {}
 for cmd, config in pbsconfig.commandlines:
     shName, aloneNames = getFilenames(cmd,config)
     wl = parsemethods.getBenchmark(cmd)
@@ -99,6 +108,11 @@ for cmd, config in pbsconfig.commandlines:
     assert wl not in data[key]
     data[key][wl] = getInterference.getInterferenceErrors(shName,aloneNames)
 
+    if key not in reqerrors:
+        reqerrors[key] = {}
+    assert wl not in reqerrors[key]
+    
+    reqerrors[key][wl] = getInterference.getReadWriteCount(shName,aloneNames)
 
 if printAll:
     for o in options:
@@ -112,6 +126,8 @@ if printAll:
             tfile.write(text)
             tfile.flush()
             tfile.close()
+elif printRW:
+    print createOutputText(reqerrors, None)
 else:
     print createOutputText(data, pattern)
     

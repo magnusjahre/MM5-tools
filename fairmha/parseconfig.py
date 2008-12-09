@@ -50,7 +50,9 @@ options = {"sum_ipc": ('detailedCPU..COM:IPC'+'.*', SUM, NO_FAIRNESS),
            "avg_miss_service_read": ('ram.average_page_miss_latency_read.*', NO_AVG, NO_FAIRNESS),
            "avg_miss_service_write": ('ram.average_page_miss_latency_write.*', NO_AVG, NO_FAIRNESS),
            "avg_conflict_service_read": ('ram.average_page_conflict_latency_read.*', NO_AVG, NO_FAIRNESS),
-           "avg_conflict_service_write": ('ram.average_page_conflict_latency_write.*', NO_AVG, NO_FAIRNESS)
+           "avg_conflict_service_write": ('ram.average_page_conflict_latency_write.*', NO_AVG, NO_FAIRNESS),
+           "page_read_hits" :('ram.number_of_page_hits_0.*', NO_AVG, NO_FAIRNESS),
+           "ram_accesses" :('ram.accesses_per_bank .*', NO_AVG, NO_FAIRNESS),
            }
 
 if len(sys.argv) < 2 or sys.argv[1] not in options:

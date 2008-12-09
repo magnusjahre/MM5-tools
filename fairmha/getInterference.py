@@ -962,3 +962,45 @@ def getInterferenceErrors(sharedName, aloneNames):
                 errors[k][cpuid] = computeError(estimate, talats[k][cpuid])
     
     return errors
+
+def search(filename, pattern):
+    file = open(filename)
+    text = file.read()
+    file.close()
+    return pattern.findall(text)
+
+def getPerCoreData(res,shared):
+    key = -1
+    keystr,valstr = res.split()[0:2]
+    if shared:
+        try:
+            key = int(keystr.split(".")[1].split("_")[3])
+        except:
+            valstr = "-1"
+    return key,int(valstr)
+
+
+def getReadWriteCount(sFilename, aFilenames):
+    
+    # TODO: actually measure private read and writes
+    accessPattern = re.compile("toMemBus.accesses_per_cpu.*")
+
+    sdata = [0 for i in range(len(aFilenames))]
+    sres = search(sFilename, accessPattern)
+
+    for r in sres:
+        key, val = getPerCoreData(r,True)
+        if key != -1:
+            sdata[key] = val
+        
+    adata = [0 for i in range(len(aFilenames))]
+    i=0
+    for i in range(len(aFilenames)):
+        r = search(aFilenames[i],accessPattern)[0]
+        key,val = getPerCoreData(r,False)
+        adata[i] = val
+
+    error = [computeError(sdata[i],adata[i]) for i in range(len(aFilenames))]
+    return error
+        
+    
