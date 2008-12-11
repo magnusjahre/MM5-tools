@@ -24,7 +24,7 @@ resultfiles = ["interconnect*.txt",
                "*InterferenceTrace.txt",
                "amhaTrace.txt",
                "MemoryBusQueueTime.txt",
-               "MemoryBusQueueTrace.txt"]
+               "MemoryBusQueueTrace*.txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 

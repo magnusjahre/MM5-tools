@@ -76,6 +76,51 @@ def plotGraph(title, xlabel, ylabel, data, lineText, outfilename, printGp):
 
     return outfilename+'.pdf'
 
+
+def plotHeatMap(data, xtitle, ytitle, maxx, maxy, ofilen):
+    if data == []:
+        print "No data provided, quitting..."
+        return ""
+
+    datafile = open("tmpdata.txt", "w")
+
+    w = 25
+    for x in range(maxx):
+        for y in range(maxy):
+            if data[x][y] != 0:
+                datafile.write(str(x).ljust(w))
+                datafile.write(str(y).ljust(w))
+                datafile.write(str(data[x][y]).ljust(w)+"\n")
+        datafile.write("\n")
+
+    datafile.flush()
+    datafile.close()
+
+    scriptfile = open("tmpplot.g", "w")
+    scriptfile.write("set terminal postscript eps color enhanced\n")
+    scriptfile.write("set pm3d map\n")
+    scriptfile.write("set xlabel \""+xtitle+"\"\n")
+    scriptfile.write("set ylabel \""+ytitle+"\"\n")
+    scriptfile.write("set xrange [0:"+str(maxx)+"]\n")
+    scriptfile.write("set yrange [0:"+str(maxy)+"]\n")
+    scriptfile.write("set output \"tmpplot.eps\"\n")
+    scriptfile.write("splot \"tmpdata.txt\" using 1:2:3 notitle with pm3d\n")
+    scriptfile.flush()
+    scriptfile.close()
+
+    res = popen2.popen3("gnuplot tmpplot.g")
+    text = res[0].read()
+    res = popen2.popen3("epstopdf tmpplot.eps")
+    text = res[0].read()
+
+    # clean up
+    os.rename('tmpplot.pdf', ofilen+'.pdf')
+    os.remove('tmpplot.eps')
+    os.remove('tmpplot.g')
+    os.remove('tmpdata.txt')
+
+    return ofilen+'.pdf'
+
     
 def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilename, printRubber):
 
@@ -84,8 +129,9 @@ def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilena
     texfile = open("plots.tex", "w")
 
     texfile.write(latexheader)
-    texfile.write("\\title{"+doctitle+"}\n")
-    texfile.write("\\maketitle\n")
+    if doctitle != "":
+        texfile.write("\\title{"+doctitle+"}\n")
+        texfile.write("\\maketitle\n")
 
     texfile.write("\\begin{figure*}[h!]\n")
     texfile.write("\t\\centering\n")
