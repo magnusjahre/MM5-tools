@@ -498,44 +498,57 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
     sharedLines = sharedFile.readlines()
     sharedFile.close()
 
+    sstats = {}
+    for i in range(len(sharedLines)):
+        sdata = sharedLines[i].split(";")
+        if sdata[1] not in sstats:
+            sstats[sdata[1]] = [sdata[3]]
+        else:
+            sstats[sdata[1]].append(sdata[3])
+
     aloneFile = open(aloneTrace)
     aloneLines = aloneFile.readlines()
     aloneFile.close()
 
-    errors = 0.0
-    correct = 0.0
-    not_cnt = 0.0
-    for i in range(len(sharedLines)):
-        sdata = sharedLines[i].split(";")
+    astats = {}
+    for i in range(len(aloneLines)):
         adata = aloneLines[i].split(";")
-
-        if(sdata[1] != adata[1]):
-            if printDiff:
-                print sdata[0]+": NOTE, saw different addresses, alone "+adata[1]+" ("+adata[4].strip()+"), shared "+sdata[1]+" ("+sdata[4].strip()+")"
-            not_cnt += 1.0
-
-        if sdata[3] == adata[3]:
-            print sdata[0]+": correctly estimated "+sdata[3]
-            correct += 1.0
+        if adata[1] not in astats:
+            astats[adata[1]] = [adata[3]]
         else:
-            print sdata[0]+": ERROR, estimated "+sdata[3]+", access was "+adata[3]
-            errors += 1.0
+            astats[adata[1]].append(adata[3])
+    
+    saddrs = sstats.keys()
+    saddrs.sort()
+
+    correct = 0
+    wrong = 0
+
+    for sa in saddrs:
+        
+        if sa in astats:
+
+            sacc = sstats[sa]
+            aacc = astats[sa]
+        
+            if len(sacc) != len(aacc):
+                print "Warning: Dropping accesses to addr "+str(sa)
+                continue
+
+            for i in range(len(sacc)):
+                if sacc[i] == aacc[i]:
+                    correct += 1
+                else:
+                    wrong += 1
+        else:
+            print "Warning: no alone access to addr "+str(sa)+", dropping..."
 
     print
-    print "Validation stats"
+    print "Bus estimation test results"
     print
-    try:
-        print str(correct)+" requests correct ("+str(int((correct/(correct+errors)*100)))+" %)"
-    except:
-        pass
-    try:
-        print str(errors)+" requests wrong ("+str(int((errors/(correct+errors)*100)))+" %)"
-    except:
-        pass
-    try:
-        print str(not_cnt)+" requests not counted ("+str(int((not_cnt/(correct+errors)*100)))+" %)"
-    except:
-        pass
+    print "Correct: "+str(correct)+" ("+str(int(float(correct)/float(correct+wrong)*100))+"%)"
+    print "Wrong:   "+str(wrong)+" ("+str(int(float(wrong)/float(correct+wrong)*100))+"%)"
+    print
 
 def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint):
     
@@ -904,7 +917,7 @@ def computeWeightedAvg(avgres, cpuid, testnum):
     
     return int(avg)
 
-def getInterferenceErrors(sharedName, aloneNames):
+def getInterferenceErrors(sharedName, aloneNames, absError):
     
     slat,sint,alat = getInterferenceBreakdownError(sharedName, aloneNames, False)
 
@@ -959,7 +972,10 @@ def getInterferenceErrors(sharedName, aloneNames):
             errors[k] = [0 for i in range(len(aloneNames))]
             for cpuid in range(len(aloneNames)):
                 estimate = computeEstimate(tslats[k][cpuid], tints[k][cpuid])
-                errors[k][cpuid] = computeError(estimate, talats[k][cpuid])
+                if absError:
+                    errors[k][cpuid] = computeEstimate(estimate, talats[k][cpuid])
+                else:
+                    errors[k][cpuid] = computeError(estimate, talats[k][cpuid])
     
     return errors
 

@@ -60,7 +60,7 @@ options = {"ic_entry": "IC Entry",
            "rwerror": ""}
 
 if len(sys.argv) < 3 or sys.argv[2] not in options:
-    print "Usage: python -c \"import fairmha.parseInterference\" np interference_type"
+    print "Usage: python -c \"import fairmha.parseInterference\" np interference_type [absolute]"
     print "Usage: python -c \"import fairmha.parseInterference\" np all"
     print "Usage: python -c \"import fairmha.parseInterference\" np one workload"
     print "Usage: python -c \"import fairmha.parseInterference\" np rwerror"
@@ -76,6 +76,7 @@ printAll = False
 printOne = False
 printWl = ""
 printRW = False
+printAbsError = False
 if sys.argv[2] == "all":
     print "Writing all results to files..."
     printAll = True
@@ -86,6 +87,9 @@ elif sys.argv[2] == "rwerror":
     printRW = True
 else:
     pattern = options[sys.argv[2]]
+
+if len(sys.argv) >= 4 and sys.argv[3] == "absolute":
+    printAbsError = True
 
 if printOne:
     for cmd, config in pbsconfig.commandlines:
@@ -106,7 +110,7 @@ for cmd, config in pbsconfig.commandlines:
     if key not in data:
         data[key] = {}
     assert wl not in data[key]
-    data[key][wl] = getInterference.getInterferenceErrors(shName,aloneNames)
+    data[key][wl] = getInterference.getInterferenceErrors(shName,aloneNames,printAbsError)
 
     if key not in reqerrors:
         reqerrors[key] = {}
