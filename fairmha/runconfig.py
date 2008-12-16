@@ -18,7 +18,7 @@ PBS_DIR_NAME = "pbsfiles"
 
 header = """#!/bin/bash
 #PBS -N m5sim
-#PBS -lwalltime=6:30:00
+#PBS -lwalltime=10:00:00
 #PBS -lpmem=1000MB
 #PBS -m a
 #PBS -q default
