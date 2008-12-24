@@ -22,6 +22,7 @@ resultfiles = ["interconnect*.txt",
                "*HitStats.txt",
                "interferenceStats.txt",
                "*InterferenceTrace.txt",
+               "*LatencyTrace.txt",
                "amhaTrace.txt",
                "MemoryBusQueueTime.txt",
                "MemoryBusQueueTrace*.txt"]
