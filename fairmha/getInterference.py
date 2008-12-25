@@ -1020,3 +1020,68 @@ def getReadWriteCount(sFilename, aFilenames):
     return error
         
     
+def computeInterferenceFromTrace(sharedfn, alonefn, printStats):
+    
+    sharedData = parseTraceFile(sharedfn)
+    aloneData = parseTraceFile(alonefn)
+
+    aNotSeen = 0
+    sNotSeen = 0
+
+    if printStats:
+        print
+        print "Comparing files "+sharedfn+" and "+alonefn
+        print
+        print str(len(sharedData))+" shared keys"
+        print str(len(aloneData))+" alone keys"
+
+    akeys = aloneData.keys()
+    skeys = sharedData.keys()
+    for ak in akeys:
+        if ak not in sharedData:
+            aNotSeen += 1
+            del aloneData[ak]
+
+    for sk in skeys:
+        if sk not in aloneData:
+            sNotSeen += 1
+            del sharedData[sk]
+
+    if printStats:
+        print str(aNotSeen)+" alone requests not in shared"
+        print str(sNotSeen)+" shared requests not in alone"
+        print str(len(sharedData))+" shared reqs and "+str(len(aloneData))+" alone reqs left"
+
+def getTraceFileKey(addr, pc):
+    #return str(addr)+"-"+str(pc)
+    return str(addr)
+
+def parseTraceFile(fname):
+
+    data = {}
+
+    f = open(fname)
+    lines = f.readlines()
+    f.close()
+
+    for l in lines[1:]:
+        splitted = l.split(";")
+        assert len(splitted) == 8
+        addr = int(splitted[1])
+        pc = int(splitted[2])
+        key = getTraceFileKey(addr,pc)
+        
+        lats = {}
+        lats["ic-entry"] = int(splitted[3]) 
+        lats["ic-transfer"] = int(splitted[4]) 
+        lats["ic-delivery"] = int(splitted[5]) 
+        lats["bus-transfer"] = int(splitted[6]) 
+        lats["bus-delivery"] = int(splitted[7]) 
+        lats["at-tick"] = int(splitted[0])
+
+        if key not in data:
+            data[key] = []
+
+        data[key].append(lats)
+        
+    return data

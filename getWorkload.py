@@ -11,7 +11,7 @@ try:
     elif sys.argv[1] == "bw":
         list = bw_workloads.bw_workloads[int(sys.argv[2])][int(sys.argv[3])][0]
     elif sys.argv[1] == "fair":
-        list = fair_wls.workloads[int(sys.argv[3])][0]
+        list = fair_wls.workloads[int(sys.argv[2])][int(sys.argv[3])][0]
 
     id = 0
     for bm in list:
