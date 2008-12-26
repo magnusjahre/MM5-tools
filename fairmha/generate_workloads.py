@@ -4,13 +4,14 @@ import random
 # Constants
 FASTFW_START = 1*10**9
 FASTFW_END = int(1.1*10**9)
-WORKLOAD_COUNT = 10
+
 SEED = 38 #Chosen so that all benchmarks are used in at least one workload
 
 # Benchmarks
 benchmarks = ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'vortex1', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'mesa', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'sixtrack' ,'apsi', 'fma3d']
 
-cpus = [8,16]
+cpus = [4,8,16]
+WORKLOAD_COUNT = {4:40,8:20,16:10}
 
 used_bms = {}
 for cpu in cpus:
@@ -27,25 +28,35 @@ outfile.write("workloads = {\n\n")
 for cpu_count in cpus:
 
     outfile.write(str(cpu_count)+":{\n")
-    for i in range(WORKLOAD_COUNT):
-        
+    for i in range(WORKLOAD_COUNT[cpu_count]):
         useBenchmarks = []
         useFW = []
         
-        for j in range(cpu_count):
+        #for j in range(cpu_count):
+        while len(useBenchmarks) < cpu_count:
             # fastfw = random.randint(FASTFW_START, FASTFW_END)
             fastfw = 1000000000
             bm = random.randint(0, len(benchmarks)-1)
-            useFW.append(fastfw)
-            useBenchmarks.append(benchmarks[bm])
-            used_bms[cpu_count][bm] = used_bms[cpu_count][bm] + 1
+
+            if benchmarks[bm] not in useBenchmarks:
+                useFW.append(fastfw)
+                useBenchmarks.append(benchmarks[bm])
+                used_bms[cpu_count][bm] = used_bms[cpu_count][bm] + 1
         
-        if i == (WORKLOAD_COUNT-1):
+        for j in range(len(useBenchmarks)):
+            for k in range(len(useBenchmarks)):
+                if j != k:
+                    assert useBenchmarks[j] != useBenchmarks[k]
+
+        if i == (WORKLOAD_COUNT[cpu_count]-1):
             outfile.write(str(i+1)+":("+str(useBenchmarks)+","+str(useFW)+")\n")
         else:
             outfile.write(str(i+1)+":("+str(useBenchmarks)+","+str(useFW)+"),\n")
 
-    outfile.write("},\n\n")
+    if cpu_count == cpus[len(cpus)-1]:
+        outfile.write("}\n\n")
+    else:
+        outfile.write("},\n\n")
 
 for cpu in cpus:    
     print "\n"+str(cpu)+" CPU benchmark usage\n"
