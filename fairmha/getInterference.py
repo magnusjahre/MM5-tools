@@ -1028,12 +1028,18 @@ def computeInterferenceFromTrace(sharedfn, alonefn, printStats):
     aNotSeen = 0
     sNotSeen = 0
 
+    stats = {}
+
     if printStats:
         print
         print "Comparing files "+sharedfn+" and "+alonefn
         print
         print str(len(sharedData))+" shared keys"
         print str(len(aloneData))+" alone keys"
+        print
+
+    stats["orig-shared-keys"] = len(sharedData)
+    stats["orig-alone-keys"] = len(aloneData)
 
     akeys = aloneData.keys()
     skeys = sharedData.keys()
@@ -1051,10 +1057,90 @@ def computeInterferenceFromTrace(sharedfn, alonefn, printStats):
         print str(aNotSeen)+" alone requests not in shared"
         print str(sNotSeen)+" shared requests not in alone"
         print str(len(sharedData))+" shared reqs and "+str(len(aloneData))+" alone reqs left"
+        print
+
+    assert len(sharedData) == len(aloneData)
+
+    stats["only-shared-keys"] = sNotSeen
+    stats["only-alone-keys"] = aNotSeen
+    stats["both-keys"] = len(sharedData)
+
+    interference = {}
+
+    sharedEntriesRemoved = 0
+    aloneEntriesRemoved = 0
+    entriesLeft = 0
+
+    skeys = sharedData.keys()    
+    for skey in skeys:
+        assert skey in aloneData
+
+        sStats = sharedData[skey]
+        aStats = aloneData[skey]
+
+        if len(sStats) != len(aStats):
+            if len(aStats) > len(sStats):
+                aloneEntriesRemoved += len(aStats) - len(sStats)
+                del aStats[len(sStats):]
+            else:
+                sharedEntriesRemoved += len(sStats) - len(aStats)
+                del sStats[len(aStats):]
+            assert len(aStats) == len(sStats)
+        entriesLeft += len(sStats)
+
+        interference[skey] = []
+        
+        for i in range(len(sStats)):
+            interference[skey].append(computeTraceInterference(sStats[i], aStats[i]))
+
+    if printStats:
+        print str(sharedEntriesRemoved)+" entries removed from shared"
+        print str(aloneEntriesRemoved)+" entries removed from alone"
+        print str(entriesLeft)+" entries in interference computation"
+        print
+
+    stats["shared-entries-removed"] = sharedEntriesRemoved
+    stats["alone-entries-removed"] = aloneEntriesRemoved
+    stats["entries-used"] = entriesLeft
+
+    return (interference, stats)
 
 def getTraceFileKey(addr, pc):
     #return str(addr)+"-"+str(pc)
     return str(addr)
+
+def computeTraceInterference(sharedData, aloneData):
+    
+    interference = {}
+
+    interference["ic-entry"] = sharedData["ic-entry"] - aloneData["ic-entry"] 
+    interference["ic-transfer"] = sharedData["ic-transfer"] - aloneData["ic-transfer"] 
+    interference["ic-delivery"] = sharedData["ic-delivery"] - aloneData["ic-delivery"]
+
+    if sharedData["bus-transfer"] != 0 and aloneData["bus-transfer"] == 0:
+        # shared cache miss -> cache interference
+        interference["cache-capacity"] = sharedData["bus-entry"] + sharedData["bus-transfer"]
+        interference["bus-entry"] = 0
+        interference["bus-transfer"] = 0
+
+    elif sharedData["bus-transfer"] != 0 and aloneData["bus-transfer"] != 0:
+        # cache miss in both configurations -> bus interference
+        interference["cache-capacity"] = 0
+        interference["bus-entry"] = sharedData["bus-entry"] - aloneData["bus-entry"]
+        interference["bus-transfer"] = sharedData["bus-transfer"] - aloneData["bus-transfer"]
+        pass
+
+    elif sharedData["bus-transfer"] == 0 and aloneData["bus-transfer"] != 0:
+        print "Shared cache hit and alone miss is impossible (crap!), quitting"
+        assert False
+
+    else:
+        # cache hit in both configs
+        interference["cache-capacity"] = 0
+        interference["bus-entry"] = 0
+        interference["bus-transfer"] = 0
+
+    return interference
 
 def parseTraceFile(fname):
 
@@ -1075,8 +1161,8 @@ def parseTraceFile(fname):
         lats["ic-entry"] = int(splitted[3]) 
         lats["ic-transfer"] = int(splitted[4]) 
         lats["ic-delivery"] = int(splitted[5]) 
-        lats["bus-transfer"] = int(splitted[6]) 
-        lats["bus-delivery"] = int(splitted[7]) 
+        lats["bus-entry"] = int(splitted[6]) 
+        lats["bus-transfer"] = int(splitted[7]) 
         lats["at-tick"] = int(splitted[0])
 
         if key not in data:
@@ -1084,4 +1170,24 @@ def parseTraceFile(fname):
 
         data[key].append(lats)
         
+    return data
+
+def createReqVsLatData(interference):
+    
+    data = {}
+    keys = interference.keys()
+    intTypes = interference[keys[0]][0].keys()
+
+    for t in intTypes:
+        data[t] = {}
+
+    for key in interference:
+        for entry in interference[key]:
+            for itype in entry:
+                intTicks = entry[itype]
+                if intTicks not in data[itype]:
+                    data[itype][intTicks] = 1
+                else:
+                    data[itype][intTicks] += 1
+
     return data
