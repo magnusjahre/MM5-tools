@@ -6,6 +6,8 @@ import sys
 
 bmPattern = re.compile("-EBENCHMARK=[a-zA-Z0-9]*")
 instPattern = re.compile(" [0-9]+ ")
+intPattern = re.compile("[0-9]+")
+committedPattern = re.compile("[0-9]+ committed")
 
 # Procedures
 
@@ -53,3 +55,51 @@ def checkAvgLatDriftError(idDict):
                 cpuID += 1
 
     sys.stderr.write("Drift errors: "+str(maxDiff)+", "+str(minDiff)+"\n")
+
+def getAloneDrift(sharedid, aloneids):
+    
+    try:
+        sharedSwitch = open(sharedid+"/cpuSwitchInsts.txt")
+        sSwitchLines = sharedSwitch.readlines()
+        sharedSwitch.close()
+    except:
+        e = ["N/A" for i in range(len(aloneids))]
+        return (e,e)
+
+    sharedCom = [0 for i in range(len(aloneids))]
+    
+    for l in sSwitchLines:
+        stmp = l.split(":")
+        
+        idRes = intPattern.findall(stmp[0])
+        assert len(idRes) == 1
+        id = int(idRes[0])
+        
+        comRes = committedPattern.findall(stmp[1])
+        assert len(comRes) == 1
+        com = int(comRes[0].split(" ")[0])
+
+        sharedCom[id] = com
+
+    aloneCom = [0 for i in range(len(aloneids))]
+    i = 0
+    for aid in aloneids:
+        aswitch = open(aid+"/cpuSwitchInsts.txt")
+        alines = aswitch.readlines()
+        aswitch.close()
+
+        assert len(alines) == 1
+        comRes = committedPattern.findall(alines[0])
+        assert len(comRes) == 1
+        com = int(comRes[0].split(" ")[0])
+        
+        aloneCom[i] = com
+        i += 1
+
+    error = [0 for i in range(len(aloneids))]
+    diff = [0 for i in range(len(aloneids))]
+    for i in range(len(sharedCom)):
+        error[i] = ((float(sharedCom[i]) - float(aloneCom[i])) / float(aloneCom[i])) * 100
+        diff[i] = sharedCom[i] - aloneCom[i]
+
+    return (error,diff)
