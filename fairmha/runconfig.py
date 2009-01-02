@@ -12,46 +12,71 @@ import re
 SLEEP_TIME = 1*60
 
 PROJECT_NUM = "nn4650k"
-PPN = 8
 PBS_DIR_NAME = "pbsfiles"
 
+ppn = {1:8, 4:8, 8:8, 16:4}
+walltime = {1:4, 4:7, 8:10, 16:12}
+MAXMEM = 16
 
-header = """#!/bin/bash
-#PBS -N m5sim
-#PBS -lwalltime=12:00:00
-#PBS -lpmem=1000MB
-#PBS -m a
-#PBS -q default
-#PBS -j oe
-"""
-header = header + "#PBS -lnodes=1:ppn="+str(PPN)+"\n"
-header = header + "#PBS -A "+str(PROJECT_NUM)+"\n\n"
 
 bmroot = os.getenv("BMROOT")
 if bmroot == None:
     print "Envirionment variable BMROOT not set. Quitting..."
     sys.exit(-1)
- 
-latest_commands = []
 
-def commit_command(fileID, cmd, cnt, fcnt):
+
+def getHeader(np):
+
+    lines = []
+
+    lines.append("#!/bin/bash")
+    lines.append("#PBS -N m5sim")
+    lines.append("#PBS -lwalltime="+str(walltime[np])+":00:00")
+    lines.append("#PBS -m a")
+    lines.append("#PBS -q default")
+    lines.append("#PBS -j oe")
+
+    lines.append("#PBS -lnodes=1:ppn="+str(ppn[np]))
+    lines.append("#PBS -lpmem="+str(MAXMEM/ppn[np])+"gb")
+    lines.append("#PBS -A "+str(PROJECT_NUM))
+
+    header = ""
+    for l in lines:
+        header += l+"\n"
+
+    return header+"\n"
+
+def commit_command(fileID, cmd, cnt, fcnt, np):
+
+    
+    flushed = False
+    if globals()["current_cpu_count"] != np:
+        if latest_commands != []:
+            flush_commands(fcnt)
+            flushed = True
+        globals()["current_cpu_count"] = np
+        globals()["command_counter"] = 0
 
     # make experiment directory
     os.mkdir(fileID)
     print 'Created an experiment directory for '+fileID
-    
+
     latest_commands.append((fileID, cmd))
 
-    if cnt == PPN-1:
+    if cnt == ppn[np]-1:
         flush_commands(fcnt)
-        return True
-    return False
+        flushed = True
+        globals()["command_counter"] = 0
+    else:
+        globals()["command_counter"] += 1
+
+    return flushed
 
 
 def flush_commands(fcnt):
 
     output = open(pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs','w')
-    output.write(header)
+    output.write(getHeader(current_cpu_count))
     
     for fileID, command in latest_commands:
 
@@ -63,7 +88,7 @@ def flush_commands(fcnt):
     
     del latest_commands[:]
 
-    output.write("wait")
+    output.write("wait\n\n")
 
     # Finish file
     output.close()
@@ -72,6 +97,9 @@ def flush_commands(fcnt):
     print results[0].read()
     print results[2].read()
     
+
+current_cpu_count = -1 
+latest_commands = []
 
 count = 0
 command_counter = 0
@@ -83,10 +111,9 @@ for commandline,param in pbsconfig.commandlines:
 
     fileID = pbsconfig.get_unique_id(param)
             
-    incFile = commit_command(fileID, commandline, command_counter, file_counter)
+    incFile = commit_command(fileID, commandline, command_counter, file_counter, pbsconfig.get_np(param))
     if incFile:
-        file_counter = file_counter + 1
-    command_counter = (command_counter + 1) % PPN
+        file_counter += 1
     count = count + 1
 
 if latest_commands != []:
@@ -140,10 +167,9 @@ if pbsconfig.spm_inst_commands != []:
                                 cmd,singleParams = pbsconfig.get_command(singleParams)
                                 expID = pbsconfig.get_unique_id(singleParams)
 
-                                incFile = commit_command(expID, cmd, command_counter, file_counter)
+                                incFile = commit_command(expID, cmd, command_counter, file_counter, 1)
                                 if incFile:
-                                    file_counter = file_counter + 1
-                                command_counter = (command_counter + 1) % PPN
+                                    file_counter += 1
                                 count = count + 1
                             pbsconfig.remove_alone_cmds(wl, params)
                         
