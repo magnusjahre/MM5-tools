@@ -14,10 +14,9 @@ SLEEP_TIME = 1*60
 PROJECT_NUM = "nn4650k"
 PBS_DIR_NAME = "pbsfiles"
 
-ppn = {1:8, 4:8, 8:8, 16:4}
-walltime = {1:4, 4:7, 8:10, 16:12}
-MAXMEM = 16
-
+ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
+walltime = {1:4, 4:7, 8:10, 16:12}             # in hours
+perProcMem = {1:1792, 4:1792, 8:1792, 16:3584} # in MB
 
 bmroot = os.getenv("BMROOT")
 if bmroot == None:
@@ -37,7 +36,7 @@ def getHeader(np):
     lines.append("#PBS -j oe")
 
     lines.append("#PBS -lnodes=1:ppn="+str(ppn[np]))
-    lines.append("#PBS -lpmem="+str(MAXMEM/ppn[np])+"gb")
+    lines.append("#PBS -lpmem="+str(perProcMem[np])+"MB")
     lines.append("#PBS -A "+str(PROJECT_NUM))
 
     header = ""
