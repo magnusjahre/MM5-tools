@@ -6,6 +6,9 @@
 #include <list>
 #include <string>
 #include <sstream>
+#include <map>
+
+#include <cassert>
 
 typedef unsigned long long Addr;
 
@@ -40,5 +43,3 @@ void readTrace(char* filename, bool shared);
 void computeInterference();
 
 void writeInterferenceFile(char* filename);
-
-void fatal(const char* message);

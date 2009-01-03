@@ -18,10 +18,9 @@ int main(int argc, char** argv){
     char* alonefile = argv[2];
     char* outfile = argv[3];
     
-    cout << "Shared file: " << sharedfile << "\n";
-    cout << "Alone file: " << alonefile << "\n";
-    cout << "Output file: " << outfile << "\n\n";
-    
+    cout << "Shared file:   " << sharedfile << "\n";
+    cout << "Alone file:    " << alonefile << "\n";
+    cout << "Output file:   " << outfile << "\n\n";
     
     cout << "Parsing file " << sharedfile << "...\n";
     readTrace(sharedfile, true);
@@ -42,7 +41,6 @@ int main(int argc, char** argv){
 void readTrace(char* filename, bool shared){
     
     char buffer[BUFFER_SIZE];
-    int linecnt = 0;
     
     bool first = true;
     ifstream tracefile(filename);
@@ -56,9 +54,6 @@ void readTrace(char* filename, bool shared){
         Latencies lats(buffer);
         if(shared) sharedLatencies[lats.address].push_back(lats);
         else aloneLatencies[lats.address].push_back(lats);
-        
-        linecnt++;
-        if(linecnt % 1000000 == 0) cout << linecnt << " lines parsed\n";
     }
     
     tracefile.close();
@@ -67,16 +62,91 @@ void readTrace(char* filename, bool shared){
 
 void computeInterference(){
     
+    // remove all adresses that do not occur in both
+    std::map<Addr, std::list<Latencies> >::iterator sharedIt = sharedLatencies.begin();
+    int erasedFromShared = 0;
+    while(sharedIt != sharedLatencies.end()){
+        std::map<Addr, std::list<Latencies> >::iterator tmpIt = aloneLatencies.find(sharedIt->first);
+        if(tmpIt != aloneLatencies.end()){
+            sharedIt++;
+        }
+        else{
+            std::map<Addr, std::list<Latencies> >::iterator eraseIt = sharedIt++;
+            sharedLatencies.erase(eraseIt);
+            erasedFromShared++;
+        }
+    }
+    cout << "Erased " << erasedFromShared << " elements from shared\n";
+    
+    std::map<Addr, std::list<Latencies> >::iterator aloneIt = aloneLatencies.begin();
+    int erasedFromAlone = 0;
+    while(aloneIt != aloneLatencies.end()){
+        std::map<Addr, std::list<Latencies> >::iterator tmpIt = sharedLatencies.find(aloneIt->first);
+        if(tmpIt != sharedLatencies.end()){
+            aloneIt++;
+        }
+        else{
+            std::map<Addr, std::list<Latencies> >::iterator eraseIt = aloneIt++;
+            sharedLatencies.erase(eraseIt);
+            erasedFromAlone++;
+        }
+    }
+    cout << "Erased " << erasedFromAlone << " elements from alone\n";
+    
+    sharedIt = sharedLatencies.begin();
+    aloneIt = aloneLatencies.begin();
+    int sharedElementsErased = 0;
+    int aloneElementsErased = 0;
+    int addrsLeft = 0;
+    int sharedElementsLeft = 0;
+    int aloneElementsLeft = 0;
+    for( ; sharedIt != sharedLatencies.end() && aloneIt != aloneLatencies.end() ; sharedIt++,aloneIt++){
+        assert(sharedIt->first == aloneIt->first);
+        
+        addrsLeft++;
+        
+        if(sharedIt->second.size() > aloneIt->second.size()){
+            list<Latencies>::iterator tmpIt = sharedIt->second.begin();
+            unsigned int pos = 0;
+            for( ; tmpIt != sharedIt->second.end(); pos++){
+                if(pos >= aloneIt->second.size()){
+                    tmpIt = sharedIt->second.erase(tmpIt);
+                    sharedElementsErased++;
+                }
+                else{
+                    tmpIt++;
+                }
+            }
+        }
+        else if(sharedIt->second.size() < aloneIt->second.size()){
+            list<Latencies>::iterator tmpIt = aloneIt->second.begin();
+            unsigned int pos = 0;
+            for( ; tmpIt != aloneIt->second.end(); pos++){
+                if(pos >= sharedIt->second.size()){
+                    tmpIt = aloneIt->second.erase(tmpIt);
+                    aloneElementsErased++;
+                }
+                else{
+                    tmpIt++;
+                }
+            }
+        }
+        
+        sharedElementsLeft += sharedIt->second.size();
+        aloneElementsLeft += aloneIt->second.size();
+        
+        assert(sharedIt->second.size() == aloneIt->second.size());
+    }
+    
+    cout << "Erased " << sharedElementsErased << " shared elements and " << aloneElementsErased << " alone elements due to different request counts for one address\n";
+    cout << sharedElementsLeft << " shared elements left and " << aloneElementsLeft << " alone elements left\n";
+    cout << addrsLeft << " addresses left after pruning\n";
+    
 }
 
 
 void writeInterferenceFile(char* filename){
     
-}
-
-void fatal(const char* message){
-    cerr << message << "\n";
-    exit(0);
 }
 
 Latencies::Latencies(char* line){
