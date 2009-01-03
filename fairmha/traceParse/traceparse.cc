@@ -29,10 +29,10 @@ int main(int argc, char** argv){
     readTrace(alonefile, false);
     
     cout << "Done!\nComputing interference...\n";
-    computeInterference();
+    int reqs = computeInterference();
     
     cout << "Done!\nWriting output file...\n";
-    writeInterferenceFile(outfile);
+    writeInterferenceFile(outfile, reqs);
     cout << "Done!\n";
     
     return 0;
@@ -60,7 +60,7 @@ void readTrace(char* filename, bool shared){
 }
 
 
-void computeInterference(){
+int computeInterference(){
     
     // remove all adresses that do not occur in both
     std::map<Addr, std::list<Latencies> >::iterator sharedIt = sharedLatencies.begin();
@@ -141,13 +141,95 @@ void computeInterference(){
     cout << "Erased " << sharedElementsErased << " shared elements and " << aloneElementsErased << " alone elements due to different request counts for one address\n";
     cout << sharedElementsLeft << " shared elements left and " << aloneElementsLeft << " alone elements left\n";
     cout << addrsLeft << " addresses left after pruning\n";
-    
+
+    sharedIt = sharedLatencies.begin();
+    aloneIt = aloneLatencies.begin();
+
+    for( ; sharedIt != sharedLatencies.end(); sharedIt++,aloneIt++){
+      list<Latencies>::iterator sharedListIt = sharedIt->second.begin();
+      list<Latencies>::iterator aloneListIt = aloneIt->second.begin();
+      
+      assert(sharedIt->first == aloneIt->first);
+      assert(interference.find(sharedIt->first) == interference.end());
+      
+      for( ; sharedListIt != sharedIt->second.end() ; sharedListIt++,aloneListIt++){
+	interference[sharedIt->first].push_back(Latencies(*sharedListIt,*aloneListIt));
+      }
+      assert(aloneListIt == aloneIt->second.end());
+    }
+    assert(aloneIt == aloneLatencies.end());
+
+    assert(sharedElementsLeft == aloneElementsLeft);
+    return sharedElementsLeft;
 }
 
-
-void writeInterferenceFile(char* filename){
+void writeInterferenceFile(char* filename, int numReqs){
     
+  map<int,Latencies> reqsPerInterferenceVal;
+
+  std::map<Addr, std::list<Latencies> >::iterator intIt = interference.begin();
+  for( ; intIt != interference.end(); intIt++){
+    list<Latencies>::iterator intListIt = intIt->second.begin();
+    for( ; intListIt != intIt->second.end() ; intListIt++){
+      intListIt->updateIntMap(reqsPerInterferenceVal);
+    }
+  }
+
+  int w = 20;
+  ofstream intFile(filename);
+  intFile << setw(w);
+  intFile << "# Interference";
+  intFile << setw(w);
+  intFile << "IC Entry";
+  intFile << setw(w);
+  intFile << "IC Transfer";
+  intFile << setw(w);
+  intFile << "IC Delivery";
+  intFile << setw(w);
+  intFile << "Bus Entry";
+  intFile << setw(w);
+  intFile << "Bus Transfer";
+  intFile << setw(w);
+  intFile << "Cache Capacity";
+  intFile << "\n";
+
+  map<int,Latencies>::iterator mapIt =  reqsPerInterferenceVal.begin();
+  for( ; mapIt != reqsPerInterferenceVal.end() ; mapIt++){
+
+    InterferenceFactors tmpFac(mapIt->second, numReqs, mapIt->first);
+
+    intFile << setw(w);
+    intFile << mapIt->first;
+    intFile << setw(w);
+    intFile << tmpFac.ic_entry;
+    intFile << setw(w);
+    intFile << tmpFac.ic_transfer;
+    intFile << setw(w);
+    intFile << tmpFac.ic_delivery;
+    intFile << setw(w);
+    intFile << tmpFac.bus_entry;
+    intFile << setw(w);
+    intFile << tmpFac.bus_transfer;
+    intFile << setw(w);
+    intFile << tmpFac.cache_capacity;
+    intFile << "\n";
+  }
+
+  intFile.flush();
+  intFile.close();
 }
+
+Latencies::Latencies(){
+ address = 0;
+ at_tick = 0;
+ ic_entry = 0;
+ ic_transfer = 0;
+ ic_delivery = 0;
+ bus_entry = 0;
+ bus_transfer = 0;
+ cache_capacity = 0;
+}
+   
 
 Latencies::Latencies(char* line){
     
@@ -192,6 +274,37 @@ Latencies::Latencies(char* line){
     cache_capacity = 0;
 }
 
+Latencies::Latencies(Latencies& shared, Latencies& alone){
+  at_tick = 0;
+  address = shared.address;
+  
+  ic_entry = shared.ic_entry - alone.ic_entry;
+  ic_transfer = shared.ic_transfer - alone.ic_transfer;
+  ic_delivery = shared.ic_delivery - alone.ic_delivery;
+
+  if(shared.bus_transfer != 0 && alone.bus_transfer == 0){
+    // cache capacity interference
+    cache_capacity = shared.bus_transfer + shared.bus_entry;
+    bus_entry = 0;
+    bus_transfer = 0;
+  }
+  else if(shared.bus_transfer != 0 && alone.bus_transfer != 0){
+    // cache miss in both
+    cache_capacity = 0;
+    bus_entry = shared.bus_entry - alone.bus_entry;
+    bus_transfer = shared.bus_transfer - alone.bus_transfer;
+  }
+  else if(shared.bus_transfer == 0 && alone.bus_transfer != 0){
+    cout << "Shared cache hit and alone cache miss, should be impossible";
+    assert(false);
+  }
+  else{
+    cache_capacity = 0;
+    bus_entry = 0;
+    bus_transfer = 0;
+  }
+}
+
 std::string Latencies::toString(){
     stringstream ss;
     ss << "Tick:           " << at_tick << "\n";
@@ -211,4 +324,51 @@ Addr Latencies::toAddr(char* number){
     Addr outAddr = 0;
     for(int pos = 0;number[pos] != '\0';outAddr *= 10,outAddr += number[pos]-'0',pos++);
     return outAddr;
+}
+
+void Latencies::updateIntMap(std::map<int,Latencies>& map){
+  addValue(IC_ENTRY, ic_entry, map);
+  addValue(IC_TRANSFER, ic_transfer, map);
+  addValue(IC_DELIVERY, ic_delivery, map);
+  addValue(BUS_ENTRY, bus_entry, map);
+  addValue(BUS_TRANSFER, bus_transfer, map);
+  addValue(CACHE_CAPACITY, cache_capacity, map);
+}
+
+void Latencies::addValue(I_TYPE type, int interferenceValue, std::map<int,Latencies>& map){
+  if(map.find(interferenceValue) == map.end()){
+    map[interferenceValue] = Latencies();
+  }
+
+  switch(type){
+  case IC_ENTRY:
+    map[interferenceValue].ic_entry += 1;
+    break;
+  case IC_TRANSFER:
+    map[interferenceValue].ic_transfer += 1;
+    break;
+  case IC_DELIVERY:
+    map[interferenceValue].ic_delivery += 1;
+    break;
+  case BUS_ENTRY:
+    map[interferenceValue].bus_entry += 1;
+    break;
+  case BUS_TRANSFER:
+    map[interferenceValue].bus_transfer += 1;
+    break;
+  case CACHE_CAPACITY:
+    map[interferenceValue].cache_capacity += 1;
+    break;
+  default:
+    assert(false);
+  }
+}
+
+InterferenceFactors::InterferenceFactors(Latencies lat, int numReqs, int intVal){
+  ic_entry       = computeIntFactor(lat.ic_entry, numReqs, intVal);
+  ic_transfer    = computeIntFactor(lat.ic_transfer, numReqs, intVal);
+  ic_delivery    = computeIntFactor(lat.ic_delivery, numReqs, intVal);
+  bus_entry      = computeIntFactor(lat.bus_entry, numReqs, intVal);
+  bus_transfer   = computeIntFactor(lat.bus_transfer, numReqs, intVal);
+  cache_capacity = computeIntFactor(lat.cache_capacity, numReqs, intVal);
 }
