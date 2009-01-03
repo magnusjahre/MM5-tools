@@ -1146,11 +1146,17 @@ def parseTraceFile(fname):
 
     data = {}
 
-    f = open(fname)
-    lines = f.readlines()
-    f.close()
+    print "Parsing file "+fname
+    linecnt = 0
 
-    for l in lines[1:]:
+    f = open(fname)
+
+    first = True
+    for l in f:
+        if first:
+            first = False
+            continue
+
         splitted = l.split(";")
         assert len(splitted) == 8
         addr = int(splitted[1])
@@ -1169,7 +1175,16 @@ def parseTraceFile(fname):
             data[key] = []
 
         data[key].append(lats)
-        
+
+        linecnt += 1
+        if linecnt % 100000 == 0:
+            print "Reading line "+str(linecnt)+" key count "+str(len(data))
+    
+    print "Finished parsing.."
+    print
+
+    f.close()
+
     return data
 
 def createReqVsLatData(interference):
