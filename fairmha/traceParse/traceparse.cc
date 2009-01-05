@@ -7,8 +7,8 @@ using namespace std;
 
 int main(int argc, char** argv){
     
-    if(argc != 4){
-        cout << "Usage: traceparse sharedfilename alonefilename outfile\n";
+    if(argc != 6){
+        cout << "Usage: traceparse sharedfilename alonefilename outfile statsfile statskey\n";
         exit(0);
     }
     
@@ -17,10 +17,14 @@ int main(int argc, char** argv){
     char* sharedfile = argv[1];
     char* alonefile = argv[2];
     char* outfile = argv[3];
+    char* statsfile = argv[4];
+    char* statskey = argv[5];
     
     cout << "Shared file:   " << sharedfile << "\n";
     cout << "Alone file:    " << alonefile << "\n";
-    cout << "Output file:   " << outfile << "\n\n";
+    cout << "Output file:   " << outfile << "\n";
+    cout << "Stats file:    " << statsfile<< "\n";
+    cout << "Stats key:     " << statskey << "\n\n";
     
     cout << "Parsing file " << sharedfile << "...\n";
     readTrace(sharedfile, true);
@@ -29,7 +33,7 @@ int main(int argc, char** argv){
     readTrace(alonefile, false);
     
     cout << "Done!\nComputing interference...\n";
-    int reqs = computeInterference();
+    int reqs = computeInterference(statsfile, statskey);
     
     cout << "Done!\nWriting output file...\n";
     writeInterferenceFile(outfile, reqs);
@@ -44,6 +48,7 @@ void readTrace(char* filename, bool shared){
     
     bool first = true;
     ifstream tracefile(filename);
+    assert(tracefile.good());
     while(!tracefile.getline(buffer, BUFFER_SIZE).eof())
     {
         if(first){
@@ -60,7 +65,7 @@ void readTrace(char* filename, bool shared){
 }
 
 
-int computeInterference(){
+int computeInterference(char* statsfile, char* statskey){
     
     // remove all adresses that do not occur in both
     std::map<Addr, std::list<Latencies> >::iterator sharedIt = sharedLatencies.begin();
@@ -71,9 +76,10 @@ int computeInterference(){
             sharedIt++;
         }
         else{
-            std::map<Addr, std::list<Latencies> >::iterator eraseIt = sharedIt++;
+            erasedFromShared += sharedIt->second.size();
+            std::map<Addr, std::list<Latencies> >::iterator eraseIt = sharedIt;
+            sharedIt++;
             sharedLatencies.erase(eraseIt);
-            erasedFromShared++;
         }
     }
     cout << "Erased " << erasedFromShared << " elements from shared\n";
@@ -86,9 +92,10 @@ int computeInterference(){
             aloneIt++;
         }
         else{
-            std::map<Addr, std::list<Latencies> >::iterator eraseIt = aloneIt++;
-            sharedLatencies.erase(eraseIt);
-            erasedFromAlone++;
+            erasedFromAlone += aloneIt->second.size();
+            std::map<Addr, std::list<Latencies> >::iterator eraseIt = aloneIt;
+            aloneIt++;
+            aloneLatencies.erase(eraseIt);
         }
     }
     cout << "Erased " << erasedFromAlone << " elements from alone\n";
@@ -142,6 +149,28 @@ int computeInterference(){
     cout << sharedElementsLeft << " shared elements left and " << aloneElementsLeft << " alone elements left\n";
     cout << addrsLeft << " addresses left after pruning\n";
 
+    int w = 60;
+    ofstream stats(statsfile, ios_base::app);
+    stats << setw(w);
+    stats << statskey;
+    stats << setw(w);
+    stats << erasedFromShared;
+    stats << setw(w);
+    stats << erasedFromAlone;
+    stats << setw(w);
+    stats << sharedElementsErased;
+    stats << setw(w);
+    stats << aloneElementsErased;
+    stats << setw(w);
+    stats << sharedElementsLeft;
+    stats << setw(w);
+    stats << aloneElementsLeft;
+    stats << setw(w);
+    stats << addrsLeft;
+    stats << "\n";
+    stats.flush();
+    stats.close();
+    
     sharedIt = sharedLatencies.begin();
     aloneIt = aloneLatencies.begin();
 
@@ -196,7 +225,8 @@ void writeInterferenceFile(char* filename, int numReqs){
   map<int,Latencies>::iterator mapIt =  reqsPerInterferenceVal.begin();
   for( ; mapIt != reqsPerInterferenceVal.end() ; mapIt++){
 
-    InterferenceFactors tmpFac(mapIt->second, numReqs, mapIt->first);
+//     InterferenceFactors tmpFac(mapIt->second, numReqs, mapIt->first);
+    InterferenceFactors tmpFac(mapIt->second);
 
     intFile << setw(w);
     intFile << mapIt->first;
@@ -259,6 +289,7 @@ Latencies::Latencies(char* line){
             }
         }
         pos++;
+        assert(pos < BUFFER_SIZE);
     }
     
     buffer[bufferpos] = '\0';
@@ -295,8 +326,9 @@ Latencies::Latencies(Latencies& shared, Latencies& alone){
     bus_transfer = shared.bus_transfer - alone.bus_transfer;
   }
   else if(shared.bus_transfer == 0 && alone.bus_transfer != 0){
-    cout << "Shared cache hit and alone cache miss, should be impossible";
-    assert(false);
+    cache_capacity = -(alone.bus_transfer + alone.bus_entry);
+    bus_entry = 0;
+    bus_transfer = 0;
   }
   else{
     cache_capacity = 0;
@@ -371,4 +403,13 @@ InterferenceFactors::InterferenceFactors(Latencies lat, int numReqs, int intVal)
   bus_entry      = computeIntFactor(lat.bus_entry, numReqs, intVal);
   bus_transfer   = computeIntFactor(lat.bus_transfer, numReqs, intVal);
   cache_capacity = computeIntFactor(lat.cache_capacity, numReqs, intVal);
+}
+
+InterferenceFactors::InterferenceFactors(Latencies lat){
+    ic_entry       = lat.ic_entry;
+    ic_transfer    = lat.ic_transfer;
+    ic_delivery    = lat.ic_delivery;
+    bus_entry      = lat.bus_entry;
+    bus_transfer   = lat.bus_transfer;
+    cache_capacity = lat.cache_capacity;
 }

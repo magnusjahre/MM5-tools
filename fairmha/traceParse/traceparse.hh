@@ -50,14 +50,16 @@ struct Latencies{
 };
 
 struct InterferenceFactors{
-  double ic_entry;
-  double ic_transfer;
-  double ic_delivery;
-  double bus_entry;
-  double bus_transfer;
-  double cache_capacity;
+  int ic_entry;
+  int ic_transfer;
+  int ic_delivery;
+  int bus_entry;
+  int bus_transfer;
+  int cache_capacity;
 
   InterferenceFactors(Latencies lat, int numReqs, int intVal);
+  
+  InterferenceFactors(Latencies lat);
 
   inline double computeIntFactor(int numReqs, int totalReqs, int interference){
     return ((double) interference) * ( ((double) numReqs) / ((double) totalReqs) ); 
@@ -73,6 +75,6 @@ int main(int argc, char** argv);
 
 void readTrace(char* filename, bool shared);
 
-int computeInterference();
+int computeInterference(char* statsfile, char* statskey);
 
 void writeInterferenceFile(char* filename, int numReqs);

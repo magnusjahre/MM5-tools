@@ -2,6 +2,7 @@
 import sys
 import re
 import deterministic_fw_wls as fair_wls
+import subprocess
 
 def getResult(r, array, add):
     value = int(r.split()[1])
@@ -1204,5 +1205,52 @@ def createReqVsLatData(interference):
                     data[itype][intTicks] = 1
                 else:
                     data[itype][intTicks] += 1
+
+    return data
+
+def parseInterferenceTraceExternal(sharedfn, privatefn, outputfn, statsfn, key):
+    binary = "/home/jahre/m5sim/tools/fairmha/traceParse/traceparse"
+
+    args = [binary]
+    args.append(sharedfn) 
+    args.append(privatefn)
+    args.append(outputfn)
+    args.append(statsfn)
+    args.append(key)
+
+    subprocess.call(args)
+
+    readdata = {}
+    first = True
+    resfile = open(outputfn)
+    for l in resfile:
+        if first:
+            first = False
+            continue
+
+        tmp = l.split()
+        assert(len(tmp) == 7)
+
+        interference = int(tmp[0])
+        
+        lats = {}
+        lats["ic-entry"] = int(tmp[1]) 
+        lats["ic-transfer"] = int(tmp[2]) 
+        lats["ic-delivery"] = int(tmp[3]) 
+        lats["bus-entry"] = int(tmp[4]) 
+        lats["bus-transfer"] = int(tmp[5]) 
+        lats["cache-capacity"] = int(tmp[6]) 
+
+        readdata[interference] = lats
+
+    resfile.close()
+    
+    data = {}
+    for interference in readdata:
+        for intType in readdata[interference]:
+            if intType not in data:
+                data[intType] = {}
+
+            data[intType][interference] = readdata[interference][intType]
 
     return data

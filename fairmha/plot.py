@@ -1,6 +1,7 @@
 
 import os
 import popen2
+import subprocess
 
 latexheader = """
 \documentclass[11pt,a4paper]{article}
@@ -172,3 +173,28 @@ def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilena
     os.remove("plots.aux")
     os.remove("plots.log")
     os.remove("plots.tex")
+
+def plotScatter(name, xtitle, ytitle, seriesTitles, datafile):
+    scriptfile = open(name+".g", "w")
+    scriptfile.write("set title \"Scatterplot\"\n")
+    scriptfile.write("set xlabel \""+xtitle+"\"\n")
+    scriptfile.write("set ylabel \""+ytitle+"\"\n")
+    scriptfile.write("set key outside below\n")
+    scriptfile.write("set terminal postscript eps color enhanced 26\n")
+    scriptfile.write("set output \""+name+".eps\"\n")
+
+    scriptfile.write("plot")
+
+    index = 2
+    for l in seriesTitles[:len(seriesTitles)-1]:
+        scriptfile.write("\""+datafile+"\" using 1:"+str(index)+" title \'"+l+"\' with points,")
+        index += 1
+    scriptfile.write("\""+datafile+"\" using 1:"+str(index)+" title \'"+seriesTitles[len(seriesTitles)-1]+"\' with points\n")
+
+    scriptfile.flush()
+    scriptfile.close()
+
+    subprocess.call(["gnuplot", name+".g"])
+    subprocess.call(["epstopdf", name+".eps"])
+
+    assert False
