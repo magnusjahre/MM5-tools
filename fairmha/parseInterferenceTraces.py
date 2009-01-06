@@ -1,4 +1,5 @@
 
+import sys
 import pbsconfig
 import getInterference
 import re
@@ -6,9 +7,20 @@ import parsemethods
 import os
 import plot
 
-nps = [4,8]
-memsyss = ["CrossbarBased", "RingBased"]
-channels = ["1","2","4"]
+assert len(sys.argv) > 1
+
+nps = []
+npstrs = sys.argv[1:]
+for n in npstrs:
+    nps.append(int(n))
+
+
+#memsyss = ["CrossbarBased", "RingBased"]
+#channels = ["1","2","4"]
+
+memsyss = ["RingBased"]
+channels = ["4"]
+
 
 dirname = "interference_summaries"
 plotdirname = "interference_plots"
@@ -101,7 +113,10 @@ def writeSummaryFile(data,name):
             file.write(str(i).ljust(w))
             for t in intTypes:
                 if i in data[t]:
-                    file.write(str(data[t][i]).ljust(w))
+                    if data[t][i] != 0.0:
+                        file.write(str(data[t][i]).ljust(w))
+                    else:
+                        file.write("".ljust(w))
                 else:
                     file.write("".ljust(w))
 
@@ -174,9 +189,10 @@ for np in nps:
             titles = aggImpact.keys()
             titles.sort()
             plot.plotScatter(plotdirname+"/"+str(np)+"_"+memsys+"_"+channel+"_channels",
+                             str(np)+" CPUs, "+memsys+", "+channel+" channels",
                              "Interference (cycles)",
                              "Interference Impact Factor",
                              titles,
                              dirname+"/interference_"+memsys+"_"+channel+"_impact.txt")
                 
-                          
+            

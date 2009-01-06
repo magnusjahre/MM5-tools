@@ -174,9 +174,9 @@ def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilena
     os.remove("plots.log")
     os.remove("plots.tex")
 
-def plotScatter(name, xtitle, ytitle, seriesTitles, datafile):
+def plotScatter(name, plotname, xtitle, ytitle, seriesTitles, datafile):
     scriptfile = open(name+".g", "w")
-    scriptfile.write("set title \"Scatterplot\"\n")
+    scriptfile.write("set title \""+plotname+"\"\n")
     scriptfile.write("set xlabel \""+xtitle+"\"\n")
     scriptfile.write("set ylabel \""+ytitle+"\"\n")
     scriptfile.write("set key outside below\n")
@@ -197,4 +197,3 @@ def plotScatter(name, xtitle, ytitle, seriesTitles, datafile):
     subprocess.call(["gnuplot", name+".g"])
     subprocess.call(["epstopdf", name+".eps"])
 
-    assert False
