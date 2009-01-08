@@ -198,9 +198,16 @@ def plotScatter(name, plotname, xtitle, ytitle, seriesTitles, datafile):
     subprocess.call(["epstopdf", name+".eps"])
 
 
-def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked):
+def writeHistogramDatafile(filename, data, width, titles):
     datafile = open(filename+".dat","w")
-    w = 40
+    w = width
+
+    if titles != []:
+        datafile.write("Key".ljust(w))
+        for t in titles:
+            datafile.write(t.ljust(w))
+        datafile.write("\n")
+
     for k,vals in data:
         datafile.write(str(k).ljust(w))
         for v in vals:
@@ -210,13 +217,16 @@ def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked):
     datafile.close()
 
 
+def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked):
+    writeHistogramDatafile(filename,data,40,[])
+
     plotfile = open(filename+".g","w")
 
     if not view:
         plotfile.write("set terminal postscript eps enhanced color size 10,5 26\n")
         plotfile.write("set output \""+filename+".eps\"\n")
 
-        
+    plotfile.write("set title '"+filename+"'\n")
     plotfile.write("set ylabel '"+headers[0]+"'\n")
     plotfile.write("set xlabel '"+headers[1]+"'\n")
     plotfile.write("set style data histogram\n")
@@ -249,4 +259,38 @@ def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked):
     plotfile.close()
 
     subprocess.call(["gnuplot", filename+".g"])
+    if not view:
+        subprocess.call(["epstopdf", filename+".eps"])
     
+
+def plotClusteredHistogram(filename, data, clustertitles, headers):
+    writeHistogramDatafile(filename,data,50,clustertitles)
+
+    plotfile = open(filename+".g","w")
+
+    
+    plotfile.write("set terminal postscript eps enhanced color size 10,5 26\n")
+    plotfile.write("set output \""+filename+".eps\"\n")
+    plotfile.write("set title '"+filename+"'\n")
+    plotfile.write("set ylabel '"+headers[0]+"'\n")
+    plotfile.write("set xlabel '"+headers[1]+"'\n")
+    plotfile.write("set style data histogram\n")
+    plotfile.write("set style histogram clustered gap 0\n")
+    plotfile.write("set style fill pattern 1 border -1\n")
+    plotfile.write("set xtics nomirror rotate by -90\n")
+    plotfile.write("set key outside above\n")
+
+    plotfile.write("plot \\\n")
+    for i in range(len(clustertitles)):
+        plotfile.write("newhistogram '"+clustertitles[i]+"', '"+filename+".dat' u "+str(i+2)+":xtic(1) notitle")
+        if i == len(clustertitles)-1:
+            plotfile.write("\n")
+        else:
+            plotfile.write(",\\\n")
+
+    plotfile.flush()
+    plotfile.close()
+
+    subprocess.call(["gnuplot", filename+".g"])
+    subprocess.call(["epstopdf", filename+".eps"])
+

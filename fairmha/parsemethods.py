@@ -103,3 +103,42 @@ def getAloneDrift(sharedid, aloneids):
         diff[i] = sharedCom[i] - aloneCom[i]
 
     return (error,diff)
+
+def readInterferenceTraceSummary(filename):
+    
+    first = True
+    colnames = []
+    data = []
+    minkey = 0
+    maxkey = 0
+
+    filename = open(filename)
+
+    for l in filename:
+        if first:
+            colnames = l.split()[1:]
+            first = False
+            continue
+
+        splitstr = l.split()
+    
+        key = int(splitstr[0])
+
+        if key < minkey:
+            minkey = key
+
+        if key > maxkey:
+            maxkey = key
+
+        tmpdata = []
+        for i in splitstr[1:]:
+            if i == "-":
+                tmpdata.append(-1)
+            else:
+                tmpdata.append(float(i))
+
+        data.append((key, tmpdata))
+
+    filename.close()
+
+    return (data, colnames, minkey, maxkey)

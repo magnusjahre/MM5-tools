@@ -1,6 +1,7 @@
 
 import sys
 import plot
+import parsemethods
 
 impactfilename = sys.argv[1]
 binsize = int(sys.argv[2])
@@ -12,40 +13,7 @@ view = False
 if viewstr == "view":
     view = True
 
-impactfile = open(impactfilename)
-
-# Read data from file
-first = True
-colnames = []
-data = []
-minkey = 0
-maxkey = 0
-for l in impactfile:
-    if first:
-        colnames = l.split()[1:]
-        first = False
-        continue
-
-    splitstr = l.split()
-
-    key = int(splitstr[0])
-
-    if key < minkey:
-        minkey = key
-
-    if key > maxkey:
-        maxkey = key
-
-    tmpdata = []
-    for i in splitstr[1:]:
-        if i == "-":
-            tmpdata.append(-1)
-        else:
-            tmpdata.append(float(i))
-
-    data.append((key, tmpdata))
-
-impactfile.close()
+data,colnames,minkey,maxkey = parsemethods.readInterferenceTraceSummary(impactfilename)
 
 # modfiy data according to input
 startBin = (minkey / binsize) * binsize
