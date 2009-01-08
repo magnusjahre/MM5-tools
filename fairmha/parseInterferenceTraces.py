@@ -15,11 +15,11 @@ for n in npstrs:
     nps.append(int(n))
 
 
-#memsyss = ["CrossbarBased", "RingBased"]
-#channels = ["1","2","4"]
+memsyss = ["CrossbarBased", "RingBased"]
+channels = ["1","2","4"]
 
-memsyss = ["RingBased"]
-channels = ["4"]
+#memsyss = ["CrossbarBased"]
+#channels = ["4"]
 
 
 dirname = "interference_summaries"
@@ -116,9 +116,9 @@ def writeSummaryFile(data,name):
                     if data[t][i] != 0.0:
                         file.write(str(data[t][i]).ljust(w))
                     else:
-                        file.write("".ljust(w))
+                        file.write("-".ljust(w))
                 else:
-                    file.write("".ljust(w))
+                    file.write("-".ljust(w))
 
             file.write("\n")
 

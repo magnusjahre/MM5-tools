@@ -183,11 +183,11 @@ def plotScatter(name, plotname, xtitle, ytitle, seriesTitles, datafile):
     scriptfile.write("set terminal postscript eps color enhanced 26\n")
     scriptfile.write("set output \""+name+".eps\"\n")
 
-    scriptfile.write("plot")
+    scriptfile.write("plot ")
 
     index = 2
     for l in seriesTitles[:len(seriesTitles)-1]:
-        scriptfile.write("\""+datafile+"\" using 1:"+str(index)+" title \'"+l+"\' with points,")
+        scriptfile.write("\""+datafile+"\" using 1:"+str(index)+" title \'"+l+"\' with points, \\\n")
         index += 1
     scriptfile.write("\""+datafile+"\" using 1:"+str(index)+" title \'"+seriesTitles[len(seriesTitles)-1]+"\' with points\n")
 
@@ -197,3 +197,56 @@ def plotScatter(name, plotname, xtitle, ytitle, seriesTitles, datafile):
     subprocess.call(["gnuplot", name+".g"])
     subprocess.call(["epstopdf", name+".eps"])
 
+
+def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked):
+    datafile = open(filename+".dat","w")
+    w = 40
+    for k,vals in data:
+        datafile.write(str(k).ljust(w))
+        for v in vals:
+            datafile.write(str(v).ljust(w))
+        datafile.write("\n")
+    datafile.flush()
+    datafile.close()
+
+
+    plotfile = open(filename+".g","w")
+
+    if not view:
+        plotfile.write("set terminal postscript eps enhanced color size 10,5 26\n")
+        plotfile.write("set output \""+filename+".eps\"\n")
+
+        
+    plotfile.write("set ylabel '"+headers[0]+"'\n")
+    plotfile.write("set xlabel '"+headers[1]+"'\n")
+    plotfile.write("set style data histogram\n")
+    if rowstacked:
+        plotfile.write("set style histogram rowstacked\n")
+    plotfile.write("set style fill pattern 1  border -1\n")
+    plotfile.write("set xtics nomirror rotate by -45\n")
+    plotfile.write("set key outside above\n")
+    
+    plotfile.write("plot '"+filename+".dat' u 2:xtic(1) t '"+seriesheaders[0]+"'")
+    if len(seriesheaders) == 1:
+        plotfile.write("\n")
+    else:
+        plotfile.write(",\\\n")
+
+    dindex = 3
+    for t in seriesheaders[1:]:
+        plotfile.write("'"+filename+".dat' u "+str(dindex)+" t \""+t+"\"")
+        if dindex != len(seriesheaders)+1:
+            plotfile.write(",\\\n")
+        else:
+            plotfile.write("\n")
+        dindex += 1
+    
+    
+    if view:
+        plotfile.write("pause -1")
+
+    plotfile.flush()
+    plotfile.close()
+
+    subprocess.call(["gnuplot", filename+".g"])
+    
