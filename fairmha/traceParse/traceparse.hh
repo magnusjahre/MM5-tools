@@ -57,7 +57,7 @@ struct InterferenceFactors{
   int bus_transfer;
   int cache_capacity;
 
-  InterferenceFactors(Latencies lat, int numReqs, int intVal);
+  //  InterferenceFactors(Latencies lat, int numReqs, int intVal);
   
   InterferenceFactors(Latencies lat);
 

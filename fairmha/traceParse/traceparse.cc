@@ -396,14 +396,14 @@ void Latencies::addValue(I_TYPE type, int interferenceValue, std::map<int,Latenc
   }
 }
 
-InterferenceFactors::InterferenceFactors(Latencies lat, int numReqs, int intVal){
-  ic_entry       = computeIntFactor(lat.ic_entry, numReqs, intVal);
-  ic_transfer    = computeIntFactor(lat.ic_transfer, numReqs, intVal);
-  ic_delivery    = computeIntFactor(lat.ic_delivery, numReqs, intVal);
-  bus_entry      = computeIntFactor(lat.bus_entry, numReqs, intVal);
-  bus_transfer   = computeIntFactor(lat.bus_transfer, numReqs, intVal);
-  cache_capacity = computeIntFactor(lat.cache_capacity, numReqs, intVal);
-}
+// InterferenceFactors::InterferenceFactors(Latencies lat, int numReqs, int intVal){
+//   ic_entry       = computeIntFactor(lat.ic_entry, numReqs, intVal);
+//   ic_transfer    = computeIntFactor(lat.ic_transfer, numReqs, intVal);
+//   ic_delivery    = computeIntFactor(lat.ic_delivery, numReqs, intVal);
+//   bus_entry      = computeIntFactor(lat.bus_entry, numReqs, intVal);
+//   bus_transfer   = computeIntFactor(lat.bus_transfer, numReqs, intVal);
+//   cache_capacity = computeIntFactor(lat.cache_capacity, numReqs, intVal);
+// }
 
 InterferenceFactors::InterferenceFactors(Latencies lat){
     ic_entry       = lat.ic_entry;
