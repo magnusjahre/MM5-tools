@@ -18,6 +18,8 @@ ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
 walltime = {1:4, 4:7, 8:10, 16:12}             # in hours
 perProcMem = {1:1792, 4:1792, 8:1792, 16:3584} # in MB
 
+finPattern = re.compile("End Simulation Statistics")
+
 bmroot = os.getenv("BMROOT")
 if bmroot == None:
     print "Envirionment variable BMROOT not set. Quitting..."
@@ -56,7 +58,20 @@ def commit_command(fileID, cmd, cnt, fcnt, np):
         globals()["current_cpu_count"] = np
         globals()["command_counter"] = 0
 
-    # make experiment directory
+    # check if directory contains an experiment that has completed successfully
+    if os.path.exists(fileID):
+        resfilename = fileID+"/"+fileID+".txt"
+        if os.path.exists(resfilename):
+            resfile = open(resfilename)
+            finRes = finPattern.findall(resfile.read())
+            resfile.close()
+            
+            if finRes != []:
+                print "Experiment exists, skipping "+fileID
+                return False
+        
+        os.rename(fileID, "error_"+fileID)
+        
     os.mkdir(fileID)
     print 'Created an experiment directory for '+fileID
 

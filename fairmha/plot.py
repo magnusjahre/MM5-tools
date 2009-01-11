@@ -203,7 +203,7 @@ def writeHistogramDatafile(filename, data, width, titles):
     w = width
 
     if titles != []:
-        datafile.write("Key".ljust(w))
+        datafile.write("#".ljust(w))
         for t in titles:
             datafile.write(t.ljust(w))
         datafile.write("\n")
@@ -218,7 +218,7 @@ def writeHistogramDatafile(filename, data, width, titles):
 
 
 def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked):
-    writeHistogramDatafile(filename,data,40,[])
+    writeHistogramDatafile(filename,data,40,seriesheaders)
 
     plotfile = open(filename+".g","w")
 
