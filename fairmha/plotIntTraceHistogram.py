@@ -9,6 +9,12 @@ pruneimpact = float(sys.argv[3])
 outname = sys.argv[4]
 viewstr = sys.argv[5]
 
+miny = -1
+maxy = -1
+if len(sys.argv) > 6:
+    miny = sys.argv[6]
+    maxy = sys.argv[7]
+
 view = False
 if viewstr == "view":
     view = True
@@ -58,14 +64,24 @@ for k in keys:
             useKey = True
     
     if useKey:
-        plotarr.append( (str(k)+"-"+str(k+binsize),binnedData[k]) )
+        plotarr.append( (str(k),binnedData[k]) )
 
-names = ["Impact Factor", "Interference (cycles)"]
-plot.plotHistogram(plotarr,outname,names,colnames, view, True)
+keyToText = {"bus-entry": "Memory Bus Entry",
+             "bus-transfer": "Memory Bus Transfer",
+             "cache-capacity": "Cache Capacity",
+             "ic-delivery": "Interconnect Delivery",
+             "ic-entry": "Interconnect Entry",
+             "ic-transfer": "Interconnect Transfer"}
 
-sumplotarr = []
-for i in range(len(totals)):
-    sumplotarr.append( (colnames[i], [totals[i]]) )
+newColNames = [keyToText[colnames[i]] for i in range(len(colnames))]
 
-names = ["Aggregate Impact Factor", "Interference Type"]
-plot.plotHistogram(sumplotarr, outname+"_sum", names, ["Impact"], view, False)
+
+names = ["Aggregate Impact Factor", "Interference Penalty (cycles)"]
+plot.plotHistogram(plotarr,outname,names,newColNames, view, True, miny, maxy)
+
+# sumplotarr = []
+# for i in range(len(totals)):
+#     sumplotarr.append( (colnames[i], [totals[i]]) )
+
+# names = ["Aggregate Impact Factor", "Interference Type"]
+# plot.plotHistogram(sumplotarr, outname+"_sum", names, ["Impact"], view, False,-1,-1)

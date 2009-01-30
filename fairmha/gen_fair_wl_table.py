@@ -1,14 +1,21 @@
 
+import sys
 import deterministic_fw_wls as fair_workloads
 
-COLS = 5
-NAME = "ag_workloads.tex"
+try:
+    np = int(sys.argv[1])
 
-printStart = 40
-printEnd = 80
-idoffset = 40
+    COLS = int(sys.argv[2])
+    NAME = "workloads-"+str(np)+".tex"
 
-print "Generating table for workloads "+str(fair_workloads.workloads.keys()[printStart])+" to "+str(fair_workloads.workloads.keys()[printEnd-1])
+    printStart = int(sys.argv[3])
+    printEnd = int(sys.argv[4])
+    idoffset = int(sys.argv[3])
+except:
+    print "Usage: prog np cols wlstart wlend"
+    sys.exit()
+
+print "Generating table for workloads "+str(fair_workloads.workloads[np].keys()[printStart])+" to "+str(fair_workloads.workloads[np].keys()[printEnd-1])
 
 header = """
 \\begin{table}[t]
@@ -38,11 +45,11 @@ for i in range(COLS-1):
 outfile.write("\\textbf{ID} & \\textbf{Benchmarks} \\tabularnewline")
 outfile.write("\\hline\n")
 
-bms_per_row = len(fair_workloads.workloads.keys()[printStart:printEnd]) / COLS
+bms_per_row = len(fair_workloads.workloads[np].keys()[printStart:printEnd]) / COLS
 rowdata = {}
 
-for num in fair_workloads.workloads.keys()[printStart:printEnd]:
-    wl = fair_workloads.workloads[num][0]
+for num in fair_workloads.workloads[np].keys()[printStart:printEnd]:
+    wl = fair_workloads.workloads[np][num][0]
     rowindex = (num-1) % bms_per_row
     if rowindex not in rowdata:
         rowdata[rowindex] = []

@@ -271,7 +271,7 @@ def getBmNames(wl,np):
 
 def getBenchmarks(wl, printRes, np):
     wlNum = int(wl.replace("fair",""))
-    bms = getBmNames(fair_wls.workloads[wlNum], np)
+    bms = getBmNames(fair_wls.workloads[np][wlNum], np)
 
     if printRes:
         for b in bms:
@@ -525,6 +525,14 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
     correct = 0
     wrong = 0
 
+    w = 20
+
+    if printDiff:
+        print "Result".ljust(w),
+        print "Shared".ljust(w),
+        print "Private".ljust(w),
+        print "Address".ljust(w)
+
     for sa in saddrs:
         
         if sa in astats:
@@ -537,18 +545,32 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
                 continue
 
             for i in range(len(sacc)):
+                
                 if sacc[i] == aacc[i]:
+                    if printDiff:
+                        print "Correct".ljust(w),
+                        print sacc[i].ljust(w),
+                        print aacc[i].ljust(w),
+                        print str(sa).ljust(w)
                     correct += 1
                 else:
+                    if printDiff:
+                        print "Error".ljust(w),
+                        print sacc[i].ljust(w),
+                        print aacc[i].ljust(w),
+                        print str(sa).ljust(w)
                     wrong += 1
         else:
             print "Warning: no alone access to addr "+str(sa)+", dropping..."
 
+    corStr = "%.2f"%(float(correct)/float(correct+wrong)*100)
+    wrongStr = "%.2f"%(float(wrong)/float(correct+wrong)*100)
+
     print
     print "Bus estimation test results"
     print
-    print "Correct: "+str(correct)+" ("+str(int(float(correct)/float(correct+wrong)*100))+"%)"
-    print "Wrong:   "+str(wrong)+" ("+str(int(float(wrong)/float(correct+wrong)*100))+"%)"
+    print "Correct: "+str(correct)+" "+corStr+"%"
+    print "Wrong:   "+str(wrong)+" "+wrongStr+"%"
     print
 
 def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint):

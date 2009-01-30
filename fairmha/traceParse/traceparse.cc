@@ -70,6 +70,7 @@ int computeInterference(char* statsfile, char* statskey){
     // remove all adresses that do not occur in both
     std::map<Addr, std::list<Latencies> >::iterator sharedIt = sharedLatencies.begin();
     int erasedFromShared = 0;
+    int errAddrs = 0;
     while(sharedIt != sharedLatencies.end()){
         std::map<Addr, std::list<Latencies> >::iterator tmpIt = aloneLatencies.find(sharedIt->first);
         if(tmpIt != aloneLatencies.end()){
@@ -77,12 +78,13 @@ int computeInterference(char* statsfile, char* statskey){
         }
         else{
             erasedFromShared += sharedIt->second.size();
+	    errAddrs++;
             std::map<Addr, std::list<Latencies> >::iterator eraseIt = sharedIt;
             sharedIt++;
             sharedLatencies.erase(eraseIt);
         }
     }
-    cout << "Erased " << erasedFromShared << " elements from shared\n";
+    cout << "Erased " << erasedFromShared << " elements from shared, " << errAddrs << " unique addresses\n";
     
     std::map<Addr, std::list<Latencies> >::iterator aloneIt = aloneLatencies.begin();
     int erasedFromAlone = 0;

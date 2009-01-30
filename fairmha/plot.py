@@ -217,26 +217,50 @@ def writeHistogramDatafile(filename, data, width, titles):
     datafile.close()
 
 
-def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked):
+def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked, miny, maxy):
+
     writeHistogramDatafile(filename,data,40,seriesheaders)
 
     plotfile = open(filename+".g","w")
 
     if not view:
-        plotfile.write("set terminal postscript eps enhanced color size 10,5 26\n")
+        plotfile.write("set terminal postscript eps enhanced 'NimbusSanL-Regu,18' fontfile '/usr/share/texmf-texlive/fonts/type1/urw/helvetic/uhvr8a.pfb' size 5,3\n")
         plotfile.write("set output \""+filename+".eps\"\n")
 
-    plotfile.write("set title '"+filename+"'\n")
+    #plotfile.write("set title '"+filename+"'\n")
     plotfile.write("set ylabel '"+headers[0]+"'\n")
     plotfile.write("set xlabel '"+headers[1]+"'\n")
+    plotfile.write("set style histogram gap 0\n")
     plotfile.write("set style data histogram\n")
     if rowstacked:
         plotfile.write("set style histogram rowstacked\n")
-    plotfile.write("set style fill pattern 1  border -1\n")
-    plotfile.write("set xtics nomirror rotate by -45\n")
-    plotfile.write("set key outside above\n")
+
+    if miny != -1 and maxy != -1:
+        plotfile.write("set yrange ["+str(miny)+":"+str(maxy)+"]\n")
+
+    plotfile.write("set style fill pattern 8 border -1\n")
+
+    xtics = []
+    for tick, d in data:
+        xtics.append(tick)
+
+    assert len(xtics) >= 2
+    stride = int(xtics[1]) - int(xtics[0])
+    xtics.append(int(xtics[len(xtics)-1]) + stride)
+
+    plotfile.write("unset xtics\n")
+    plotfile.write("set xtics border nomirror rotate by 90 (")
+    start = -0.5
+    for t in xtics[:len(xtics)-1]:
+        plotfile.write("\""+str(t)+"\" "+str(start)+",")
+        start += 1
+
+    plotfile.write("\""+str(xtics[len(xtics)-1])+"\" "+str(start))
+    plotfile.write(") \n")
+    plotfile.write("set key invert\n")
+    plotfile.write("set ytics nomirror\n")
     
-    plotfile.write("plot '"+filename+".dat' u 2:xtic(1) t '"+seriesheaders[0]+"'")
+    plotfile.write("plot '"+filename+".dat' u 2 t '"+seriesheaders[0]+"'")
     if len(seriesheaders) == 1:
         plotfile.write("\n")
     else:
