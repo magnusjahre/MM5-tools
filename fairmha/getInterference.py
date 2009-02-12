@@ -500,7 +500,7 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
     sharedFile.close()
 
     sstats = {}
-    for i in range(len(sharedLines)):
+    for i in range(1,len(sharedLines)):
         sdata = sharedLines[i].split(";")
         if sdata[1] not in sstats:
             sstats[sdata[1]] = [sdata[3]]
@@ -512,7 +512,7 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
     aloneFile.close()
 
     astats = {}
-    for i in range(len(aloneLines)):
+    for i in range(1,len(aloneLines)):
         adata = aloneLines[i].split(";")
         if adata[1] not in astats:
             astats[adata[1]] = [adata[3]]
