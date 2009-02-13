@@ -491,9 +491,10 @@ def printCrossbarErrors(sharedFile, aloneFiles):
 
 def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
 
-    print
-    print "Validating DRAM access estimation"
-    print
+    if printDiff:
+        print
+        print "Validating DRAM access estimation"
+        print
 
     sharedFile = open(sharedTrace)
     sharedLines = sharedFile.readlines()
@@ -503,9 +504,9 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
     for i in range(1,len(sharedLines)):
         sdata = sharedLines[i].split(";")
         if sdata[1] not in sstats:
-            sstats[sdata[1]] = [sdata[3]]
+            sstats[sdata[1]] = [(sdata[3], sdata[6].strip())]
         else:
-            sstats[sdata[1]].append(sdata[3])
+            sstats[sdata[1]].append( (sdata[3], sdata[6].strip()) )
 
     aloneFile = open(aloneTrace)
     aloneLines = aloneFile.readlines()
@@ -531,7 +532,18 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
         print "Result".ljust(w),
         print "Shared".ljust(w),
         print "Private".ljust(w),
-        print "Address".ljust(w)
+        print "Address".ljust(w),
+        print "Shared Hit Position".ljust(w)
+
+
+    errorcounts = {
+        "hit-conflict": 0,
+        "hit-miss": 0,
+        "miss-conflict": 0,
+        "miss-hit": 0,
+        "conflict-miss": 0,
+        "conflict-hit": 0
+        }
 
     for sa in saddrs:
         
@@ -541,37 +553,55 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
             aacc = astats[sa]
         
             if len(sacc) != len(aacc):
-                print "Warning: Dropping accesses to addr "+str(sa)
+                if printDiff:
+                    print "Warning: Dropping accesses to addr "+str(sa)
                 continue
 
             for i in range(len(sacc)):
                 
-                if sacc[i] == aacc[i]:
+                sRes,sHitPos = sacc[i]
+
+                if sRes == aacc[i]:
                     if printDiff:
                         print "Correct".ljust(w),
-                        print sacc[i].ljust(w),
+                        print sRes.ljust(w),
                         print aacc[i].ljust(w),
-                        print str(sa).ljust(w)
+                        print str(sa).ljust(w),
+                        print sHitPos.ljust(w)
                     correct += 1
                 else:
                     if printDiff:
+
+                        typeid = sRes+"-"+aacc[i]
+                        errorcounts[typeid] += 1
+
                         print "Error".ljust(w),
-                        print sacc[i].ljust(w),
+                        print sRes.ljust(w),
                         print aacc[i].ljust(w),
-                        print str(sa).ljust(w)
+                        print str(sa).ljust(w),
+                        print sHitPos.ljust(w)
                     wrong += 1
         else:
-            print "Warning: no alone access to addr "+str(sa)+", dropping..."
+            if printDiff:
+                print "Warning: no alone access to addr "+str(sa)+", dropping..."
 
     corStr = "%.2f"%(float(correct)/float(correct+wrong)*100)
     wrongStr = "%.2f"%(float(wrong)/float(correct+wrong)*100)
 
-    print
-    print "Bus estimation test results"
-    print
-    print "Correct: "+str(correct)+" "+corStr+"%"
-    print "Wrong:   "+str(wrong)+" "+wrongStr+"%"
-    print
+
+    if printDiff:
+        print
+        print "Bus estimation test results"
+        print
+        print "Correct: "+str(correct)+" "+corStr+"%"
+        print "Wrong:   "+str(wrong)+" "+wrongStr+"%"
+        print
+        print "Error types"
+        print
+        for t in errorcounts:
+            print t.ljust(15)+str(errorcounts[t]).rjust(5)
+
+    return corStr,wrongStr
 
 def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint):
     
