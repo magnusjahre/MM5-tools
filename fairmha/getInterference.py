@@ -503,10 +503,19 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
     sstats = {}
     for i in range(1,len(sharedLines)):
         sdata = sharedLines[i].split(";")
+        posres = "-1"
+        qr = "-1"
+        qw = "-1"
+
+        if len(sdata) > 8:
+            posres = sdata[6].strip()
+            qr = sdata[7].strip()
+            qw = sdata[8].strip()
+        
         if sdata[1] not in sstats:
-            sstats[sdata[1]] = [(sdata[3], sdata[6].strip())]
+            sstats[sdata[1]] = [(sdata[3], posres,qr,qw)]
         else:
-            sstats[sdata[1]].append( (sdata[3], sdata[6].strip()) )
+            sstats[sdata[1]].append( (sdata[3], posres,qr,qw) )
 
     aloneFile = open(aloneTrace)
     aloneLines = aloneFile.readlines()
@@ -533,7 +542,9 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
         print "Shared".ljust(w),
         print "Private".ljust(w),
         print "Address".ljust(w),
-        print "Shared Hit Position".ljust(w)
+        print "Shared Hit Position".ljust(w),
+        print "Priv Queued Reads".ljust(w),
+        print "Priv Queued Writes".ljust(w)
 
 
     errorcounts = {
@@ -544,6 +555,9 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
         "conflict-miss": 0,
         "conflict-hit": 0
         }
+
+    corPosHist = {}
+    errPosHist = {}
 
     for sa in saddrs:
         
@@ -559,7 +573,7 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
 
             for i in range(len(sacc)):
                 
-                sRes,sHitPos = sacc[i]
+                sRes,sHitPos,sQr,sQw = sacc[i]
 
                 if sRes == aacc[i]:
                     if printDiff:
@@ -567,20 +581,32 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
                         print sRes.ljust(w),
                         print aacc[i].ljust(w),
                         print str(sa).ljust(w),
-                        print sHitPos.ljust(w)
+                        print sHitPos.ljust(w),
+                        print sQr.ljust(w),
+                        print sQw.ljust(w)
                     correct += 1
+
+                    if sHitPos not in corPosHist:
+                        corPosHist[sHitPos] = 0
+                    corPosHist[sHitPos] += 1
                 else:
                     if printDiff:
-
-                        typeid = sRes+"-"+aacc[i]
-                        errorcounts[typeid] += 1
 
                         print "Error".ljust(w),
                         print sRes.ljust(w),
                         print aacc[i].ljust(w),
                         print str(sa).ljust(w),
-                        print sHitPos.ljust(w)
+                        print sHitPos.ljust(w),
+                        print sQr.ljust(w),
+                        print sQw.ljust(w)
                     wrong += 1
+
+                    typeid = sRes+"-"+aacc[i]
+                    errorcounts[typeid] += 1
+
+                    if sHitPos not in errPosHist:
+                        errPosHist[sHitPos] = 0
+                    errPosHist[sHitPos] += 1
         else:
             if printDiff:
                 print "Warning: no alone access to addr "+str(sa)+", dropping..."
@@ -601,7 +627,31 @@ def compareBusAccessTraces(sharedTrace, aloneTrace, printDiff):
         for t in errorcounts:
             print t.ljust(15)+str(errorcounts[t]).rjust(5)
 
-    return corStr,wrongStr
+
+        file = open("posHist.txt", "w")
+
+        file.write("Position".ljust(15))
+        file.write("Correct".rjust(15))
+        file.write("Wrong".rjust(15))
+        file.write("\n")
+
+        for i in range(max(len(corPosHist),len(errPosHist))):
+            file.write(str(i).ljust(15))
+            if str(i) in corPosHist:
+                file.write(str(corPosHist[str(i)]).rjust(15))
+            else:
+                file.write("".rjust(15))
+
+            if str(i) in errPosHist:
+                file.write(str(errPosHist[str(i)]).rjust(15))
+            else:
+                file.write("".rjust(15))
+            file.write("\n")
+
+        file.flush()
+        file.close()
+
+    return corStr,wrongStr,errorcounts
 
 def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint):
     
@@ -664,11 +714,12 @@ def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint)
         print "IC Transfer".rjust(w),
         print "IC Delivery".rjust(w),
         print "Bus Entry".rjust(w),
-        print "Bus Transfer".rjust(w)
+        print "Bus Queue".rjust(w),
+        print "Bus Service".rjust(w)
 
-    alonesums = [0.0 for i in range(5)]
-    estimatesums = [0.0 for i in range(5)]
-    entries = [0.0 for i in range(5)]
+    alonesums = [0.0 for i in range(6)]
+    estimatesums = [0.0 for i in range(6)]
+    entries = [0.0 for i in range(6)]
 
     if doPrint:
         print
@@ -713,7 +764,8 @@ def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint)
         print "IC Transfer".rjust(w),
         print "IC Delivery".rjust(w),
         print "Bus Entry".rjust(w),
-        print "Bus Transfer".rjust(w)
+        print "Bus Queue".rjust(w),
+        print "Bus Service".rjust(w)
         
         print "Per int value".ljust(w),
         for i in range(len(alonesums)):
@@ -750,7 +802,7 @@ def readRequestEstimateFile(filename, resultstorage, key):
         addr = int(data[1])
 
         values = []
-        for s in data[2:]:
+        for s in data[3:]:
             values.append(int(s))
 
         if addr not in resultstorage:
@@ -774,7 +826,8 @@ def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint):
                    "IC Transfer":  re.compile("L1.*sum_ic_transfer_interference.*"),
                    "IC Delivery":  re.compile("L1.*sum_ic_delivery_interference.*"),
                    "Bus Entry":    re.compile("L1.*sum_bus_entry_interference.*"),
-                   "Bus Transfer": re.compile("L1.*sum_bus_transfer_interference.*"),
+                   "Bus Queue":    re.compile("L1.*sum_bus_queue_interference.*"),
+                   "Bus Service":  re.compile("L1.*sum_bus_service_interference.*"),
                    "Total":        re.compile("L1.*sum_roundtrip_interference.*"),
                    "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
 
@@ -783,7 +836,8 @@ def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint):
                    "IC Transfer":  re.compile("L1.*sum_ic_transfer_latency.*"),
                    "IC Delivery":  re.compile("L1.*sum_ic_delivery_latency.*"),
                    "Bus Entry":    re.compile("L1.*sum_bus_entry_latency.*"),
-                   "Bus Transfer": re.compile("L1.*sum_bus_transfer_latency.*"),
+                   "Bus Queue":    re.compile("L1.*sum_bus_queue_latency.*"),
+                   "Bus Service":  re.compile("L1.*sum_bus_service_latency.*"),
                    "Total":        re.compile("L1.*sum_roundtrip_latency.*"),
                    "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
 
