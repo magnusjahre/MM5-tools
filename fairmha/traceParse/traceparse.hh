@@ -18,7 +18,8 @@ typedef enum{
   IC_TRANSFER,
   IC_DELIVERY,
   BUS_ENTRY,
-  BUS_TRANSFER,
+  BUS_QUEUE,
+  BUS_SERVICE,
   CACHE_CAPACITY
 } I_TYPE;
 
@@ -32,7 +33,8 @@ struct Latencies{
     int ic_transfer;
     int ic_delivery;
     int bus_entry;
-    int bus_transfer;
+    int bus_queue;
+    int bus_service;
     int cache_capacity;
     
     Latencies();
@@ -54,7 +56,8 @@ struct InterferenceFactors{
   int ic_transfer;
   int ic_delivery;
   int bus_entry;
-  int bus_transfer;
+  int bus_queue;
+  int bus_service;
   int cache_capacity;
 
   //  InterferenceFactors(Latencies lat, int numReqs, int intVal);
@@ -67,14 +70,34 @@ struct InterferenceFactors{
 
 };
 
+struct InterferenceErrors{
+  double ic_entry;
+  double ic_transfer;
+  double ic_delivery;
+  double bus_entry;
+  double bus_queue;
+  double bus_service;
+  double cache_capacity;
+  
+  InterferenceErrors(Latencies actual, Latencies measurement);
+
+  double computeError(double measurement, double actual){
+    return measurement - actual; 
+  }
+};
+
 std::map<Addr, std::list<Latencies> > aloneLatencies;
 std::map<Addr, std::list<Latencies> > sharedLatencies;
 std::map<Addr, std::list<Latencies> > interference;
+std::map<Addr, std::list<Latencies> > measuredInterference;
+std::map<Addr, std::list<InterferenceErrors> > intError;
 
 int main(int argc, char** argv);
 
-void readTrace(char* filename, bool shared);
+void readTrace(char* filename, std::map<Addr, std::list<Latencies> >* target);
 
 int computeInterference(char* statsfile, char* statskey);
 
 void writeInterferenceFile(char* filename, int numReqs);
+
+void writeInterferenceErrors(char* filename);

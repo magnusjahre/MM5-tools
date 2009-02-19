@@ -53,17 +53,20 @@ options = {"ic_entry": "IC Entry",
            "ic_transfer": "IC Transfer",
            "ic_delivery": "IC Delivery",
            "bus_entry": "Bus Entry",
-           "bus_transfer": "Bus Transfer",
+           "bus_queue": "Bus Queue",
+           "bus_service": "Bus Service",
            "total": "Total",
            "all": "",
            "one": "",
-           "rwerror": ""}
+           "rwerror": "",
+           "breakdown": ""}
 
 if len(sys.argv) < 3 or sys.argv[2] not in options:
     print "Usage: python -c \"import fairmha.parseInterference\" np interference_type [absolute]"
     print "Usage: python -c \"import fairmha.parseInterference\" np all"
     print "Usage: python -c \"import fairmha.parseInterference\" np one workload"
     print "Usage: python -c \"import fairmha.parseInterference\" np rwerror"
+    print "Usage: python -c \"import fairmha.parseInterference\" np breakdown"
     print
     print "Available Commands:"
     for a in options:
@@ -77,6 +80,7 @@ printOne = False
 printWl = ""
 printRW = False
 printAbsError = False
+printBreakdown = False
 if sys.argv[2] == "all":
     print "Writing all results to files..."
     printAll = True
@@ -85,6 +89,9 @@ elif sys.argv[2] == "one":
     printWl = sys.argv[3]
 elif sys.argv[2] == "rwerror":
     printRW = True
+elif sys.argv[2] == "breakdown":
+    printBreakdown = True
+    printAbsError = True
 else:
     pattern = options[sys.argv[2]]
 
@@ -132,6 +139,46 @@ if printAll:
             tfile.close()
 elif printRW:
     print createOutputText(reqerrors, None)
+
+elif printBreakdown:
+    newdata = {}
+    for key in data:
+        if key not in newdata:
+            newdata[key] = {}
+        for wl in data[key]:
+            if wl not in newdata[key]:
+                newdata[key][wl] = {}
+            assert "Total" in data[key][wl]
+            for o in options:
+                if options[o] != "" and options[o] != "Total":
+                    
+                    for i in range(np):
+                        if i not in newdata[key][wl]:
+                            newdata[key][wl][i] = {}
+
+                        assert options[o] not in newdata[key][wl][i]
+                        newdata[key][wl][i][options[o]] = data[key][wl][options[o]][i]
+
+    ndkey0 = newdata.keys()[0]
+    wlkey0 = newdata[ndkey0].keys()[0]
+    itypes = newdata[ndkey0][wlkey0][0].keys()
+    itypes.sort()
+
+    width = 20
+    print "".ljust(width),
+    for t in itypes:
+        print t.rjust(width),
+    print
+
+    for k in newdata:
+        for wl in newdata[k]:
+            for i in newdata[k][wl]:
+                print (k+"-"+wl+"-"+str(i)).ljust(width),
+                for t in itypes:
+                    print str(newdata[k][wl][i][t]).rjust(width),
+                print
+
+
 else:
     print createOutputText(data, pattern)
     

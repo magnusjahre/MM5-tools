@@ -995,7 +995,7 @@ def computeAverage(sum, num):
 
 def computeError(estimate, correct):
     if correct != 0 and estimate != "NaN":
-        return int(((float(estimate) - float(correct)) / float(correct))*100)
+        return "%.2f"%( ((float(estimate) - float(correct)) / float(correct))*100 )
     elif correct == 0 and estimate == 0:
         return 0
     return "NaN"
@@ -1105,12 +1105,12 @@ def getPerCoreData(res,shared):
 
 def getReadWriteCount(sFilename, aFilenames):
     
+    # FIXME: this statistic is not in use, always returns 0
     # TODO: actually measure private read and writes
-    accessPattern = re.compile("toMemBus.accesses_per_cpu.*")
+    accessPattern = re.compile("membus0.accesses_per_cpu.*")
 
     sdata = [0 for i in range(len(aFilenames))]
     sres = search(sFilename, accessPattern)
-
     for r in sres:
         key, val = getPerCoreData(r,True)
         if key != -1:
@@ -1122,7 +1122,7 @@ def getReadWriteCount(sFilename, aFilenames):
         r = search(aFilenames[i],accessPattern)[0]
         key,val = getPerCoreData(r,False)
         adata[i] = val
-
+        
     error = [computeError(sdata[i],adata[i]) for i in range(len(aFilenames))]
     return error
         
