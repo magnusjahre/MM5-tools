@@ -21,7 +21,6 @@ channels = ["1","2","4"]
 #memsyss = ["CrossbarBased"]
 #channels = ["4"]
 
-
 dirname = "interference_summaries"
 plotdirname = "interference_plots"
 
