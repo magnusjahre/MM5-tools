@@ -82,3 +82,7 @@ workloads = {
 }
 
 }
+
+def getBms(wl,np):
+    num = int(wl.replace("fair",""))
+    return workloads[np][num][0]
