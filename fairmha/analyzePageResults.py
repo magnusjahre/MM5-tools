@@ -41,6 +41,7 @@ print "Done!"
 print "Writing output file..."
 
 rflimits = resdata[resdata.keys()[0]][0].keys()
+rflimits.sort()
 
 outfile = open("rflimtResults.txt", "w")
 
@@ -58,7 +59,7 @@ for wl in wls:
     bmnames = workloads.getBms(wl, np)
     for cpuid in range(np):
         outfile.write((wl+"-"+str(cpuid)+"-"+bmnames[cpuid]).ljust(width))
-        for rk in resdata[wl][cpuid]:
+        for rk in rflimits:
             outval = resdata[wl][cpuid][rk]
             if outval >= 0:
                 outfile.write(str(outval).rjust(width))

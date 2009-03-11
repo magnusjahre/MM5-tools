@@ -142,3 +142,56 @@ def readInterferenceTraceSummary(filename):
     filename.close()
 
     return (data, colnames, minkey, maxkey)
+
+def getFilenames(configobject, cmd, config, np):
+    sharedID = configobject.get_unique_id(config)
+    shName = sharedID+'/'+sharedID+'.txt'
+    wl = getBenchmark(cmd)
+    
+    aloneIDs = []
+    aloneNames = []
+    for i in range(np):
+        tmpaparams = configobject.get_alone_params(wl, i, config)
+        tmpID = configobject.get_unique_id(tmpaparams)
+        aloneIDs.append(tmpID)
+        aloneNames.append(tmpID+'/'+tmpID+'.txt')
+
+    return shName, aloneNames
+
+def getAllFilenames(configobject, np):
+    
+    allFilenames = {}
+    
+    for cmd, config in configobject.commandlines:
+        shName, aloneNames = getFilenames(configobject, cmd, config, np)
+        wl = getBenchmark(cmd)
+        key = configobject.get_key(cmd, config)
+
+        if wl not in allFilenames:
+            allFilenames[wl] = {}
+            
+        assert key not in allFilenames[wl]
+        allFilenames[wl][key] = (shName, aloneNames)
+        
+    return allFilenames
+
+def findValues(patternString, filename):
+    pattern = re.compile(patternString)
+    
+    file = open(filename)
+    text = file.read()
+    file.close()
+    
+    results = pattern.findall(text)
+    
+    retval = {}
+    for r in results:
+         tmp = r.split()
+         cpuid = int(intPattern.findall(tmp[0])[0])
+         value = float(tmp[1])
+         
+         retval[cpuid] = value
+    
+    return retval
+    
+    
