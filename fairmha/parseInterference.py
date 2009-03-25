@@ -91,7 +91,7 @@ elif sys.argv[2] == "rwerror":
     printRW = True
 elif sys.argv[2] == "breakdown":
     printBreakdown = True
-    printAbsError = True
+#    printAbsError = True
 else:
     pattern = options[sys.argv[2]]
 
