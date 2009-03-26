@@ -26,9 +26,15 @@ def createOutputText(data, reskey):
         for k in keys:
             for i in range(np):
                 if reskey != None:
-                    text += str(data[k][wl][reskey][i]).rjust(w)
+                    if data[k][wl] != {}:
+                        text += str(data[k][wl][reskey][i]).rjust(w)
+                    else:
+                        text += "Error".rjust(w)
                 else:
-                    text += str(data[k][wl][i]).rjust(w)
+                    if data[k][wl] != {}:
+                        text += str(data[k][wl][i]).rjust(w)
+                    else:
+                        text += "Error".rjust(w)    
         text += "\n"
 
     return text
@@ -61,12 +67,12 @@ options = {"ic_entry": "IC Entry",
            "rwerror": "",
            "breakdown": ""}
 
-if len(sys.argv) < 3 or sys.argv[2] not in options:
-    print "Usage: python -c \"import fairmha.parseInterference\" np interference_type [absolute]"
-    print "Usage: python -c \"import fairmha.parseInterference\" np all"
-    print "Usage: python -c \"import fairmha.parseInterference\" np one workload"
-    print "Usage: python -c \"import fairmha.parseInterference\" np rwerror"
-    print "Usage: python -c \"import fairmha.parseInterference\" np breakdown"
+if len(sys.argv) < 4 or sys.argv[3] not in options:
+    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> interference_type [absolute]"
+    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> all"
+    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> one <workload>"
+    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> rwerror"
+    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> breakdown"
     print
     print "Available Commands:"
     for a in options:
@@ -75,27 +81,29 @@ if len(sys.argv) < 3 or sys.argv[2] not in options:
     
 
 np = int(sys.argv[1])
+memsys = sys.argv[2]
+
 printAll = False
 printOne = False
 printWl = ""
 printRW = False
 printAbsError = False
 printBreakdown = False
-if sys.argv[2] == "all":
+if sys.argv[3] == "all":
     print "Writing all results to files..."
     printAll = True
-elif sys.argv[2] == "one":
+elif sys.argv[3] == "one":
     printOne = True
-    printWl = sys.argv[3]
-elif sys.argv[2] == "rwerror":
+    printWl = sys.argv[4]
+elif sys.argv[3] == "rwerror":
     printRW = True
-elif sys.argv[2] == "breakdown":
+elif sys.argv[3] == "breakdown":
     printBreakdown = True
 #    printAbsError = True
 else:
-    pattern = options[sys.argv[2]]
+    pattern = options[sys.argv[3]]
 
-if len(sys.argv) >= 4 and sys.argv[3] == "absolute":
+if len(sys.argv) >= 5 and sys.argv[4] == "absolute":
     printAbsError = True
 
 if printOne:
@@ -103,7 +111,7 @@ if printOne:
         wl = parsemethods.getBenchmark(cmd)
         if wl == printWl:
             shName,aloneNames = getFilenames(cmd,config)
-            interferencemethods.getInterferenceBreakdownError(shName,aloneNames,True)
+            interferencemethods.getInterferenceBreakdownError(shName,aloneNames,True,memsys)
 
     sys.exit()
 
@@ -111,19 +119,29 @@ if printOne:
 data = {}
 reqerrors = {}
 for cmd, config in pbsconfig.commandlines:
+    
+    if pbsconfig.get_np(config) != np:
+        continue
+    
     shName, aloneNames = getFilenames(cmd,config)
     wl = parsemethods.getBenchmark(cmd)
     key = pbsconfig.get_key(cmd, config)
     if key not in data:
         data[key] = {}
     assert wl not in data[key]
-    data[key][wl] = interferencemethods.getInterferenceErrors(shName,aloneNames,printAbsError)
+    data[key][wl] = interferencemethods.getInterferenceErrors(shName, 
+                                                              aloneNames, 
+                                                              printAbsError,
+                                                              memsys)
 
     if key not in reqerrors:
         reqerrors[key] = {}
     assert wl not in reqerrors[key]
     
-    reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
+    if data[key][wl] != {}:
+        reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
+    else:
+        reqerrors[key][wl] = {}
 
 if printAll:
     for o in options:
@@ -142,22 +160,35 @@ elif printRW:
 
 elif printBreakdown:
     newdata = {}
+    
     for key in data:
+        
         if key not in newdata:
             newdata[key] = {}
         for wl in data[key]:
+            
             if wl not in newdata[key]:
                 newdata[key][wl] = {}
-            assert "Total" in data[key][wl]
-            for o in options:
-                if options[o] != "" and options[o] != "Total":
-                    
-                    for i in range(np):
-                        if i not in newdata[key][wl]:
-                            newdata[key][wl][i] = {}
-
-                        assert options[o] not in newdata[key][wl][i]
-                        newdata[key][wl][i][options[o]] = data[key][wl][options[o]][i]
+                
+            if data[key][wl] != {}:
+                assert "Total" in data[key][wl]
+                for o in options:
+                    if options[o] != "" and options[o] != "Total":
+                        
+                        for i in range(np):
+                            if i not in newdata[key][wl]:
+                                newdata[key][wl][i] = {}
+    
+                            assert options[o] not in newdata[key][wl][i]
+                            newdata[key][wl][i][options[o]] = data[key][wl][options[o]][i]
+            else:
+                for o in options:
+                    if options[o] != "" and options[o] != "Total":
+                        for i in range(np):
+                            if i not in newdata[key][wl]:
+                                newdata[key][wl][i] = {}
+                            
+                            newdata[key][wl][i][options[o]] = "Error" 
 
     ndkey0 = newdata.keys()[0]
     wlkey0 = newdata[ndkey0].keys()[0]

@@ -163,11 +163,13 @@ def printError(sharedfile, alonefiles, np):
         print str(int(a)).rjust(w)
         i+=1
 
-def printCommitOnceErrors(sharedFile, alonefiles):
+def printCommitOnceErrors(sharedFile, alonefiles, memSysType):
     
-    latPattern = re.compile("L1.caches..avg_roundtrip_latency.*")
-    intPattern = re.compile("L1.caches..avg_roundtrip_interference.*")
-    reqPattern = re.compile("L1.caches..num_roundtrip_responses.*")
+    prefix = getMemSysPatternPrefix(memSysType)
+    
+    latPattern = re.compile(prefix+"..avg_roundtrip_latency.*")
+    intPattern = re.compile(prefix+"..avg_roundtrip_interference.*")
+    reqPattern = re.compile(prefix+"..num_roundtrip_responses.*")
 
     sfile = open(sharedFile)
     sharedtext = sfile.read()
@@ -820,50 +822,82 @@ def readRequestEstimateFile(filename, resultstorage, key):
             resultstorage[addr].append({key: (values, tick)})
 
 
-def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint):
+def getMemSysPatternPrefix(memSysType):
+    if memSysType == "RingBased":
+        return "PrivateL2Cache"
+    elif memSysType == "CrossbarBased":
+        return "L1.caches"
     
-    intpatterns = {"IC Entry":     re.compile("L1.*sum_ic_entry_interference.*"),
-                   "IC Transfer":  re.compile("L1.*sum_ic_transfer_interference.*"),
-                   "IC Delivery":  re.compile("L1.*sum_ic_delivery_interference.*"),
-                   "Bus Entry":    re.compile("L1.*sum_bus_entry_interference.*"),
-                   "Bus Queue":    re.compile("L1.*sum_bus_queue_interference.*"),
-                   "Bus Service":  re.compile("L1.*sum_bus_service_interference.*"),
-                   "Total":        re.compile("L1.*sum_roundtrip_interference.*"),
-                   "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
+    print "Fatal: Unknown memory system "+memSysType+" supplied"
+    assert False
+    return ""
+
+def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint, memSysType):
+    
+    prefix = getMemSysPatternPrefix(memSysType)
+    
+    intpatterns = {"IC Entry":     re.compile(prefix+".*sum_ic_entry_interference.*"),
+                   "IC Transfer":  re.compile(prefix+".*sum_ic_transfer_interference.*"),
+                   "IC Delivery":  re.compile(prefix+".*sum_ic_delivery_interference.*"),
+                   "Bus Entry":    re.compile(prefix+".*sum_bus_entry_interference.*"),
+                   "Bus Queue":    re.compile(prefix+".*sum_bus_queue_interference.*"),
+                   "Bus Service":  re.compile(prefix+".*sum_bus_service_interference.*"),
+                   "Total":        re.compile(prefix+".*sum_roundtrip_interference.*"),
+                   "Requests":     re.compile(prefix+".*num_roundtrip_responses.*")}
 
 
-    latpatterns = {"IC Entry":     re.compile("L1.*sum_ic_entry_latency.*"),
-                   "IC Transfer":  re.compile("L1.*sum_ic_transfer_latency.*"),
-                   "IC Delivery":  re.compile("L1.*sum_ic_delivery_latency.*"),
-                   "Bus Entry":    re.compile("L1.*sum_bus_entry_latency.*"),
-                   "Bus Queue":    re.compile("L1.*sum_bus_queue_latency.*"),
-                   "Bus Service":  re.compile("L1.*sum_bus_service_latency.*"),
-                   "Total":        re.compile("L1.*sum_roundtrip_latency.*"),
-                   "Requests":     re.compile("L1.*num_roundtrip_responses.*")}
+    latpatterns = {"IC Entry":     re.compile(prefix+".*sum_ic_entry_latency.*"),
+                   "IC Transfer":  re.compile(prefix+".*sum_ic_transfer_latency.*"),
+                   "IC Delivery":  re.compile(prefix+".*sum_ic_delivery_latency.*"),
+                   "Bus Entry":    re.compile(prefix+".*sum_bus_entry_latency.*"),
+                   "Bus Queue":    re.compile(prefix+".*sum_bus_queue_latency.*"),
+                   "Bus Service":  re.compile(prefix+".*sum_bus_service_latency.*"),
+                   "Total":        re.compile(prefix+".*sum_roundtrip_latency.*"),
+                   "Requests":     re.compile(prefix+".*num_roundtrip_responses.*")}
 
-    sfile = open(sharedfilen)
-    stext = sfile.read()
-    sfile.close()
+    error = False
 
-    sint = addBreakdownPatterns({}, intpatterns, stext, -1)
-    slat = addBreakdownPatterns({}, latpatterns, stext, -1)
-
-    alat = {}
-    cpu_num = 0
-    for afn in alonefilens:
-        afile = open(afn)
-        atext = afile.read()
-        afile.close()
+    try:
+        sfile = open(sharedfilen)
+    except:
+        if doPrint:
+            print "File not found: "+sharedfilen
+        error = True
         
-        alat = addBreakdownPatterns(alat, latpatterns, atext, cpu_num)
+    if not error:
+        stext = sfile.read()
+        sfile.close()
+    
+        sint = addBreakdownPatterns({}, intpatterns, stext, -1)
+        slat = addBreakdownPatterns({}, latpatterns, stext, -1)
+    
+        alat = {}
+        cpu_num = 0
+        for afn in alonefilens:
+            try:
+                afile = open(afn)
+            except:
+                if doPrint:
+                    print "File not found: "+afn
+                error = True
+                break
+            
+            atext = afile.read()
+            afile.close()
+            
+            alat = addBreakdownPatterns(alat, latpatterns, atext, cpu_num)
+            
+            cpu_num += 1
+
+    if not error:
+        results = [slat, sint, alat]
         
-        cpu_num += 1
-
-    results = [slat, sint, alat]
-
-    if doPrint:
-        printBreakdownError(results, len(alonefilens))
-
+        if doPrint:
+            printBreakdownError(results, len(alonefilens))
+        
+    else:
+        results = [{},{},{}]
+        
     return results
 
 def addBreakdownPatterns(data, patterns, text, cpu_num):
@@ -948,11 +982,18 @@ def printBreakdownError(results, np):
     print "Shared".rjust(width),
     print "Alone".rjust(width)
     
+    sreqs = 0
+    areqs = 0
     for i in range(np):
         print ("CPU"+str(i)).ljust(width),
-        print str(avgres[i][0][5] + avgres[i][1][5]).rjust(width),
-        print str(avgres[i][0][6] + avgres[i][1][6]).rjust(width)
-
+        
+        for j in range(len(avgres[i])):
+           sreqs += avgres[i][j][5]
+        print str(sreqs).rjust(width),
+        
+        for j in range(len(avgres[i])):
+           areqs += avgres[i][j][6]
+        print str(areqs).rjust(width)
         
     # Print total system summary
     print
@@ -970,7 +1011,7 @@ def printBreakdownError(results, np):
     cntToLow = False
 
     for i in range(np):
-        if (avgres[i][0][5]+avgres[i][1][5]) < reqCntLimit:
+        if sreqs < reqCntLimit:
             print ("CPU"+str(i)+"*").ljust(width),
             cntToLow = True
         else:
@@ -1024,9 +1065,12 @@ def computeWeightedAvg(avgres, cpuid, testnum):
     
     return int(avg)
 
-def getInterferenceErrors(sharedName, aloneNames, absError):
+def getInterferenceErrors(sharedName, aloneNames, absError, memsys):
     
-    slat,sint,alat = getInterferenceBreakdownError(sharedName, aloneNames, False)
+    slat,sint,alat = getInterferenceBreakdownError(sharedName, aloneNames, False, memsys)
+
+    if slat == {} and sint == {} and alat == {}:
+        return {}
 
     errors = {}
 
