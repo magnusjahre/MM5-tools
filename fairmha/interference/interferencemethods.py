@@ -661,7 +661,7 @@ def evaluateRequestEstimates(sharedlatency, interference, alonelatency, doPrint)
         print
         print "Evaluating request estimates, reading files..."
         print
-
+    
     readRequestEstimateFile(sharedlatency, evalData, "slat")
     readRequestEstimateFile(interference, evalData, "sint")
     readRequestEstimateFile(alonelatency, evalData, "alat")

@@ -1,7 +1,7 @@
 
 import sys
-import getInterference
-import parsemethods
+import interferencemethods
+import fairmha.resultparse.parsemethods as parsemethods
 import pbsconfig
 
 def createOutputText(data, reskey):
@@ -103,7 +103,7 @@ if printOne:
         wl = parsemethods.getBenchmark(cmd)
         if wl == printWl:
             shName,aloneNames = getFilenames(cmd,config)
-            getInterference.getInterferenceBreakdownError(shName,aloneNames,True)
+            interferencemethods.getInterferenceBreakdownError(shName,aloneNames,True)
 
     sys.exit()
 
@@ -117,13 +117,13 @@ for cmd, config in pbsconfig.commandlines:
     if key not in data:
         data[key] = {}
     assert wl not in data[key]
-    data[key][wl] = getInterference.getInterferenceErrors(shName,aloneNames,printAbsError)
+    data[key][wl] = interferencemethods.getInterferenceErrors(shName,aloneNames,printAbsError)
 
     if key not in reqerrors:
         reqerrors[key] = {}
     assert wl not in reqerrors[key]
     
-    reqerrors[key][wl] = getInterference.getReadWriteCount(shName,aloneNames)
+    reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
 
 if printAll:
     for o in options:
