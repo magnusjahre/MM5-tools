@@ -2,6 +2,7 @@
 import sys
 import interferencemethods
 import fairmha.resultparse.parsemethods as parsemethods
+from optparse import OptionParser
 import pbsconfig
 
 def createOutputText(data, reskey):
@@ -55,61 +56,84 @@ def getFilenames(cmd, config):
     return shName, aloneNames
 
 
-options = {"ic_entry": "IC Entry",
-           "ic_transfer": "IC Transfer",
-           "ic_delivery": "IC Delivery",
-           "bus_entry": "Bus Entry",
-           "bus_queue": "Bus Queue",
-           "bus_service": "Bus Service",
-           "total": "Total",
-           "all": "",
-           "one": "",
+usage = "usage: %prog [options] <cpu-count> <architecture> <command>"
+parser = OptionParser(usage=usage,prog="parseInterference.py")
+parser.add_option("-a", "--absolute-error", action="store_true", dest="absolute", default="True", help="Print errors in clock cycles")
+parser.add_option("-r", "--relative-error", action="store_false", dest="absolute", help="Print errors in percentage difference")
+parser.add_option("-t", "--interference-type", dest="type", default="total", help="Interference type to retrieve")
+parser.add_option("-w", "--workload", dest="workload", help="Workload to parse (only works with the 'one' command)")
+
+inoptions,args = parser.parse_args()
+
+if(len(args)) != 3:
+    parser.error("incorrect number of arguments")
+
+iTypes = {"ic-entry": "IC Entry",
+           "ic-transfer": "IC Transfer",
+           "ic-delivery": "IC Delivery",
+           "bus-entry": "Bus Entry",
+           "bus-queue": "Bus Queue",
+           "bus-service": "Bus Service",
+           "total": "Total"}
+
+commands = {"all": "",
+           "one-wl": "",
            "rwerror": "",
-           "breakdown": ""}
+           "breakdown": "",
+           "best-static": "",
+           "one-type": ""}
 
-if len(sys.argv) < 4 or sys.argv[3] not in options:
-    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> interference_type [absolute]"
-    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> all"
-    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> one <workload>"
-    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> rwerror"
-    print "Usage: python -c \"import fairmha.parseInterference\" <np> <arch> breakdown"
-    print
-    print "Available Commands:"
-    for a in options:
-        print a
-    sys.exit()
+if args[2] not in commands:
+    posCom = ""
+    for a in commands:
+        posCom += " "+a
     
+    parser.error("Unknown command\nSupported commands:"+posCom)
+    
+if inoptions.type not in iTypes:
+    posCom = ""
+    for a in iTypes:
+        posCom += " "+a
+    parser.error("Unknown interference type\nAvailable types:"+posCom)
 
-np = int(sys.argv[1])
-memsys = sys.argv[2]
+np = int(args[0])
+memsys = args[1]
 
 printAll = False
 printOne = False
 printWl = ""
 printRW = False
-printAbsError = False
+printAbsError = inoptions.absolute
 printBreakdown = False
-if sys.argv[3] == "all":
+doBestStatic = False
+
+if args[2] == "all":
     print "Writing all results to files..."
     printAll = True
-elif sys.argv[3] == "one":
-    printOne = True
-    printWl = sys.argv[4]
-elif sys.argv[3] == "rwerror":
+elif args[2] == "rwerror":
     printRW = True
-elif sys.argv[3] == "breakdown":
+elif args[2] == "breakdown":
     printBreakdown = True
-#    printAbsError = True
+elif args[2] == "one-wl":
+    printOne = True
+    if inoptions.workload == None:
+        parser.error("A workload name must be specified when the 'one' command is used")
+    printWl = inoptions.workload
+elif args[2] == "best-static":
+    doBestStatic = True
+elif args[2] == "one-type":
+    assert inoptions.type != None
+    pattern = iTypes[inoptions.type]
 else:
-    pattern = options[sys.argv[3]]
+    assert False, "Unknown command"
 
-if len(sys.argv) >= 5 and sys.argv[4] == "absolute":
-    printAbsError = True
+
 
 if printOne:
     for cmd, config in pbsconfig.commandlines:
         wl = parsemethods.getBenchmark(cmd)
-        if wl == printWl:
+        thisNP = pbsconfig.get_np(config)
+        if wl == printWl and np == thisNP:
             shName,aloneNames = getFilenames(cmd,config)
             interferencemethods.getInterferenceBreakdownError(shName,aloneNames,True,memsys)
 
@@ -119,7 +143,6 @@ if printOne:
 data = {}
 reqerrors = {}
 for cmd, config in pbsconfig.commandlines:
-    
     if pbsconfig.get_np(config) != np:
         continue
     
@@ -144,9 +167,9 @@ for cmd, config in pbsconfig.commandlines:
         reqerrors[key][wl] = {}
 
 if printAll:
-    for o in options:
-        if options[o] != "":
-            text = createOutputText(data,options[o])
+    for o in iTypes:
+        if iTypes[o] != "":
+            text = createOutputText(data,iTypes[o])
             
             fname = "interference_error_"+o+".txt"
             print "Writing results for file "+fname
@@ -172,23 +195,23 @@ elif printBreakdown:
                 
             if data[key][wl] != {}:
                 assert "Total" in data[key][wl]
-                for o in options:
-                    if options[o] != "" and options[o] != "Total":
+                for o in iTypes:
+                    if iTypes[o] != "" and iTypes[o] != "Total":
                         
                         for i in range(np):
                             if i not in newdata[key][wl]:
                                 newdata[key][wl][i] = {}
     
-                            assert options[o] not in newdata[key][wl][i]
-                            newdata[key][wl][i][options[o]] = data[key][wl][options[o]][i]
+                            assert iTypes[o] not in newdata[key][wl][i]
+                            newdata[key][wl][i][iTypes[o]] = data[key][wl][iTypes[o]][i]
             else:
-                for o in options:
-                    if options[o] != "" and options[o] != "Total":
+                for o in iTypes:
+                    if iTypes[o] != "" and iTypes[o] != "Total":
                         for i in range(np):
                             if i not in newdata[key][wl]:
                                 newdata[key][wl][i] = {}
                             
-                            newdata[key][wl][i][options[o]] = "Error" 
+                            newdata[key][wl][i][iTypes[o]] = "Error" 
 
     ndkey0 = newdata.keys()[0]
     wlkey0 = newdata[ndkey0].keys()[0]
@@ -209,6 +232,38 @@ elif printBreakdown:
                     print str(newdata[k][wl][i][t]).rjust(width),
                 print
 
+elif doBestStatic:
+    
+    bestResult = {}
+    
+    wls = data[data.keys()[0]].keys()
+    wls.sort()
+    
+    for wl in wls:
+        bestResult[wl] = [10000000 for i in range(np)]
+
+    for key in data:
+        for wl in data[key]:
+            assert "Total" in data[key][wl] 
+            total = data[key][wl]["Total"]
+            
+            for i in range(np):
+                if float(total[i]) < bestResult[wl][i]:
+                    bestResult[wl][i] = total[i]            
+    
+    
+    
+    width = 20
+    print "".ljust(width),
+    for i in range(np):
+        print ("CPU"+str(i)).rjust(width),
+    print
+    
+    for wl in wls:
+        print wl.ljust(width),
+        for res in bestResult[wl]:
+            print str(res).rjust(width),
+        print
 
 else:
     print createOutputText(data, pattern)
