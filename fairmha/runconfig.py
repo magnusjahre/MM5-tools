@@ -137,7 +137,7 @@ if latest_commands != []:
 
 print "Submitted "+str(count)+" experiments in "+str(file_counter)+" files"
 
-if pbsconfig.spm_inst_commands != []:
+if not pbsconfig.isDone():
 
     ticksPattern = re.compile("sim_ticks.*")
     comInstPattern = re.compile(".*COM:count.*")
@@ -147,7 +147,7 @@ if pbsconfig.spm_inst_commands != []:
     print "Suspending before attempting to issue single program mode experiments at "+time.strftime("%H:%M, %d. %b")
     time.sleep(SLEEP_TIME)
 
-    while pbsconfig.spm_inst_commands != {}:
+    while not pbsconfig.isDone():
         print
         print "Checking for experiments that can be submitted at "+time.strftime("%H:%M, %d. %b")
 
@@ -155,6 +155,7 @@ if pbsconfig.spm_inst_commands != []:
             resID = pbsconfig.get_unique_id(params)
             wl = pbsconfig.get_workload(params)
             filename = resID+"/"+resID+".txt"
+            
             text = ""
             try:
                 file = open(filename)
@@ -162,32 +163,25 @@ if pbsconfig.spm_inst_commands != []:
                 file.close()
             except:
                 pass
-
+            
             if text != "" and pbsconfig.not_started(wl, params):
-                ticks = ticksPattern.findall(text)
-                if ticks != []:
-                    threshold = int(float(pbsconfig.simticks) * 0.99)
-                    if int(ticks[0].split()[1]) > threshold:
-                        icounts = comInstPattern.findall(text)
-                        # make sure the simulator has finished printing the results
-                        if len(icounts) == pbsconfig.get_np(params): 
-                            print "Experiment with wl "+wl+" has finished, adding new experiments"
-                            for icount in icounts:
-                                id = int(idPattern.findall(icount.split()[0])[0])
-                                cnt = int(icount.split()[1])
-                            
-                                singleParams = pbsconfig.get_alone_params(wl, id, params)
-                                singleParams = pbsconfig.set_inst_count(singleParams, cnt)
-                                cmd,singleParams = pbsconfig.get_command(singleParams)
-                                expID = pbsconfig.get_unique_id(singleParams)
-
-                                incFile = commit_command(expID, cmd, command_counter, file_counter, 1)
-                                if incFile:
-                                    file_counter += 1
-                                count = count + 1
-                            pbsconfig.remove_alone_cmds(wl, params)
+                compRes = finPattern.findall(text)
+                if compRes != []:
+                    icounts = comInstPattern.findall(text)
+                    # make sure the simulator has finished printing the results
+                    if len(icounts) == pbsconfig.get_np(params): 
+                        print "Experiment with wl "+wl+" has finished, adding new experiments"
+                        for icount in icounts:
+                            id = int(idPattern.findall(icount.split()[0])[0])
+                            cnt = int(icount.split()[1])
                         
-
+                            cmd, singleParams = pbsconfig.getSPMCommand(wl, params, id, cnt)
+                            expID = pbsconfig.get_unique_id(singleParams)
+    
+                            incFile = commit_command(expID, cmd, command_counter, file_counter, 1)
+                            if incFile:
+                                file_counter += 1
+                            count = count + 1
 
         print "Suspending..."
         time.sleep(SLEEP_TIME)
