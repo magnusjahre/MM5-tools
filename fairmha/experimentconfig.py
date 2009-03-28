@@ -187,6 +187,17 @@ class ExperimentConfiguration:
         
         return command, aloneParams
     
+    def getSPMParameters(self, sharedParams, wl, bmID):
+        
+        sharedNp = self.getParam(sharedParams, "np")
+        bmname = workloads.getBms(wl,sharedNp)[bmID]
+        spmSharedKey = self.getUniqueIdentifier(sharedParams)
+        
+        aloneVarArgs = self.singleProgramModeParams[spmSharedKey][bmID]
+        
+        return self.getParams(sharedNp, wl, bmname, bmID, aloneVarArgs)
+        
+    
     def allSPMCommandsIssued(self):
         return self.singleProgramModeNotIssued != {}
     
