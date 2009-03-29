@@ -66,6 +66,8 @@ parser.add_option("-t", "--interference-type", dest="type", default="total", hel
 parser.add_option("-w", "--workload", dest="workload", help="Workload to parse (only works with the 'one' command)")
 parser.add_option("-l", "--long-output", action="store_true", default=False, dest="longoutput", help="Prints results for all keys (applies to the 'best-static' command only)")
 parser.add_option("-s", "--sort-keys", action="store_true", default=False, dest="sortkeys", help="Pads key multi-digit key numbers with zeros and sorts them in ascending order")
+parser.add_option("-b", "--bin-size", action="store", type="int", default=10, dest="binsize", help="Bin size to use when creating a histogram representation of the data")
+
 
 inoptions,args = parser.parse_args()
 
@@ -85,7 +87,8 @@ commands = {"all": "",
            "rwerror": "",
            "breakdown": "",
            "best-static": "",
-           "one-type": ""}
+           "one-type": "",
+           "histogram": "",}
 
 if args[2] not in commands:
     posCom = ""
@@ -110,6 +113,7 @@ printRW = False
 printAbsError = inoptions.absolute
 printBreakdown = False
 doBestStatic = False
+doHistogram = False
 
 if args[2] == "all":
     print "Writing all results to files..."
@@ -128,6 +132,8 @@ elif args[2] == "best-static":
 elif args[2] == "one-type":
     assert inoptions.type != None
     pattern = iTypes[inoptions.type]
+elif args[2] == "histogram":
+    doHistogram = True
 else:
     assert False, "Unknown command"
 
@@ -143,6 +149,7 @@ if printOne:
 
     sys.exit()
 
+# Retrieve data
 data = {}
 reqerrors = {}
 for cmd, config in pbsconfig.commandlines:
@@ -168,6 +175,22 @@ for cmd, config in pbsconfig.commandlines:
         reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
     else:
         reqerrors[key][wl] = {}
+
+# Find best configuration
+bestResult = {}
+sortedWorkloads = data[data.keys()[0]].keys()
+sortedWorkloads.sort()
+for wl in sortedWorkloads:
+    bestResult[wl] = [10000000.0 for i in range(np)]
+
+for key in data:
+    for wl in data[key]:
+        assert "Total" in data[key][wl] 
+        total = data[key][wl]["Total"]
+        
+        for i in range(np):
+            if math.fabs(float(total[i])) < math.fabs(bestResult[wl][i]):
+                bestResult[wl][i] = total[i]
 
 if inoptions.sortkeys:
     inkeys = []
@@ -225,8 +248,6 @@ if inoptions.sortkeys:
         
         
         paddedKeys[k] = newKeyStr
-    
-    print paddedKeys
     
     # Update dict with new keys
     newdata = {}
@@ -302,25 +323,11 @@ elif printBreakdown:
 
 elif doBestStatic:
     
-    bestResult = {}
-    
     wls = data[data.keys()[0]].keys()
     wls.sort()
     
     reskeys = data.keys()
     reskeys.sort()
-    
-    for wl in wls:
-        bestResult[wl] = [10000000.0 for i in range(np)]
-
-    for key in data:
-        for wl in data[key]:
-            assert "Total" in data[key][wl] 
-            total = data[key][wl]["Total"]
-            
-            for i in range(np):
-                if math.fabs(float(total[i])) < math.fabs(bestResult[wl][i]):
-                    bestResult[wl][i] = total[i]
     
     width = 20
     print "".ljust(width),
@@ -358,6 +365,41 @@ elif doBestStatic:
         print ("%.2f" % avg).rjust(width),
     print
 
+elif doHistogram:
+    
+    values = []
+    
+    for wl in sortedWorkloads:
+        for i in range(np):
+            values.append(bestResult[wl][i])
+    
+    minval = min(values)
+    maxval = max(values)
+                
+    firstbin = minval - (minval % inoptions.binsize)
+    lastbin = maxval + (maxval % inoptions.binsize) + inoptions.binsize
+    
+    bincnt = (lastbin - firstbin) / inoptions.binsize
+    
+    bins = {}
+    for i in range(firstbin, lastbin)[::inoptions.binsize]:
+        bins[i] = 0
+    
+    for v in values:
+        binkey = v - (v % inoptions.binsize)
+        bins[binkey] += 1
+        
+    width = 25
+    print "Bin".ljust(width),
+    print "Elements".rjust(width)
+    
+    bkeys = bins.keys()
+    bkeys.sort()
+    
+    for bkey in bkeys:
+        print (str(bkey)+" - "+str(bkey + inoptions.binsize -1)).ljust(width),
+        print str(bins[bkey]).rjust(width)
+    
 else:
     print createOutputText(data, pattern)
     
