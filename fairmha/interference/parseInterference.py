@@ -1,8 +1,10 @@
 
 import sys
 import interferencemethods
+import deterministic_fw_wls as fair_workloads
 import fairmha.resultparse.parsemethods as parsemethods
 from optparse import OptionParser
+import math
 import pbsconfig
 
 def createOutputText(data, reskey):
@@ -58,10 +60,12 @@ def getFilenames(cmd, config):
 
 usage = "usage: %prog [options] <cpu-count> <architecture> <command>"
 parser = OptionParser(usage=usage,prog="parseInterference.py")
-parser.add_option("-a", "--absolute-error", action="store_true", dest="absolute", default="True", help="Print errors in clock cycles")
+parser.add_option("-a", "--absolute-error", action="store_true", dest="absolute", default=True, help="Print errors in clock cycles")
 parser.add_option("-r", "--relative-error", action="store_false", dest="absolute", help="Print errors in percentage difference")
 parser.add_option("-t", "--interference-type", dest="type", default="total", help="Interference type to retrieve")
 parser.add_option("-w", "--workload", dest="workload", help="Workload to parse (only works with the 'one' command)")
+parser.add_option("-l", "--long-output", action="store_true", default=False, dest="longoutput", help="Prints results for all keys (applies to the 'best-static' command only)")
+parser.add_option("-s", "--sort-keys", action="store_true", default=False, dest="sortkeys", help="Pads key multi-digit key numbers with zeros and sorts them in ascending order")
 
 inoptions,args = parser.parse_args()
 
@@ -139,7 +143,6 @@ if printOne:
 
     sys.exit()
 
-
 data = {}
 reqerrors = {}
 for cmd, config in pbsconfig.commandlines:
@@ -165,6 +168,71 @@ for cmd, config in pbsconfig.commandlines:
         reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
     else:
         reqerrors[key][wl] = {}
+
+if inoptions.sortkeys:
+    inkeys = []
+    
+    splitstr = "_"
+    
+    numKeys = 0
+    for k in data.keys():
+        tmpdata = k.split(splitstr)
+        if numKeys == 0:
+            numKeys = len(tmpdata)
+        else:
+            assert numKeys == len(tmpdata) 
+    
+    keystore = [[] for i in range(numKeys)] 
+    isInt = [False for i in range(numKeys)]
+    
+    for k in data.keys():
+        tmpdata = k.split(splitstr)
+        for i in range(len(tmpdata)):
+            if tmpdata[i].isdigit():
+                isInt[i] = True
+                keystore[i].append(int(tmpdata[i]))
+            else:
+                keystore[i].append(tmpdata[i])
+        
+    keyDigits = []
+    for keylist in keystore:
+        maxval = max(keylist)
+        assert maxval > 0
+        digitMax = 10
+        digits = 1
+        while maxval >= digitMax:
+            digits += 1
+            digitMax *= 10
+        keyDigits.append(digits)
+    
+    paddedKeys = {}
+    for k in data.keys():
+        tmpdata = k.split(splitstr)
+        newKey = []
+        for i in range(len(tmpdata)):
+            if isInt[i] and len(tmpdata[i]) < keyDigits[i]:
+                zerostr = ""
+                diff = keyDigits[i] - len(tmpdata[i])
+                for j in range(diff):
+                    zerostr += "0"
+                newKey.append(zerostr+tmpdata[i])
+            else:
+                newKey.append(tmpdata[i])
+        
+        newKeyStr = newKey[0]
+        for nk in newKey[1:]:
+            newKeyStr += splitstr+nk
+        
+        
+        paddedKeys[k] = newKeyStr
+    
+    print paddedKeys
+    
+    # Update dict with new keys
+    newdata = {}
+    for d in data:
+        newdata[paddedKeys[d]] = data[d]
+    data = newdata
 
 if printAll:
     for o in iTypes:
@@ -239,8 +307,11 @@ elif doBestStatic:
     wls = data[data.keys()[0]].keys()
     wls.sort()
     
+    reskeys = data.keys()
+    reskeys.sort()
+    
     for wl in wls:
-        bestResult[wl] = [10000000 for i in range(np)]
+        bestResult[wl] = [10000000.0 for i in range(np)]
 
     for key in data:
         for wl in data[key]:
@@ -248,22 +319,44 @@ elif doBestStatic:
             total = data[key][wl]["Total"]
             
             for i in range(np):
-                if float(total[i]) < bestResult[wl][i]:
-                    bestResult[wl][i] = total[i]            
-    
-    
+                if math.fabs(float(total[i])) < math.fabs(bestResult[wl][i]):
+                    bestResult[wl][i] = total[i]
     
     width = 20
     print "".ljust(width),
-    for i in range(np):
-        print ("CPU"+str(i)).rjust(width),
-    print
+    if inoptions.longoutput:
+        for k in reskeys:
+            print k.rjust(width),
+    print "Best Static".rjust(width)
+    
+    if inoptions.longoutput:
+        sums = [0 for i in range(len(reskeys)+1)]
+    else:
+        sums = [0]
     
     for wl in wls:
-        print wl.ljust(width),
-        for res in bestResult[wl]:
-            print str(res).rjust(width),
-        print
+        bms = fair_workloads.getBms(wl,np)
+        assert len(bms) == len(bestResult[wl])
+        for i in range(len(bestResult[wl])):
+            print (wl+"-"+bms[i]).ljust(width),
+            keynum = 0
+            if inoptions.longoutput:
+                for reskey in reskeys:
+                    assert "Total" in data[reskey][wl]
+                    val = data[reskey][wl]["Total"][i]
+                    print str(val).rjust(width),
+                    sums[keynum] += val
+                    keynum += 1
+            best = bestResult[wl][i]
+            print str(best).rjust(width)
+            sums[keynum] += best
+
+    print "Average".ljust(width),
+    numLines = np * len(wls)
+    for sum in sums:
+        avg = float(sum) / float(numLines)
+        print ("%.2f" % avg).rjust(width),
+    print
 
 else:
     print createOutputText(data, pattern)
