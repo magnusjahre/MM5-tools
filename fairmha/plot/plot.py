@@ -257,7 +257,7 @@ def plotHistogram(data, filename, headers, seriesheaders, view, rowstacked, miny
 
     plotfile.write("\""+str(xtics[len(xtics)-1])+"\" "+str(start))
     plotfile.write(") \n")
-    plotfile.write("set key invert\n")
+    plotfile.write("set key outside above horizontal\n")
     plotfile.write("set ytics nomirror\n")
     
     plotfile.write("plot '"+filename+".dat' u 2 t '"+seriesheaders[0]+"'")

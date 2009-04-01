@@ -22,7 +22,8 @@ class ExperimentConfiguration:
     typeToParamPos = {"np": 0,
                       "wl": 1,
                       "bm": 2,
-                      "bmnum": 3}
+                      "bmnum": 3,
+                      "varargStart": 4}
     
     def __init__(self, _root, _binaryPath, _configPath):
         self.binaryPath = _root +"/"+_binaryPath
@@ -76,7 +77,7 @@ class ExperimentConfiguration:
         return paramCombinations
         
     def getParams(self, np, wl, bm, bmnum, varargs):
-        params = ["" for i in range(len(self.typeToParamPos))]
+        params = ["" for i in range(len(self.typeToParamPos)-1)]
         params[self.typeToParamPos["np"]]    = np
         params[self.typeToParamPos["wl"]]    = wl
         params[self.typeToParamPos["bm"]]    = bm
@@ -88,12 +89,19 @@ class ExperimentConfiguration:
     def getParam(self, params, type):
         return params[self.typeToParamPos[type]]
         
-    def getUniqueIdentifier(self, params):
-        repr = str(params[0])
-        for p in params[1:]:
+    def getVarargsIdentifier(self, params):
+        repr = ""
+        for p in params[self.typeToParamPos["varargStart"]:]:
             repr += "-"+str(p)
-        return repr
+        return repr[1:]
         
+    def getUniqueIdentifier(self, params):
+        filename = str(self.getParam(params, "np"))
+        filename += "-"+str(self.getParam(params, "wl"))
+        filename += "-"+str(self.getParam(params, "bm"))
+        filename += "-"+str(self.getParam(params, "bmnum"))
+        
+        return filename+"-"+self.getVarargsIdentifier(params)
         
     def getFileIdentifier(self, params):
         return "res-"+self.getUniqueIdentifier(params)
@@ -133,12 +141,12 @@ class ExperimentConfiguration:
             for wl in self.workloads[np]:
                 for varArgs in allCombs:
                     
-                    params = self.getParams(np, wl, self.noBMIndentifier, self.noBMIndentifier, varArgs)                    
+                    params = self.getParams(np, wl, self.noBMIndentifier, self.noBMIndentifier, varArgs)
                     command = self.getCommand(np, wl, params, self.noBMIndentifier, 0, 0, varArgs)
                     commandlines.append( (command, params) ) 
                     
                     bms = workloads.getBms(wl,np)
-                    sharedExpKey = self.getUniqueIdentifier(params)  
+                    sharedExpKey = self.getUniqueIdentifier(params)
                     assert sharedExpKey not in self.singleProgramModeParams
                     self.singleProgramModeParams[sharedExpKey] = {}
                     

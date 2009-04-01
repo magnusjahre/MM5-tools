@@ -6,12 +6,14 @@ import fairmha.resultparse.parsemethods as parsemethods
 from optparse import OptionParser
 import math
 import pbsconfig
+import re
+import fairmha.plot.plot as plot
 
 def createOutputText(data, reskey):
 
     text = ""
 
-    w = 20
+    w = 25
     keys = data.keys()
     keys.sort()
 
@@ -60,13 +62,14 @@ def getFilenames(cmd, config):
 
 usage = "usage: %prog [options] <cpu-count> <architecture> <command>"
 parser = OptionParser(usage=usage,prog="parseInterference.py")
-parser.add_option("-a", "--absolute-error", action="store_true", dest="absolute", default=True, help="Print errors in clock cycles")
+parser.add_option("-a", "--absolute-error", action="store_true", dest="absolute", default=True, help="Print errors in clock cycles (default)")
 parser.add_option("-r", "--relative-error", action="store_false", dest="absolute", help="Print errors in percentage difference")
-parser.add_option("-t", "--interference-type", dest="type", default="total", help="Interference type to retrieve")
+parser.add_option("-t", "--interference-type", dest="type", default="total", help="Interference type to retrieve (default: total)")
 parser.add_option("-w", "--workload", dest="workload", help="Workload to parse (only works with the 'one' command)")
 parser.add_option("-l", "--long-output", action="store_true", default=False, dest="longoutput", help="Prints results for all keys (applies to the 'best-static' command only)")
 parser.add_option("-s", "--sort-keys", action="store_true", default=False, dest="sortkeys", help="Pads key multi-digit key numbers with zeros and sorts them in ascending order")
 parser.add_option("-b", "--bin-size", action="store", type="int", default=10, dest="binsize", help="Bin size to use when creating a histogram representation of the data")
+parser.add_option("-p", "--key-pattern", action="store", type="string", default=".*", dest="pattern", help="Only return results with keys matching this regular expression")
 
 
 inoptions,args = parser.parse_args()
@@ -149,6 +152,9 @@ if printOne:
 
     sys.exit()
 
+keypattern = re.compile(inoptions.pattern)
+memsyspattern = re.compile(".*"+str(memsys)+".*")
+
 # Retrieve data
 data = {}
 reqerrors = {}
@@ -159,22 +165,27 @@ for cmd, config in pbsconfig.commandlines:
     shName, aloneNames = getFilenames(cmd,config)
     wl = parsemethods.getBenchmark(cmd)
     key = pbsconfig.get_key(cmd, config)
-    if key not in data:
-        data[key] = {}
-    assert wl not in data[key]
-    data[key][wl] = interferencemethods.getInterferenceErrors(shName, 
-                                                              aloneNames, 
-                                                              printAbsError,
-                                                              memsys)
-
-    if key not in reqerrors:
-        reqerrors[key] = {}
-    assert wl not in reqerrors[key]
     
-    if data[key][wl] != {}:
-        reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
-    else:
-        reqerrors[key][wl] = {}
+    keymatch = keypattern.findall(key) 
+    memsysmatch = memsyspattern.findall(key)
+    
+    if keymatch != [] and memsysmatch != []:
+        if key not in data:
+            data[key] = {}
+        assert wl not in data[key]
+        data[key][wl] = interferencemethods.getInterferenceErrors(shName, 
+                                                                  aloneNames, 
+                                                                  printAbsError,
+                                                                  memsys)
+    
+        if key not in reqerrors:
+            reqerrors[key] = {}
+        assert wl not in reqerrors[key]
+        
+        if data[key][wl] != {}:
+            reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
+        else:
+            reqerrors[key][wl] = {}
 
 # Find best configuration
 bestResult = {}
@@ -388,7 +399,25 @@ elif doHistogram:
     for v in values:
         binkey = v - (v % inoptions.binsize)
         bins[binkey] += 1
+    
+    plotdata = []
+    plotmax = 0
+    sortedbins = bins.keys()
+    sortedbins.sort()
+    for b in sortedbins:
+        plotdata.append( (b, [bins[b]]) )
+        if bins[b] > plotmax:
+            plotmax = bins[b]
         
+    plot.plotHistogram(plotdata,
+                       "interferenceplot",
+                       ["Number of Benchmarks","Error"],
+                       ["Number of Benchmarks"],
+                       False,
+                       False,
+                       0,
+                       plotmax+5)
+    
     width = 25
     print "Bin".ljust(width),
     print "Elements".rjust(width)

@@ -1,7 +1,7 @@
 
 import sys
 import plot
-import parsemethods
+import fairmha.resultparse.parsemethods as parsemethods
 
 impactfilename = sys.argv[1]
 binsize = int(sys.argv[2])
