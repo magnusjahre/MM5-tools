@@ -836,14 +836,15 @@ def getInterferenceBreakdownError(sharedfilen, alonefilens, doPrint, memSysType)
     
     prefix = getMemSysPatternPrefix(memSysType)
     
-    intpatterns = {"IC Entry":     re.compile(prefix+".*sum_ic_entry_interference.*"),
-                   "IC Transfer":  re.compile(prefix+".*sum_ic_transfer_interference.*"),
-                   "IC Delivery":  re.compile(prefix+".*sum_ic_delivery_interference.*"),
-                   "Bus Entry":    re.compile(prefix+".*sum_bus_entry_interference.*"),
-                   "Bus Queue":    re.compile(prefix+".*sum_bus_queue_interference.*"),
-                   "Bus Service":  re.compile(prefix+".*sum_bus_service_interference.*"),
-                   "Total":        re.compile(prefix+".*sum_roundtrip_interference.*"),
-                   "Requests":     re.compile(prefix+".*num_roundtrip_responses.*")}
+    intpatterns = {"IC Entry":       re.compile(prefix+".*sum_ic_entry_interference.*"),
+                   "IC Transfer":    re.compile(prefix+".*sum_ic_transfer_interference.*"),
+                   "IC Delivery":    re.compile(prefix+".*sum_ic_delivery_interference.*"),
+                   "Bus Entry":      re.compile(prefix+".*sum_bus_entry_interference.*"),
+                   "Bus Queue":      re.compile(prefix+".*sum_bus_queue_interference.*"),
+                   "Bus Service":    re.compile(prefix+".*sum_bus_service_interference.*"),
+                   "Cache Capacity": re.compile(prefix+".*sum_cache_capacity_interference.*"),
+                   "Total":          re.compile(prefix+".*sum_roundtrip_interference.*"),
+                   "Requests":       re.compile(prefix+".*num_roundtrip_responses.*")}
 
 
     latpatterns = {"IC Entry":     re.compile(prefix+".*sum_ic_entry_latency.*"),
@@ -948,7 +949,7 @@ def printBreakdownError(results, np):
         print "Shared int".rjust(width),
         print "Alone".rjust(width),
         print "Estimate".rjust(width),
-        print "Error (%)".rjust(width)
+        print "Error (cc)".rjust(width)
 
         sreqs = slat["Requests"][cache]
         areqs = alat["Requests"][cache]
@@ -960,7 +961,7 @@ def printBreakdownError(results, np):
                 avgsint = computeAverage(sint[t][cache], sreqs)
                 avgalat = computeAverage(alat[t][cache], areqs)
                 estimate = computeEstimate(avgslat, avgsint)
-                error = computeError(estimate, avgalat)
+                error = computeEstimate(avgalat,estimate)
                 
                 if t == "Total":
                     cpuid = int(cpuidPattern.findall(cache)[0])
@@ -972,7 +973,16 @@ def printBreakdownError(results, np):
                 print str(avgalat).rjust(width),
                 print str(estimate).rjust(width),
                 print str(error).rjust(width)
-                
+        
+        
+        avgCacheCapInt = computeAverage(sint["Cache Capacity"][cache], sreqs)
+        print "Cache Capacity".ljust(width),
+        print "-".rjust(width),
+        print str(avgCacheCapInt).rjust(width),
+        print "-".rjust(width),
+        print str(avgCacheCapInt).rjust(width),
+        print "-".rjust(width)
+        
         print
 
     print
