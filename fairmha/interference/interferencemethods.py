@@ -1414,3 +1414,55 @@ def parseInterferenceTraceExternal(sharedfn, privatefn, outputfn, statsfn, key):
             data[intType][interference] = readdata[interference][intType]
 
     return data
+
+def retrieveInterferenceManagerData(sharedfilen, alonefilenames, np):
+    
+    latNames = ["bus_entry", "bus_queue", "bus_service", "cache_capacity", "ic_delivery", "ic_entry", "ic_request_queue", "ic_request_transfer", "ic_response_queue", "ic_response_transfer"]
+    
+    # 1. Retrieve interference
+    interferencePatterns = []
+    for intName in latNames:
+        interferencePatterns.append(re.compile("interferenceManager.interference_"+intName+".*"))
+
+    interference = [0 for i in range(np)]
+    for ip in interferencePatterns:
+        res = search(sharedfilen, ip)
+        for r in res:
+            splitted = r.split()
+            interference[getID(splitted[0])] += int(splitted[1])
+            
+    # 2. Retrieve shared round trip latency and request count
+    sharedReqs = [0 for i in range(np)]
+    reqres = search(sharedfilen, re.compile("interferenceManager.requests.*"))
+    for r in reqres:
+        splitted = r.split()
+        sharedReqs[getID(splitted[0])] = int(splitted[1])
+    
+    roundtripLats = [0 for i in range(np)]
+    roundtripRes = search(sharedfilen, re.compile("interferenceManager.round_trip_latency.*"))
+    for r in roundtripRes:
+        splitted = r.split()
+        roundtripLats[getID(splitted[0])] = int(splitted[1])
+    
+            
+    sAvgLats = [float(roundtripLats[i]) / float(sharedReqs[i]) for i in range(np) ]
+    sAvgInts = [float(interference[i]) / float(sharedReqs[i]) for i in range(np) ]
+    aloneEstimates = [computeEstimate(sAvgLats[i], sAvgInts[i]) for i in range(np)]
+    
+    aloneAvgLats = []
+    
+    for afn in alonefilenames:
+        aloneAvgLatRes = search(afn, re.compile("interferenceManager.avg_round_trip_latency.*"))
+        assert len(aloneAvgLatRes) == 1
+        aloneAvgLats.append(float(aloneAvgLatRes[0].split()[1]))
+    
+    errors = [computeEstimate(aloneEstimates[i],aloneAvgLats[i]) for i in range(np)]
+    
+    roundedErrs = [float("%.2f" % errors[i]) for i in range(np)]
+    
+    return roundedErrs
+            
+def getID(key):
+    tmp = key.split(".")
+    tmp2 = tmp[1].split("_")
+    return int(tmp2[-1]) 

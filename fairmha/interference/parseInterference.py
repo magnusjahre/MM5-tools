@@ -70,6 +70,7 @@ parser.add_option("-l", "--long-output", action="store_true", default=False, des
 parser.add_option("-s", "--sort-keys", action="store_true", default=False, dest="sortkeys", help="Pads key multi-digit key numbers with zeros and sorts them in ascending order")
 parser.add_option("-b", "--bin-size", action="store", type="int", default=10, dest="binsize", help="Bin size to use when creating a histogram representation of the data")
 parser.add_option("-p", "--key-pattern", action="store", type="string", default=".*", dest="pattern", help="Only return results with keys matching this regular expression")
+parser.add_option("-c", "--use-cache", action="store_true", default=False, dest="usecache", help="Use interference measurements from cache and not InterferenceManager (off by default)")
 
 
 inoptions,args = parser.parse_args()
@@ -157,6 +158,7 @@ memsyspattern = re.compile(".*"+str(memsys)+".*")
 
 # Retrieve data
 data = {}
+intManData = {}
 reqerrors = {}
 for cmd, config in pbsconfig.commandlines:
     if pbsconfig.get_np(config) != np:
@@ -178,6 +180,14 @@ for cmd, config in pbsconfig.commandlines:
                                                                   printAbsError,
                                                                   memsys)
     
+    
+        if key not in intManData:
+            intManData[key] = {}
+        if wl not in intManData:
+            intManData[key][wl] = {}
+            
+        intManData[key][wl]["Total"] = interferencemethods.retrieveInterferenceManagerData(shName,aloneNames,np)
+    
         if key not in reqerrors:
             reqerrors[key] = {}
         assert wl not in reqerrors[key]
@@ -186,6 +196,9 @@ for cmd, config in pbsconfig.commandlines:
             reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
         else:
             reqerrors[key][wl] = {}
+
+if not inoptions.usecache:
+    data = intManData
 
 # Find best configuration
 bestResult = {}
