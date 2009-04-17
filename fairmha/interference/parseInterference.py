@@ -71,6 +71,7 @@ parser.add_option("-s", "--sort-keys", action="store_true", default=False, dest=
 parser.add_option("-b", "--bin-size", action="store", type="int", default=10, dest="binsize", help="Bin size to use when creating a histogram representation of the data")
 parser.add_option("-p", "--key-pattern", action="store", type="string", default=".*", dest="pattern", help="Only return results with keys matching this regular expression")
 parser.add_option("-c", "--use-cache", action="store_true", default=False, dest="usecache", help="Use interference measurements from cache and not InterferenceManager (off by default)")
+parser.add_option("-m", "--only-benchmark", action="store", type="string", default="", dest="benchmark", help="Only show the results for this benchmark")
 
 
 inoptions,args = parser.parse_args()
@@ -92,7 +93,8 @@ commands = {"all": "",
            "breakdown": "",
            "best-static": "",
            "one-type": "",
-           "histogram": "",}
+           "histogram": "",
+           "queue-error": ""}
 
 if args[2] not in commands:
     posCom = ""
@@ -118,6 +120,7 @@ printAbsError = inoptions.absolute
 printBreakdown = False
 doBestStatic = False
 doHistogram = False
+doQueueErrorPlot = False
 
 if args[2] == "all":
     print "Writing all results to files..."
@@ -138,26 +141,38 @@ elif args[2] == "one-type":
     pattern = iTypes[inoptions.type]
 elif args[2] == "histogram":
     doHistogram = True
+elif args[2] == "queue-error":
+    assert inoptions.usecache
+    doQueueErrorPlot = True
 else:
     assert False, "Unknown command"
 
-
+keypattern = re.compile(inoptions.pattern)
+memsyspattern = re.compile(".*"+str(memsys)+".*")
 
 if printOne:
     for cmd, config in pbsconfig.commandlines:
         wl = parsemethods.getBenchmark(cmd)
+        key = pbsconfig.get_key(cmd,config)
         thisNP = pbsconfig.get_np(config)
-        if wl == printWl and np == thisNP:
+        
+        keymatch = keypattern.findall(key) 
+        memsysmatch = memsyspattern.findall(key)
+    
+        if keymatch != [] and memsysmatch != [] and wl == printWl and np == thisNP:
+            print 
+            print "Interference data for wl "+printWl+", key: "+key
+            print
             shName,aloneNames = getFilenames(cmd,config)
             interferencemethods.getInterferenceBreakdownError(shName,aloneNames,True,memsys)
 
     sys.exit()
 
-keypattern = re.compile(inoptions.pattern)
-memsyspattern = re.compile(".*"+str(memsys)+".*")
-
 # Retrieve data
 data = {}
+slats = {}
+alats = {}
+sints = {}
 intManData = {}
 reqerrors = {}
 for cmd, config in pbsconfig.commandlines:
@@ -174,11 +189,11 @@ for cmd, config in pbsconfig.commandlines:
     if keymatch != [] and memsysmatch != []:
         if key not in data:
             data[key] = {}
+            slats[key] = {}
+            alats[key] = {}
+            sints[key] = {}
         assert wl not in data[key]
-        data[key][wl] = interferencemethods.getInterferenceErrors(shName, 
-                                                                  aloneNames, 
-                                                                  printAbsError,
-                                                                  memsys)
+        data[key][wl],slats[key][wl],alats[key][wl],sints[key][wl] = interferencemethods.getInterferenceErrors(shName, aloneNames, printAbsError,memsys)
     
     
         if key not in intManData:
@@ -200,6 +215,10 @@ for cmd, config in pbsconfig.commandlines:
 if not inoptions.usecache:
     data = intManData
 
+if data == {}:
+    print "Fatal: No matching results found"
+    sys.exit(-1)
+
 # Find best configuration
 bestResult = {}
 sortedWorkloads = data[data.keys()[0]].keys()
@@ -219,7 +238,7 @@ for key in data:
 if inoptions.sortkeys:
     inkeys = []
     
-    splitstr = "_"
+    splitstr = "-"
     
     numKeys = 0
     for k in data.keys():
@@ -240,30 +259,41 @@ if inoptions.sortkeys:
                 keystore[i].append(int(tmpdata[i]))
             else:
                 keystore[i].append(tmpdata[i])
-        
+    
     keyDigits = []
+    keystoreIndex = 0
     for keylist in keystore:
-        maxval = max(keylist)
-        assert maxval > 0
-        digitMax = 10
-        digits = 1
-        while maxval >= digitMax:
-            digits += 1
-            digitMax *= 10
-        keyDigits.append(digits)
+        if isInt[keystoreIndex]:
+            maxval = max(keylist)
+            digitMax = 10
+            digits = 1
+            assert maxval > 0
+            while maxval >= digitMax:
+                digits += 1
+                digitMax *= 10
+                assert digitMax < 100000000
+            keyDigits.append(digits)
+        else:
+            keyDigits.append(-1)
+        keystoreIndex += 1
+    
     
     paddedKeys = {}
     for k in data.keys():
         tmpdata = k.split(splitstr)
         newKey = []
         for i in range(len(tmpdata)):
-            if isInt[i] and len(tmpdata[i]) < keyDigits[i]:
-                zerostr = ""
-                diff = keyDigits[i] - len(tmpdata[i])
-                for j in range(diff):
-                    zerostr += "0"
-                newKey.append(zerostr+tmpdata[i])
+            if isInt[i]:
+                if len(tmpdata[i]) < keyDigits[i]:
+                    zerostr = ""
+                    diff = keyDigits[i] - len(tmpdata[i])
+                    for j in range(diff):
+                        zerostr += "0"
+                    newKey.append(zerostr+tmpdata[i])
+                else:
+                    newKey.append(tmpdata[i])
             else:
+                assert keyDigits[i] == -1
                 newKey.append(tmpdata[i])
         
         newKeyStr = newKey[0]
@@ -369,18 +399,19 @@ elif doBestStatic:
         bms = fair_workloads.getBms(wl,np)
         assert len(bms) == len(bestResult[wl])
         for i in range(len(bestResult[wl])):
-            print (wl+"-"+bms[i]).ljust(width),
-            keynum = 0
-            if inoptions.longoutput:
-                for reskey in reskeys:
-                    assert "Total" in data[reskey][wl]
-                    val = data[reskey][wl]["Total"][i]
-                    print str(val).rjust(width),
-                    sums[keynum] += val
-                    keynum += 1
-            best = bestResult[wl][i]
-            print str(best).rjust(width)
-            sums[keynum] += best
+            if inoptions.benchmark == "" or inoptions.benchmark == bms[i]:
+                print (wl+"-"+bms[i]).ljust(width),
+                keynum = 0
+                if inoptions.longoutput:
+                    for reskey in reskeys:
+                        assert "Total" in data[reskey][wl]
+                        val = data[reskey][wl]["Total"][i]
+                        print str(val).rjust(width),
+                        sums[keynum] += val
+                        keynum += 1
+                best = bestResult[wl][i]
+                print str(best).rjust(width)
+                sums[keynum] += best
 
     print "Average".ljust(width),
     numLines = np * len(wls)
@@ -416,11 +447,11 @@ elif doHistogram:
     plotdata = []
     plotmax = 0
     sortedbins = bins.keys()
-    sortedbins.sort()
     for b in sortedbins:
-        plotdata.append( (b, [bins[b]]) )
-        if bins[b] > plotmax:
-            plotmax = bins[b]
+        if bins[b] != 0:
+            plotdata.append( ( ((b + (b-inoptions.binsize))/2), [bins[b]]) )
+            if bins[b] > plotmax:
+                plotmax = bins[b]
         
     plot.plotHistogram(plotdata,
                        "interferenceplot",
@@ -439,8 +470,40 @@ elif doHistogram:
     bkeys.sort()
     
     for bkey in bkeys:
-        print (str(bkey)+" - "+str(bkey + inoptions.binsize -1)).ljust(width),
-        print str(bins[bkey]).rjust(width)
+        if bins[bkey] != 0:
+            print (str(bkey)+" - "+str(bkey + inoptions.binsize -1)).ljust(width),
+            print str(bins[bkey]).rjust(width)
+    
+elif doQueueErrorPlot:
+    
+    sortedKeys = data.keys()
+    sortedKeys.sort()
+    
+    width = 25
+    print "".ljust(width),
+    print "Shared lat".rjust(width),
+    print "Interference".rjust(width),
+    print "Estimated alone lat".rjust(width),
+    print "Actual alone lat".rjust(width)
+    
+    for dk in sortedKeys:
+        for wlk in sortedWorkloads:
+            
+            wlslat = slats[dk][wlk]["Bus Queue"]
+            wlint = sints[dk][wlk]["Bus Queue"]
+            wlalat = alats[dk][wlk]["Bus Queue"]
+            
+            estimate = [wlslat[i] - wlint[i] for i in range(np)]
+            
+            bms = fair_workloads.getBms(wlk,np)
+            
+            for i in range(np):
+                print (wlk+"-"+bms[i]).ljust(width),
+                print str(wlslat[i]).rjust(width),
+                print str(wlint[i]).rjust(width),
+                print str(estimate[i]).rjust(width),
+                print str(wlalat[i]).rjust(width)
+    
     
 else:
     print createOutputText(data, pattern)

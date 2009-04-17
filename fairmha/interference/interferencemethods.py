@@ -1138,7 +1138,7 @@ def getInterferenceErrors(sharedName, aloneNames, absError, memsys):
                 else:
                     errors[k][cpuid] = computeError(estimate, talats[k][cpuid])
     
-    return errors
+    return errors, tslats, talats, tints
 
 def search(filename, pattern):
     file = open(filename)
