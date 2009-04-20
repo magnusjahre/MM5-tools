@@ -25,9 +25,14 @@ class ExperimentConfiguration:
                       "bmnum": 3,
                       "varargStart": 4}
     
+    specnames = ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
+    specBenchmarks = [] 
+    
     def __init__(self, _root, _binaryPath, _configPath):
         self.binaryPath = _root +"/"+_binaryPath
         self.configPath = _root +"/"+_configPath
+        for b in self.specnames:
+            self.specBenchmarks.append(b+"0")
         
     def setSimTicks(self, _simticks):
         self.simticks = _simticks
@@ -43,6 +48,7 @@ class ExperimentConfiguration:
     def registerWorkload(self, np, firstnum, lastnum):
         
         assert np not in self.workloads
+        assert 1 not in self.workloads
         self.workloads[np] = []
         
         for i in range(firstnum, lastnum+1):
@@ -51,6 +57,12 @@ class ExperimentConfiguration:
             else:
                 self.workloads[np].append("fair"+str(i))
         
+    def registerBenchmarks(self):
+        assert self.workloads == {}
+        
+        self.workloads[1] = []
+        for bm in self.specBenchmarks:
+            self.workloads[1].append(bm) 
     
     def generateAllArgumentCombinations(self):    
         
@@ -129,6 +141,9 @@ class ExperimentConfiguration:
         return args
     
     def getCommandlines(self):
+        return self.getCommandlines(True)
+    
+    def getCommandlines(self, doSingleProgramMode):
         
         commandlines = []
         
@@ -145,16 +160,17 @@ class ExperimentConfiguration:
                     command = self.getCommand(np, wl, params, self.noBMIndentifier, 0, 0, varArgs)
                     commandlines.append( (command, params) ) 
                     
-                    bms = workloads.getBms(wl,np)
-                    sharedExpKey = self.getUniqueIdentifier(params)
-                    assert sharedExpKey not in self.singleProgramModeParams
-                    self.singleProgramModeParams[sharedExpKey] = {}
-                    
-                    for i in range(np):
-                        self.singleProgramModeParams[sharedExpKey][i] = varArgs
-                        aloneParams = self.getParams(np, wl, bms[i], i, varArgs)
-                        aloneKey = self.getUniqueIdentifier(aloneParams)
-                        self.singleProgramModeNotIssued[aloneKey] = True
+                    if doSingleProgramMode:
+                        bms = workloads.getBms(wl,np)
+                        sharedExpKey = self.getUniqueIdentifier(params)
+                        assert sharedExpKey not in self.singleProgramModeParams
+                        self.singleProgramModeParams[sharedExpKey] = {}
+                        
+                        for i in range(np):
+                            self.singleProgramModeParams[sharedExpKey][i] = varArgs
+                            aloneParams = self.getParams(np, wl, bms[i], i, varArgs)
+                            aloneKey = self.getUniqueIdentifier(aloneParams)
+                            self.singleProgramModeNotIssued[aloneKey] = True
                     
         return commandlines
     
