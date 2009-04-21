@@ -140,10 +140,7 @@ class ExperimentConfiguration:
         args.append(self.makeArgument("STATSFILE", self.getFileIdentifier(params))+".txt")
         return args
     
-    def getCommandlines(self):
-        return self.getCommandlines(True)
-    
-    def getCommandlines(self, doSingleProgramMode):
+    def getCommandlines(self, doSingleProgramMode=True):
         
         commandlines = []
         

@@ -123,7 +123,7 @@ def plotHeatMap(data, xtitle, ytitle, maxx, maxy, ofilen):
     return ofilen+'.pdf'
 
     
-def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilename, printRubber):
+def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilename, printRubber, freetext=""):
 
     assert len(plotFiles) == len(plotTitles)
 
@@ -136,6 +136,11 @@ def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilena
 
     texfile.write("\\begin{figure*}[h!]\n")
     texfile.write("\t\\centering\n")
+    
+    npt = []
+    for pt in plotTitles:
+        npt.append(pt.replace("_","-"))
+    plotTitles = npt
     
     notPrintedTitles = []
     for i in range(len(plotTitles)):
@@ -158,6 +163,8 @@ def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilena
         texfile.write("\\end{itemize}\n")
 
 
+    texfile.write(freetext)
+
     texfile.write(latexfooter)
     texfile.flush()
     texfile.close()
@@ -172,7 +179,7 @@ def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilena
     os.rename("plots.pdf", outfilename+".pdf")
     os.remove("plots.aux")
     os.remove("plots.log")
-    os.remove("plots.tex")
+#    os.remove("plots.tex")
 
 def plotScatter(name, plotname, xtitle, ytitle, seriesTitles, datafile):
     scriptfile = open(name+".g", "w")
@@ -318,3 +325,45 @@ def plotClusteredHistogram(filename, data, clustertitles, headers):
     subprocess.call(["gnuplot", filename+".g"])
     subprocess.call(["epstopdf", filename+".eps"])
 
+def plotLine(data, filename, headers, seriesheaders, miny, maxy, minx, maxx):
+    writeHistogramDatafile(filename,data,40,seriesheaders)
+
+    plotfile = open(filename+".g","w")
+    
+    plotfile.write("set terminal postscript eps enhanced 'NimbusSanL-Regu,18' fontfile '/usr/share/texmf-texlive/fonts/type1/urw/helvetic/uhvr8a.pfb' size 5,3\n")
+    plotfile.write("set output \""+filename+".eps\"\n")
+
+    plotfile.write("set title '"+filename+"'\n")
+    plotfile.write("set ylabel '"+headers[0]+"'\n")
+    plotfile.write("set xlabel '"+headers[1]+"'\n")
+
+    if miny != -1 and maxy != -1:
+        plotfile.write("set yrange ["+str(miny)+":"+str(maxy)+"]\n")
+        
+    if minx != -1 and maxx != -1:
+        plotfile.write("set xrange ["+str(minx)+":"+str(maxx)+"]\n")
+
+    plotfile.write("set key outside above horizontal\n")
+    plotfile.write("set ytics nomirror\n")
+    
+    plotfile.write("plot '"+filename+".dat' u 1:2 t '"+seriesheaders[0]+"' with linespoints")
+    if len(seriesheaders) == 1:
+        plotfile.write("\n")
+    else:
+        plotfile.write(",\\\n")
+
+    dindex = 3
+    for t in seriesheaders[1:]:
+        plotfile.write("'"+filename+".dat' u 1:"+str(dindex)+" t \""+t+"\" with linespoints")
+        if dindex != len(seriesheaders)+1:
+            plotfile.write(",\\\n")
+        else:
+            plotfile.write("\n")
+        dindex += 1
+    
+    plotfile.flush()
+    plotfile.close()
+
+    subprocess.call(["gnuplot", filename+".g"])
+    subprocess.call(["epstopdf", filename+".eps"])
+    
