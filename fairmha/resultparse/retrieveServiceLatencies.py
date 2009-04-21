@@ -92,6 +92,9 @@ def createHistograms():
 
 def writeResults(histograms):
     
+    
+    averages = {}
+    
     for k in histograms:
         
         filenames = []
@@ -133,6 +136,8 @@ def writeResults(histograms):
                           min(sortedKeys)-10,
                           max(sortedKeys)+10)
         
+        averages[k] = avgLats
+        
         freetext = "Average latencies:"
         freetext += "\\begin{itemize}\n"
         for type, avg in avgLats:
@@ -147,7 +152,8 @@ def writeResults(histograms):
                               k,
                               False,
                               freetext)
-    print
+    
+    return averages
 
 def main(argv):
 
@@ -170,7 +176,41 @@ def main(argv):
     print
 
     os.chdir("dram-latencies")
-    writeResults(histograms)
+    averages = writeResults(histograms)
+    
+    print
+    print "Average latencies"
+    print
+    
+    w = 40
+    types = []
+    for t,val in averages[averages.keys()[0]]:
+        types.append(t)
+    
+    print "".ljust(w),
+    for t in types:
+        print t.rjust(w),
+    print
+    
+    latsum = {}
+    for t in types:
+        latsum[t] = 0.0
+    archs = len(averages.keys())
+    
+    for k in averages:
+        print k.ljust(w),
+        for type,avg in averages[k]:
+            print ("%.2f" % avg).rjust(w),
+            latsum[type] += avg
+        print
+    
+    print
+    print "Architecture-wide averages"
+    print
+
+    for t in types:
+        print (t+":").ljust(w),
+        print ("%.2f" % (latsum[t] / float(archs))).rjust(w)
     
     return 0
 
