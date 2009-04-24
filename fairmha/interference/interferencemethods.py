@@ -1080,7 +1080,7 @@ def getInterferenceErrors(sharedName, aloneNames, absError, memsys):
     slat,sint,alat = getInterferenceBreakdownError(sharedName, aloneNames, False, memsys)
 
     if slat == {} and sint == {} and alat == {}:
-        return {}
+        return {},{},{},{}
 
     errors = {}
 
@@ -1141,7 +1141,13 @@ def getInterferenceErrors(sharedName, aloneNames, absError, memsys):
     return errors, tslats, talats, tints
 
 def search(filename, pattern):
-    file = open(filename)
+    
+    try:
+        file = open(filename)
+    except:
+        print "Warning: file can not be opened ("+filename+")"
+        return []
+    
     text = file.read()
     file.close()
     return pattern.findall(text)
@@ -1434,6 +1440,9 @@ def retrieveInterferenceManagerData(sharedfilen, alonefilenames, np):
     # 2. Retrieve shared round trip latency and request count
     sharedReqs = [0 for i in range(np)]
     reqres = search(sharedfilen, re.compile("interferenceManager.requests.*"))
+    if reqres == []:
+        return []
+    
     for r in reqres:
         splitted = r.split()
         sharedReqs[getID(splitted[0])] = int(splitted[1])
@@ -1453,6 +1462,8 @@ def retrieveInterferenceManagerData(sharedfilen, alonefilenames, np):
     
     for afn in alonefilenames:
         aloneAvgLatRes = search(afn, re.compile("interferenceManager.avg_round_trip_latency.*"))
+        if aloneAvgLatRes == []:
+            return []
         assert len(aloneAvgLatRes) == 1
         aloneAvgLats.append(float(aloneAvgLatRes[0].split()[1]))
     

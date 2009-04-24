@@ -231,10 +231,11 @@ for key in data:
     for wl in data[key]:
         assert "Total" in data[key][wl] 
         total = data[key][wl]["Total"]
-        
-        for i in range(np):
-            if math.fabs(float(total[i])) < math.fabs(bestResult[wl][i]):
-                bestResult[wl][i] = total[i]
+
+        if total != []:
+            for i in range(np):
+                if math.fabs(float(total[i])) < math.fabs(bestResult[wl][i]):
+                    bestResult[wl][i] = total[i]
 
 if inoptions.sortkeys:
     inkeys = []
