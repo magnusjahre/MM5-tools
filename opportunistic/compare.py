@@ -61,7 +61,10 @@ for benchmark in benchmarks:
     sum = sum + float(res[cpu].split()[1])
   referenceIPC[str(benchmark)+'-sum'] = sum
 
-print len(referenceIPC)
+if len(referenceIPC) != (np + 1) * len(benchmarks):
+  print 'Error in key generation!'
+  sys.exit()
+
 
   
 print '#benchmarks',
