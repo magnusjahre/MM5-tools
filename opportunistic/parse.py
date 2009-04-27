@@ -56,6 +56,7 @@ for benchmark in pbsconfig.benchmarks:
   for string in res:
     innerIPC = innerIPC + float(string.split()[1])
   referenceIPC.append(innerIPC)
+  print innerIPC
 
 
 print '#benchmark',
