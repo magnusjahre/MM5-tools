@@ -187,6 +187,7 @@ def findValues(patternString, filename):
     retval = {}
     for r in results:
          tmp = r.split()
+         print tmp
          cpuid = int(intPattern.findall(tmp[0])[0])
          value = float(tmp[1])
          
@@ -194,4 +195,24 @@ def findValues(patternString, filename):
     
     return retval
     
+def findPattern(patternString, filename):
+    pattern = re.compile(".*\..*"+patternString+".*")
     
+    file = open(filename)
+    text = file.read()
+    file.close()
+    
+    results = pattern.findall(text)
+    
+    retval = {}
+    for r in results:
+         tmp = r.split()
+         statkey = tmp[0]
+         try:
+             value = float(tmp[1])
+         except:
+             value = "N/A"
+         
+         retval[statkey] = value
+    
+    return retval
