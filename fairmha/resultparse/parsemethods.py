@@ -195,12 +195,17 @@ def findValues(patternString, filename):
     
     return retval
     
-def findPattern(patternString, filename):
+def findPattern(patternString, filename, warn):
     pattern = re.compile(".*\..*"+patternString+".*")
     
-    file = open(filename)
-    text = file.read()
-    file.close()
+    try:
+        file = open(filename)
+        text = file.read()
+        file.close()
+    except:
+        if warn:
+            print "Warning: Cannot read file "+filename
+        return {}
     
     results = pattern.findall(text)
     
