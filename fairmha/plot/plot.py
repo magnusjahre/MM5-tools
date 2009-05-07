@@ -47,6 +47,7 @@ def plotGraph(title, xlabel, ylabel, data, lineText, outfilename, printGp):
     scriptfile.write("set key outside below\n")
     scriptfile.write("set terminal postscript eps color enhanced 26\n")
     scriptfile.write("set output \"tmpplot.eps\"\n")
+    scriptfile.write("set xtics nomirror rotate by -90\n")
 
     scriptfile.write("plot")
 
@@ -59,16 +60,10 @@ def plotGraph(title, xlabel, ylabel, data, lineText, outfilename, printGp):
     scriptfile.flush()
     scriptfile.close()
 
-    res = popen2.popen3("gnuplot tmpplot.g")
-    text = res[0].read()
+    subprocess.call(["gnuplot", "tmpplot.g"])
 
-    if printGp:
-        print text
-        print res[2].read()
-
-    res = popen2.popen3("epstopdf tmpplot.eps")
-    text = res[0].read()
-
+    subprocess.call(["epstopdf","tmpplot.eps"])
+    
     # clean up
     os.rename('tmpplot.pdf', outfilename+'.pdf')
     os.remove('tmpplot.eps')
@@ -169,12 +164,7 @@ def createSummaryPdf(plotFiles, doctitle, figTitle, plotTitles, width, outfilena
     texfile.flush()
     texfile.close()
     
-    res = popen2.popen3("rubber --pdf plots.tex")
-    text = res[0].read()
-
-    if printRubber:
-        print text
-        print res[2].read()
+    subprocess.call(["rubber", "--pdf", "plots.tex"])
 
     os.rename("plots.pdf", outfilename+".pdf")
     os.remove("plots.aux")

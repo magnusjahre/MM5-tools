@@ -283,39 +283,55 @@ def getBenchmarks(wl, printRes, np):
     return bms
         
         
-def getSampleErrors(sharedFilename, aloneFilename, printOutput):
+def getSampleErrors(sharedFilename, sharedInterferenceFilename, aloneFilename, printOutput):
 
     sf = open(sharedFilename)
+    sif = open(sharedInterferenceFilename)
     af = open(aloneFilename)
     
     sLines = sf.readlines()
+    sifLines = sif.readlines()
     aLines = af.readlines()
     
     sf.close()
+    sif.close()
     af.close()
 
     data = []
 
+    width = 25
+    if printOutput:
+        print "".ljust(width),
+        print "Avg Alone Lat".rjust(width),
+        print "Avg Shared Lat".rjust(width),
+        print "Interference".rjust(width),
+        print "Estimated Avg Alone Lat".rjust(width),
+        print "Est - Actual".rjust(width)
+
     for i in range(len(sLines))[1:]:
         
         sStats = sLines[i].split(";")
+        avgSharedLat = float(sStats[2])
         
-        avgSharedLat = float(sStats[1])
-        avgInterference = float(sStats[2])
+        sintStats = sifLines[i].split(";")
+        avgInterference = float(sintStats[2])
 
         try:
-            aloneLat = float(aLines[i].split(";")[1])
+            aloneLat = float(aLines[i].split(";")[2])
         except:
             break
 
-        estimatedLatency = avgSharedLat - avgInterference
-        error = ((estimatedLatency - aloneLat) / aloneLat)
+        estimate = avgSharedLat - avgInterference
 
         if printOutput:
-            print sStats[0].ljust(10)+(str(error*100)+" %").rjust(15)
+            print str(sStats[1]).ljust(width),
+            print str(aloneLat).rjust(width),
+            print str(avgSharedLat).rjust(width),
+            print str(avgInterference).rjust(width),
+            print str(estimate).rjust(width),
+            print str(estimate - aloneLat).rjust(width)
 
-        #data.append([int(sStats[0]), avgSharedLat - avgInterference, aloneLat])
-        data.append([int(sStats[0]), error])
+        data.append([float(sStats[1]) / 1000000.0, avgSharedLat, avgInterference, estimate, aloneLat])
 
     return data
 
