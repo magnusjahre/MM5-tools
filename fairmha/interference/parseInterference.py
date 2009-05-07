@@ -583,17 +583,15 @@ elif doPerArchErrorBreakdown:
     
     
     avgRes = {}
-    distribution = {}
+    allErrors = {}
     for key in data:
         
         if key not in avgRes:
             avgRes[key] = {}
-            distribution[key] = {}
+            allErrors[key] = {}
         
         errorPerReqSum = {}
         reqsum = {}
-        
-        reqsPerError = {}
         
         for wl in data[key]:
             
@@ -603,7 +601,7 @@ elif doPerArchErrorBreakdown:
                     if itype not in errorPerReqSum:
                         errorPerReqSum[itype] = 0
                         reqsum[itype] = 0
-                        reqsPerError[itype] = {}
+                        allErrors[key][itype] = [] 
 
                     for cpuID in range(len(data[key][wl][itype])):
                         
@@ -612,34 +610,10 @@ elif doPerArchErrorBreakdown:
                         errorPerReqSum[itype] += tmperror  * sharedRequests[key][wl][cpuID]
                         reqsum[itype] += sharedRequests[key][wl][cpuID]
                         
-                        if tmperror not in reqsPerError[itype]:
-                            reqsPerError[itype][tmperror] = 0
-                        reqsPerError[itype][tmperror] += sharedRequests[key][wl][cpuID]
+                        allErrors[key][itype].append(tmperror)
         
         for itype in errorPerReqSum:
             avgRes[key][itype] = float(errorPerReqSum[itype]) / float(reqsum[itype])
-            
-        for itype in reqsPerError:
-            
-            tolerance = 0.0001
-            
-            tmpdistrib = {}
-            for error in reqsPerError[itype]:
-                probability = float(reqsPerError[itype][error]) / float(reqsum[itype])
-                tmpdistrib[error] = probability
-                
-            tmpkeys = tmpdistrib.keys()
-            tmpkeys.sort()
-            
-            tmpdata = []
-            representedReqs = 1.0
-            for tmpkey in tmpkeys:
-                representedReqs -= tmpdistrib[tmpkey]
-                if representedReqs < tolerance:
-                    representedReqs = 0.0
-                tmpdata.append( (tmpkey, representedReqs) )
-                    
-            distribution[key][itype] = tmpdata
     
     width = 30
     
@@ -665,31 +639,28 @@ elif doPerArchErrorBreakdown:
     else:
         usetype = iTypes[inoptions.type]
         
-        keys = distribution.keys()
-        keys.sort()
+        numBms = 0
         
+        expkeys = allErrors.keys()
+        expkeys.sort()
+        
+        for k in expkeys:
+            allErrors[k][usetype].sort()
+            numBms = len(allErrors[k][usetype])
+            
         print "".ljust(width),
-        for k in keys:
+        for k in expkeys:
             print k.rjust(width),
         print
-            
-        printData = {}
-        for keyID in range(len(keys)):
-            for error, cumprob in distribution[keys[keyID]][usetype]:
-                if error not in printData:
-                    printData[error] = [-1 for i in range(len(keys))]
-                printData[error][keyID] = cumprob
-                
-        sortedErrors = printData.keys()
-        sortedErrors.sort()
-
-        for err in sortedErrors:
-            print str(err).ljust(width),
-            for elem in printData[err]:
-                if elem == -1:
-                    print "".rjust(width),
+        
+        for i in range(1, numBms+1):
+            print ("%.2f" % (float(i) / float(numBms))).ljust(width),
+            for k in expkeys:
+                outval = allErrors[k][usetype][i-1]
+                if outval < 1:
+                    print "1".rjust(width),
                 else:
-                    print ("%.3f" % elem).rjust(width),
+                    print str(outval).rjust(width),
             print
 
         
