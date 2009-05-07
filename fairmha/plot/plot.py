@@ -1,6 +1,6 @@
 
 import os
-import popen2
+#import popen2 #deprecated
 import subprocess
 
 latexheader = """

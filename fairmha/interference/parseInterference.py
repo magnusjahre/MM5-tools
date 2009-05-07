@@ -60,7 +60,6 @@ def getFilenames(cmd, config):
 
     return shName, aloneNames
 
-
 usage = "usage: %prog [options] <cpu-count> <architecture> <command>"
 parser = OptionParser(usage=usage,prog="parseInterference.py")
 parser.add_option("-a", "--absolute-error", action="store_true", dest="absolute", default=True, help="Print errors in clock cycles (default)")
@@ -95,7 +94,10 @@ commands = {"all": "",
            "best-static": "",
            "one-type": "",
            "histogram": "",
-           "queue-error": ""}
+           "queue-error": "",
+           "queue-int-speedup": "",
+           "per-arch-error-breakdown": "",
+           "avg-error-w-errorbars": ""}
 
 if args[2] not in commands:
     posCom = ""
@@ -122,6 +124,9 @@ printBreakdown = False
 doBestStatic = False
 doHistogram = False
 doQueueErrorPlot = False
+doQueueIntVsSpeedup = False
+doPerArchErrorBreakdown = False
+doAvgErrorWithErrorbars = False
 
 if args[2] == "all":
     print "Writing all results to files..."
@@ -145,6 +150,13 @@ elif args[2] == "histogram":
 elif args[2] == "queue-error":
     assert inoptions.usecache
     doQueueErrorPlot = True
+elif args[2] == "queue-int-speedup":
+    assert inoptions.usecache
+    doQueueIntVsSpeedup = True
+elif args[2] ==  "per-arch-error-breakdown":
+    doPerArchErrorBreakdown = True
+elif args[2] ==  "avg-error-w-errorbars":
+    doAvgErrorWithErrorbars = True
 else:
     assert False, "Unknown command"
 
@@ -176,6 +188,10 @@ alats = {}
 sints = {}
 intManData = {}
 reqerrors = {}
+sharedRequests = {}
+aloneRequests = {}
+speedups = {}
+
 for cmd, config in pbsconfig.commandlines:
     if pbsconfig.get_np(config) != np:
         continue
@@ -193,9 +209,12 @@ for cmd, config in pbsconfig.commandlines:
             slats[key] = {}
             alats[key] = {}
             sints[key] = {}
+            speedups[key] = {}
+
         assert wl not in data[key]
         data[key][wl],slats[key][wl],alats[key][wl],sints[key][wl] = interferencemethods.getInterferenceErrors(shName, aloneNames, printAbsError,memsys)
     
+        speedups[key][wl] = interferencemethods.computeSpeedup(shName,aloneNames)
     
         if key not in intManData:
             intManData[key] = {}
@@ -206,10 +225,12 @@ for cmd, config in pbsconfig.commandlines:
     
         if key not in reqerrors:
             reqerrors[key] = {}
+            sharedRequests[key] = {}
+            aloneRequests[key] = {}
         assert wl not in reqerrors[key]
         
         if data[key][wl] != {}:
-            reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames)
+            sharedRequests[key][wl], aloneRequests[key][wl], reqerrors[key][wl] = interferencemethods.getReadWriteCount(shName,aloneNames) 
         else:
             reqerrors[key][wl] = {}
 
@@ -363,7 +384,7 @@ elif printBreakdown:
     itypes = newdata[ndkey0][wlkey0][0].keys()
     itypes.sort()
 
-    width = 20
+    width = 25
     print "".ljust(width),
     for t in itypes:
         print t.rjust(width),
@@ -385,7 +406,7 @@ elif doBestStatic:
     reskeys = data.keys()
     reskeys.sort()
     
-    width = 20
+    width = 25
     print "".ljust(width),
     if inoptions.longoutput:
         for k in reskeys:
@@ -449,6 +470,7 @@ elif doHistogram:
     plotdata = []
     plotmax = 0
     sortedbins = bins.keys()
+    sortedbins.sort()
     for b in sortedbins:
         if bins[b] != 0:
             plotdata.append( ( ((b + (b-inoptions.binsize))/2), [bins[b]]) )
@@ -506,7 +528,278 @@ elif doQueueErrorPlot:
                 print str(estimate[i]).rjust(width),
                 print str(wlalat[i]).rjust(width)
     
+elif doQueueIntVsSpeedup:
+
+    memQueueInt = {}
+
+    for key in slats:
+        assert key in alats
+        memQueueInt[key] = {}
+
+        for wl in slats[key]:
+            assert wl in alats[key]
+            assert 'Bus Queue' in alats[key][wl]
+            assert 'Bus Queue' in slats[key][wl]
+            
+            queueInterference = [0 for i in range(np)]
+            for i in range(np):
+                queueInterference[i] = slats[key][wl]["Bus Queue"][i] - alats[key][wl]["Bus Queue"][i]
+
+            memQueueInt[key][wl] = queueInterference
+
+
+    speedupToQueueInt = {}
+    for key in memQueueInt:
+        assert key in speedups
+        for wl in memQueueInt[key]:
+            assert wl in speedups[key]
+            for i in range(np):
+                
+                if sharedRequests[key][wl][i] >= 70000 and  sharedRequests[key][wl][i] <= 120000:
+                
+                    expid = key+"-"+wl+"-CPU"+str(i)
+                    if speedups[key][wl][i] in speedupToQueueInt:
+                        speedupToQueueInt[speedups[key][wl][i]].append( (memQueueInt[key][wl][i],expid, sharedRequests[key][wl][i]) )
+                    else:
+                        speedupToQueueInt[speedups[key][wl][i]] = [ (memQueueInt[key][wl][i], expid, sharedRequests[key][wl][i]) ]
+
+    speedupKeys = speedupToQueueInt.keys()
+    speedupKeys.sort()
     
+    width = 30
+    print "".ljust(width),
+    print "Bus Queue Int.".rjust(width),
+    print "ID".rjust(width),
+    print "Shared Reqs".rjust(width)
+    
+    for k in speedupKeys:
+        for val,id,sreq in speedupToQueueInt[k]: 
+            print ("%.4f" % k).ljust(width),
+            print str(val).rjust(width),
+            print id.rjust(width),
+            print str(sreq).rjust(width)
+
+elif doPerArchErrorBreakdown:
+    
+    
+    avgRes = {}
+    distribution = {}
+    for key in data:
+        
+        if key not in avgRes:
+            avgRes[key] = {}
+            distribution[key] = {}
+        
+        errorPerReqSum = {}
+        reqsum = {}
+        
+        reqsPerError = {}
+        
+        for wl in data[key]:
+            
+            for itype in data[key][wl]:
+                if itype != "Total":
+                    
+                    if itype not in errorPerReqSum:
+                        errorPerReqSum[itype] = 0
+                        reqsum[itype] = 0
+                        reqsPerError[itype] = {}
+
+                    for cpuID in range(len(data[key][wl][itype])):
+                        
+                        tmperror = abs(data[key][wl][itype][cpuID])
+                        
+                        errorPerReqSum[itype] += tmperror  * sharedRequests[key][wl][cpuID]
+                        reqsum[itype] += sharedRequests[key][wl][cpuID]
+                        
+                        if tmperror not in reqsPerError[itype]:
+                            reqsPerError[itype][tmperror] = 0
+                        reqsPerError[itype][tmperror] += sharedRequests[key][wl][cpuID]
+        
+        for itype in errorPerReqSum:
+            avgRes[key][itype] = float(errorPerReqSum[itype]) / float(reqsum[itype])
+            
+        for itype in reqsPerError:
+            
+            tolerance = 0.0001
+            
+            tmpdistrib = {}
+            for error in reqsPerError[itype]:
+                probability = float(reqsPerError[itype][error]) / float(reqsum[itype])
+                tmpdistrib[error] = probability
+                
+            tmpkeys = tmpdistrib.keys()
+            tmpkeys.sort()
+            
+            tmpdata = []
+            representedReqs = 1.0
+            for tmpkey in tmpkeys:
+                representedReqs -= tmpdistrib[tmpkey]
+                if representedReqs < tolerance:
+                    representedReqs = 0.0
+                tmpdata.append( (tmpkey, representedReqs) )
+                    
+            distribution[key][itype] = tmpdata
+    
+    width = 30
+    
+    
+    if inoptions.type == "total":
+    
+        keys = avgRes.keys()
+        keys.sort()
+        
+        itypes = avgRes[keys[0]].keys()
+        itypes.sort()
+        
+        print "".ljust(width),
+        for t in itypes:
+            print t.rjust(width),
+        print
+        
+        for k in keys:
+            print k.ljust(width),
+            for it in itypes:
+                print ("%.2f" % avgRes[k][it]).rjust(width),
+            print 
+    else:
+        usetype = iTypes[inoptions.type]
+        
+        keys = distribution.keys()
+        keys.sort()
+        
+        print "".ljust(width),
+        for k in keys:
+            print k.rjust(width),
+        print
+            
+        printData = {}
+        for keyID in range(len(keys)):
+            for error, cumprob in distribution[keys[keyID]][usetype]:
+                if error not in printData:
+                    printData[error] = [-1 for i in range(len(keys))]
+                printData[error][keyID] = cumprob
+                
+        sortedErrors = printData.keys()
+        sortedErrors.sort()
+
+        for err in sortedErrors:
+            print str(err).ljust(width),
+            for elem in printData[err]:
+                if elem == -1:
+                    print "".rjust(width),
+                else:
+                    print ("%.3f" % elem).rjust(width),
+            print
+
+        
+elif doAvgErrorWithErrorbars:
+    
+    avgRes = {}
+    avgAbsRes = {}
+    totalReqs = {}
+    
+    absdistribution = {}
+    distribution = {}
+    
+    for key in data:
+        
+        if key not in absdistribution:
+            absdistribution[key] = {}
+            distribution[key] = {}
+        
+        errorsum = 0
+        abserrorsum = 0
+        reqsum = 0
+        
+        for wl in data[key]:
+            for cpuID in range(len(data[key][wl]["Total"])):
+                
+                absError = abs(data[key][wl]["Total"][cpuID])
+                realError = data[key][wl]["Total"][cpuID]
+                
+                errorsum += realError * sharedRequests[key][wl][cpuID]
+                abserrorsum += absError *  sharedRequests[key][wl][cpuID]
+                reqsum += sharedRequests[key][wl][cpuID]
+                
+                if absError not in absdistribution[key]:
+                    absdistribution[key][absError] = 0
+                absdistribution[key][absError] += sharedRequests[key][wl][cpuID]
+                 
+                if realError not in distribution[key]:
+                    distribution[key][realError] = 0
+                distribution[key][realError] += sharedRequests[key][wl][cpuID]  
+                
+        avgRes[key] = float(errorsum) / float(reqsum)
+        avgAbsRes[key] = float(abserrorsum) / float(reqsum)
+        totalReqs[key] = reqsum    
+
+    stdDev = {}
+    for k in distribution:
+        
+        samplemean = float(avgRes[key])
+        
+        variance = 0
+        for errorval in distribution[k]:
+            frequency = distribution[k][errorval]
+            probability = float(frequency) / float(reqsum)
+
+            variance += math.pow(float(errorval) - samplemean,2)  * probability             
+        
+        stdDev[k] = math.sqrt(variance)
+        
+    cumDistrib = {}
+    
+    for k in absdistribution:
+        
+        distkeys = absdistribution[k].keys()
+        distkeys.sort()
+        
+        tmpdist = [0 for i in range(len(distkeys))]
+        
+        tmpdist[0] = absdistribution[k][distkeys[0]]
+        reqsum = absdistribution[k][distkeys[0]]
+        for i in range(len(distkeys))[1:]:
+            tmpdist[i] = tmpdist[i-1] + absdistribution[k][distkeys[i]]
+            reqsum += absdistribution[k][distkeys[i]]
+
+        percdist = [float(d) / float(reqsum) for d in tmpdist]
+        
+        cumDistrib[k] = (distkeys, percdist)
+        
+        
+    percerrs = [0.90, 0.95, 0.99,  0.999]
+        
+    width = 25
+    
+    print "".ljust(width),
+    print "Avg Error".rjust(width),
+    print "Std. dev".rjust(width),
+    print "Avg Abs Error".rjust(width),
+    for acceptErr in percerrs:
+        print ("%.3f" % acceptErr).rjust(width),
+    print
+    
+    keys = avgRes.keys()
+    keys.sort()
+    
+    for k in keys:
+        print k.ljust(width),
+        print ("%.2f" % avgRes[k]).rjust(width),
+        print ("%.2f" % stdDev[k]).rjust(width),
+        print ("%.2f" % avgAbsRes[k]).rjust(width),
+        
+        for acceptErr in percerrs:
+            
+            distkeys, distrib = cumDistrib[k]
+            
+            for i in range(len(distrib)):
+                if distrib[i] >= acceptErr:
+                    break
+            
+            print str(distkeys[i]).rjust(width),
+        print
+
 else:
     print createOutputText(data, pattern)
     

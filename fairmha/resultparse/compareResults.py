@@ -23,6 +23,8 @@ class CompareResults:
         parser.add_option("-s", "--statistic-pattern", action="store", type="string", dest="statPattern", default="COM:IPC", help="the pattern to retrieve from the simulation results")
         parser.add_option("-k", "--key-pattern", action="store", type="string", dest="keyPattern", default=".*", help="only return experiments where the key matches the provided pattern")
         parser.add_option("-c", "--compare-to-spm", action="store_true", dest="compareToSPM", default=False, help="present results relative to single program mode")
+        parser.add_option("-a", "--compare-absolute", action="store_true", dest="compareAbsolute", default=False, help="present absolute diffrence rather than relative (wtr SPM)")
+        parser.add_option("--spm-pattern", action="store", dest="spmPattern", default="", help="the pattern to search for in single program mode")
         parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False, help="print progress information")
 
         options,args = parser.parse_args()
@@ -30,8 +32,8 @@ class CompareResults:
         self.options = options
         self.args = args
         
-        if len(self.args) < 2:
-            print "Parse error: at least two directories must be provided"
+        if len(self.args) < 1:
+            print "Parse error: at least one directory must be provided"
             sys.exit(-1)
             
         for dir in args:
@@ -81,20 +83,28 @@ class CompareResults:
                     
                     cpuID = 0
                     for afile in alonefiles:
-                        
-                        aresults = parsemethods.findPattern(self.options.statPattern, afile, self.options.verbose)
-                        for aresult in aresults:
-                            if aresult.startswith("detailedCPU"):
-                                unifiedkey = string.replace(aresult, "detailedCPU0", "detailedCPU"+str(cpuID))
-                            elif aresult.endswith("_[0-9]*"):
-                                print "detected per cpu pattern, not implemented"
-                                assert False
-                            else:
-                                unifiedkey = aresult+"_"+str(cpuID)
+                        if self.options.spmPattern == "":
+                            aresults = parsemethods.findPattern(self.options.statPattern, afile, self.options.verbose)
+                            
+                            for aresult in aresults:
+                                if aresult.startswith("detailedCPU"):
+                                    unifiedkey = string.replace(aresult, "detailedCPU0", "detailedCPU"+str(cpuID))
+                                elif aresult.endswith("_[0-9]*"):
+                                    print "detected per cpu pattern, not implemented"
+                                    assert False
+                                else:
+                                    unifiedkey = aresult+"_"+str(cpuID)
                                 
-                            aloneResult[unifiedkey] = aresults[aresult]
+                                aloneResult[unifiedkey] = aresults[aresult]
+                            
+                        else:
+                            aresults = parsemethods.findPattern(self.options.spmPattern, afile, self.options.verbose)
+                            print "Different SPM queue not implemented"
+                            assert False
+                        
                             
                         cpuID = cpuID + 1
+                
                     
                 finalRes = {}
                 if aloneResult != {}:
@@ -105,10 +115,16 @@ class CompareResults:
                             print "       Candidates are: "+str(aloneResult.keys())
                             sys.exit(-1)
                         
-                        try:
-                            finalRes[sharedKey] = float(sharedResult[sharedKey]) / float(aloneResult[sharedKey])
-                        except:
-                            finalRes[sharedKey] = "N/A"
+                        if self.options.compareAbsolute:
+                            try:
+                                finalRes[sharedKey] = float(sharedResult[sharedKey]) - float(aloneResult[sharedKey])
+                            except:
+                                finalRes[sharedKey] = "N/A"
+                        else:
+                            try:
+                                finalRes[sharedKey] = float(sharedResult[sharedKey]) / float(aloneResult[sharedKey])
+                            except:
+                                finalRes[sharedKey] = "N/A"
                 else:
                     finalRes = sharedResult
                     
@@ -130,7 +146,7 @@ class CompareResults:
             self.getDirectoryResults(dir)
             os.chdir(workdir)
             
-    def summarizeData(self):
+    def summarizeDirectoryData(self):
         
         summary = []
         
@@ -167,14 +183,44 @@ class CompareResults:
                         
         return dirs, summary
     
-    def printSummary(self, titles, summary):
+    def summarizeKeyData(self):
         
-        textwidth = 40
-        datawidth = 10 
+        assert len(self.results.keys()) == 1
+        directory = self.results.keys()[0]
+        
+        keys = self.results[directory].keys()
+        keys.sort()
+                
+        wls = self.results[directory][keys[0]].keys()
+        wls.sort()
+        
+        patterns = []
+        for pat in self.results[directory][keys[0]][wls[0]]:
+            patterns.append(pat)
+        patterns.sort()
+        
+        summary = []
+        for wl in wls:
+            for pat in patterns:
+                title = wl+"-"+pat
+                data = []
+                for k in keys:
+                    data.append(self.results[directory][k][wl][pat])
+                summary.append( (title, data) )
+        
+        return keys, summary
+    
+    def printSummary(self, titles, summary, useLegend):
+        
+        textwidth = len(summary[0][0])+2
+        datawidth = 20
         
         print "".ljust(textwidth),
         for t in titles:
-            print str(self.legend[t]).rjust(datawidth),
+            if useLegend:
+                print str(self.legend[t]).rjust(datawidth),
+            else:
+                print str(t).rjust(datawidth),
         print
         
         for key, data in summary:
@@ -186,11 +232,12 @@ class CompareResults:
                     print str(d).rjust(datawidth),
             print 
         
-        print
-        print "Legend"
-        for t in titles:
-            print t.ljust(textwidth),
-            print (self.legend[t]).rjust(datawidth)
+        if useLegend:
+            print
+            print "Legend"
+            for t in titles:
+                print t.ljust(textwidth),
+                print (self.legend[t]).rjust(datawidth)
              
 
 def main(argv):
@@ -200,9 +247,13 @@ def main(argv):
     
     results.retrieveResults()
     
-    titles, summary = results.summarizeData()
+    if results.numDirs > 1:
+        titles, summary = results.summarizeDirectoryData()
+        results.printSummary(titles, summary, True)
+    else:
+        titles, summary = results.summarizeKeyData()
+        results.printSummary(titles, summary, False)
     
-    results.printSummary(titles, summary)
     
 
 if __name__ == "__main__":

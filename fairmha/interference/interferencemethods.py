@@ -1157,7 +1157,7 @@ def getPerCoreData(res,shared):
     keystr,valstr = res.split()[0:2]
     if shared:
         try:
-            key = int(keystr.split(".")[1].split("_")[3])
+            key = int(keystr.split(".")[1].split("_")[1])
         except:
             valstr = "-1"
     return key,int(valstr)
@@ -1165,9 +1165,7 @@ def getPerCoreData(res,shared):
 
 def getReadWriteCount(sFilename, aFilenames):
     
-    # FIXME: this statistic is not in use, always returns 0
-    # TODO: actually measure private read and writes
-    accessPattern = re.compile("membus0.accesses_per_cpu.*")
+    accessPattern = re.compile("interferenceManager.requests.*")
 
     sdata = [0 for i in range(len(aFilenames))]
     sres = search(sFilename, accessPattern)
@@ -1184,7 +1182,7 @@ def getReadWriteCount(sFilename, aFilenames):
         adata[i] = val
         
     error = [computeError(sdata[i],adata[i]) for i in range(len(aFilenames))]
-    return error
+    return sdata,adata,error
         
     
 def computeInterferenceFromTrace(sharedfn, alonefn, printStats):
@@ -1477,3 +1475,39 @@ def getID(key):
     tmp = key.split(".")
     tmp2 = tmp[1].split("_")
     return int(tmp2[-1]) 
+
+def computeSpeedup(sharedfilename, alonefilenames):
+    
+    ipcpattern = re.compile(".*COM:IPC.*")
+    idpattern = re.compile("[0-9]+")
+    np = len(alonefilenames)
+
+    sharedres = search(sharedfilename, ipcpattern)
+
+    sharedIPCs = [0 for i in range(np)]
+    aloneIPCs = [0 for i in range(np)]
+    speedups = [0 for i in range(np)]
+
+    for res in sharedres:
+        splitted = res.split()
+        cpuidres = idpattern.findall(splitted[0].split(".")[0])
+        if cpuidres == []:
+            return []
+        assert len(cpuidres) == 1
+        cpuid = int(cpuidres[0])
+        sharedIPCs[cpuid] = float(splitted[1])
+
+    cpuID = 0
+    for afilename in alonefilenames:
+        tmpAloneRes = search(afilename, ipcpattern)
+        if tmpAloneRes == []:
+            return []
+        assert len(tmpAloneRes) == 1
+        splitted = tmpAloneRes[0].split()
+        aloneIPCs[cpuID] = float(splitted[1])
+        cpuID += 1
+
+    for i in range(np):
+        speedups[i] = sharedIPCs[i] / aloneIPCs[i]
+
+    return speedups
