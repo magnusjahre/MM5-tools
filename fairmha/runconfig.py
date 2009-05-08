@@ -94,10 +94,8 @@ def flush_commands(fcnt):
     
     for fileID, command in latest_commands:
 
-        # Change directory into the output directory
-        output.write('cd ' + pbsconfig.experimentpath + '/'+fileID+'\n');
-    
-        # Write command into pbsfile    
+        output.write('cd ' + pbsconfig.experimentpath + '/'+fileID+'\n');    
+        output.write('echo '+command+'\n\n')
         output.write(command + '\n\n');
     
     del latest_commands[:]
