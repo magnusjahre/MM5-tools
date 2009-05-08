@@ -56,6 +56,17 @@ class ExperimentConfiguration:
                 self.workloads[np].append("fair0"+str(i))
             else:
                 self.workloads[np].append("fair"+str(i))
+                
+    def registerWorkloadRange(self, np, ids):
+        assert np not in self.workloads
+        assert 1 not in self.workloads
+        self.workloads[np] = []
+        
+        for i in ids:
+            if i < 10:
+                self.workloads[np].append("fair0"+str(i))
+            else:
+                self.workloads[np].append("fair"+str(i))
         
     def registerBenchmarks(self):
         assert self.workloads == {}
