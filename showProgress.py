@@ -1,3 +1,4 @@
+#!/usr/bin/python
 
 import pbsconfig
 import sys
@@ -27,6 +28,7 @@ print
 for cmd, config in pbsconfig.commandlines:
     id = pbsconfig.get_unique_id(config)
     switchfilename = id+'/cpuSwitchInsts.txt'
+    configfilename = id+'/config.ini'
     statsfilename = id+'/'+id+".txt"
     ipctracefilename = id+'/ipcTrace.txt'
 
@@ -65,9 +67,14 @@ for cmd, config in pbsconfig.commandlines:
             print id.ljust(w),
             print (str(percProgress)+"%").rjust(nw)
     else:
-        print id.ljust(w),
-        print "0%".rjust(nw),
-        print "Fastforwarding".ljust(nw)
+        if os.path.exists(configfilename):
+            print id.ljust(w),
+            print "0%".rjust(nw),
+            print "Fastforwarding".ljust(nw)
+        else:
+            print id.ljust(w),
+            print "0%".rjust(nw),
+            print "Not started".ljust(nw)
     
 
 if doSingleRes:
