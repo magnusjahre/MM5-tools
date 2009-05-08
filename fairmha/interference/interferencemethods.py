@@ -283,18 +283,18 @@ def getBenchmarks(wl, printRes, np):
     return bms
         
         
-def getSampleErrors(sharedFilename, sharedInterferenceFilename, aloneFilename, printOutput):
+def getSampleErrors(sharedFilename, sharedEstimationFilename, aloneFilename, printOutput):
 
     sf = open(sharedFilename)
-    sif = open(sharedInterferenceFilename)
+    sestf = open(sharedEstimationFilename)
     af = open(aloneFilename)
     
     sLines = sf.readlines()
-    sifLines = sif.readlines()
+    sestLines = sestf.readlines()
     aLines = af.readlines()
     
     sf.close()
-    sif.close()
+    sestf.close()
     af.close()
 
     data = []
@@ -313,15 +313,15 @@ def getSampleErrors(sharedFilename, sharedInterferenceFilename, aloneFilename, p
         sStats = sLines[i].split(";")
         avgSharedLat = float(sStats[2])
         
-        sintStats = sifLines[i].split(";")
-        avgInterference = float(sintStats[2])
+        sestStats = sestLines[i].split(";")
+        estimate = float(sestStats[2])
 
         try:
             aloneLat = float(aLines[i].split(";")[2])
         except:
             break
 
-        estimate = avgSharedLat - avgInterference
+        avgInterference = avgSharedLat - estimate
 
         if printOutput:
             print str(sStats[1]).ljust(width),
