@@ -1060,9 +1060,9 @@ def computeAverage(sum, num):
         return int(float(sum) / float(num))
     return "NaN"
 
-def computeError(estimate, correct):
+def computeError(estimate, correct, avgSharedLat):
     if correct != 0 and estimate != "NaN":
-        return "%.2f"%( ((float(estimate) - float(correct)) / float(correct))*100 )
+        return "%.2f"%( ((float(estimate) - float(correct)) / float(avgSharedLat))*100 )
     elif correct == 0 and estimate == 0:
         return 0
     return "NaN"
@@ -1152,7 +1152,7 @@ def getInterferenceErrors(sharedName, aloneNames, absError, memsys):
                 if absError:
                     errors[k][cpuid] = computeEstimate(estimate, talats[k][cpuid])
                 else:
-                    errors[k][cpuid] = computeError(estimate, talats[k][cpuid])
+                    errors[k][cpuid] = computeError(estimate, talats[k][cpuid], tslats[k][cpuid])
     
     return errors, tslats, talats, tints
 
@@ -1197,7 +1197,7 @@ def getReadWriteCount(sFilename, aFilenames):
         key,val = getPerCoreData(r,False)
         adata[i] = val
         
-    error = [computeError(sdata[i],adata[i]) for i in range(len(aFilenames))]
+    error = [computeEstimate(sdata[i],adata[i]) for i in range(len(aFilenames))]
     return sdata,adata,error
         
     

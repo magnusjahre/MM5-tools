@@ -256,7 +256,7 @@ for key in data:
         if total != []:
             for i in range(np):
                 if math.fabs(float(total[i])) < math.fabs(bestResult[wl][i]):
-                    bestResult[wl][i] = total[i]
+                    bestResult[wl][i] = float(total[i])
 
 if inoptions.sortkeys:
     inkeys = []
@@ -430,11 +430,11 @@ elif doBestStatic:
                         assert "Total" in data[reskey][wl]
                         val = data[reskey][wl]["Total"][i]
                         print str(val).rjust(width),
-                        sums[keynum] += val
+                        sums[keynum] += float(val)
                         keynum += 1
                 best = bestResult[wl][i]
                 print str(best).rjust(width)
-                sums[keynum] += best
+                sums[keynum] += float(best)
 
     print "Average".ljust(width),
     numLines = np * len(wls)
