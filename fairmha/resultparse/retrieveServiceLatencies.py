@@ -155,6 +155,42 @@ def writeResults(histograms):
     
     return averages
 
+def mergeAndPrintHistogram(histogram):
+    histkeys = histogram.keys()
+    histkeys.sort()
+    
+    types = histogram[histkeys[0]].keys()
+    types.sort()
+    
+    typehistograms = {}
+    
+    for t in types:
+        assert t not in typehistograms
+        typehistograms[t] = {}
+        
+        total = 0
+        for histkey in histkeys:
+            for latval in histogram[histkey][t]:
+                if latval in typehistograms[t]:
+                    typehistograms[t][latval] += histogram[histkey][t][latval]
+                else:
+                    typehistograms[t][latval] = histogram[histkey][t][latval]
+                total += histogram[histkey][t][latval]
+    
+    for t in types:
+        outfile = open(t+".dat", "w")
+        
+        outfile.write("Service Latency;Number of Request\n")
+        
+        latvals =  typehistograms[t].keys()
+        latvals.sort()
+        
+        for latval in latvals:
+            outfile.write(str(latval)+";"+str(typehistograms[t][latval])+"\n")
+        
+        outfile.flush()
+        outfile.close()
+
 def main(argv):
 
     print
@@ -176,6 +212,8 @@ def main(argv):
     print
 
     os.chdir("dram-latencies")
+    
+    mergeAndPrintHistogram(histograms)
     averages = writeResults(histograms)
     
     print
