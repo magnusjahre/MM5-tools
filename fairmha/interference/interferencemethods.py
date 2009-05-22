@@ -335,6 +335,96 @@ def getSampleErrors(sharedFilename, sharedEstimationFilename, aloneFilename, pri
 
     return data
 
+def getTraceEstimateError(efn, afn, samplesizes):
+
+    abserrorsum = {}
+    abserrorentries = {}
+    
+    estimatefile = open(efn)
+    alonefile = open(afn)
+
+    finished = False
+
+    tmptitle = estimatefile.readline()
+    assert tmptitle == alonefile.readline()
+
+    titles = tmptitle.strip().split(";")
+
+    alonekey = "alone"
+    estimatekey = "estimate"
+
+    averagebuffer = {}
+    for t in titles[2:]:
+        averagebuffer[t] = {}
+        abserrorsum[t] = {}
+        abserrorentries[t] = {}
+        for s in samplesizes:
+            averagebuffer[t][s] = {}
+            averagebuffer[t][s][alonekey] = []
+            averagebuffer[t][s][estimatekey] = []
+
+            abserrorsum[t][s] = 0
+            abserrorentries[t][s] = 0
+
+    missedAloneCnt = 0
+    missedEstimateCnt = 0
+
+    lines = 0
+    while not finished:
+        estline = estimatefile.readline()
+        aloneline = alonefile.readline()
+
+        if estline == "":
+            while alonefile.readline() != "":
+                missedAloneCnt += 1
+            finished = True
+            continue
+        if aloneline =="":
+            while estimatefile.readline() != "":
+                missedEstimateCnt += 1
+            finished = True
+            continue
+
+        estline = estline.strip().split(";")
+        aloneline = aloneline.strip().split(";")
+
+        addToBuffer(titles,averagebuffer,estline,samplesizes,estimatekey)
+        addToBuffer(titles,averagebuffer,aloneline,samplesizes,alonekey)
+
+        for type in averagebuffer:
+            for ssize in averagebuffer[type]:
+                assert len(averagebuffer[type][ssize][alonekey]) == len(averagebuffer[type][ssize][estimatekey])
+                if len(averagebuffer[type][ssize][alonekey]) == ssize:
+                
+                    aloneavg = float(sum(averagebuffer[type][ssize][alonekey])) / float(len(averagebuffer[type][ssize][alonekey]))
+                    estimateavg = float(sum(averagebuffer[type][ssize][estimatekey])) / float(len(averagebuffer[type][ssize][estimatekey]))
+                    error = abs(estimateavg - aloneavg)
+
+                    abserrorsum[type][ssize] += error
+                    abserrorentries[type][ssize] += 1
+        lines += 1
+
+    estimatefile.close()
+    alonefile.close()
+
+    avgabserror = {}
+    for type in abserrorsum:
+        avgabserror[type] = {}
+        for ssize in abserrorsum[type]:
+            avgabserror[type][ssize] = abserrorsum[type][ssize] / float(abserrorentries[type][ssize])
+
+    return avgabserror, missedAloneCnt, missedEstimateCnt
+
+def addToBuffer(titles, averagebuffer, values, sizes, reskey):
+    for i in range(2, len(values)):
+        for s in sizes:
+            averagebuffer[titles[i]][s][reskey].append(int(values[i]))
+            if len(averagebuffer[titles[i]][s][reskey]) > s:
+                averagebuffer[titles[i]][s][reskey].pop(0)
+            assert len(averagebuffer[titles[i]][s][reskey]) <= s
+
+    return averagebuffer
+
 def getAverageSampleError(sharedfile, alonefile):
     data = getSampleErrors(sharedfile, alonefile, False)
 
