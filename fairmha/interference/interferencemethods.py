@@ -368,9 +368,9 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
         abserrorentries[t] = {}
         for s in samplesizes:
             averagebuffer[t][s] = {}
-            averagebuffer[t][s][alonekey] = []
-            averagebuffer[t][s][estimatekey] = []
-            averagebuffer[t][s][sharedkey] = []
+            averagebuffer[t][s][alonekey] = [0,0]
+            averagebuffer[t][s][estimatekey] = [0,0]
+            averagebuffer[t][s][sharedkey] = [0,0]
 
             abserrorsum[t][s] = 0
             abserrorentries[t][s] = 0
@@ -422,14 +422,17 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
 
         for type in averagebuffer:
             for ssize in averagebuffer[type]:
-                assert len(averagebuffer[type][ssize][alonekey]) == len(averagebuffer[type][ssize][estimatekey])
-                if len(averagebuffer[type][ssize][alonekey]) == ssize:
+                if averagebuffer[type][ssize][alonekey][1] == ssize:
                 
-                    aloneavg = float(sum(averagebuffer[type][ssize][alonekey])) / float(len(averagebuffer[type][ssize][alonekey]))
-                    estimateavg = float(sum(averagebuffer[type][ssize][estimatekey])) / float(len(averagebuffer[type][ssize][estimatekey]))
+                    alonesum, alonereqs = averagebuffer[type][ssize][alonekey] 
+                    aloneavg = float(alonesum) / float(alonereqs)
+
+                    estimatesum, estimatereqs = averagebuffer[type][ssize][estimatekey] 
+                    estimateavg = float(estimatesum) / float(estimatereqs)
                     
                     if sfn != "":
-                        sharedavg = float(sum(averagebuffer[type][ssize][sharedkey])) / float(len(averagebuffer[type][ssize][sharedkey]))                        
+                        sharedsum, sharedreqs = averagebuffer[type][ssize][sharedkey] 
+                        sharedavg = float(sharedsum) / float(sharedreqs)
                         if sharedavg == 0:
                             error = "Inf"
                         else:
@@ -457,10 +460,9 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
                         prevmeasurementtick[ssize] = int(estline[0])
 
 
-                    if not runningAvg:
-                        averagebuffer[type][ssize][estimatekey] = []
-                        averagebuffer[type][ssize][sharedkey] = []
-                        averagebuffer[type][ssize][alonekey] = []
+                    averagebuffer[type][ssize][estimatekey] = [0,0]
+                    averagebuffer[type][ssize][sharedkey] = [0,0]
+                    averagebuffer[type][ssize][alonekey] = [0,0]
                         
     estimatefile.close()
     alonefile.close()
@@ -497,10 +499,8 @@ def finishFiles(estimatefile, alonefile, sharedfile):
 def addToBuffer(titles, averagebuffer, values, sizes, reskey):
     for i in range(2, len(values)):
         for s in sizes:
-            averagebuffer[titles[i]][s][reskey].append(int(values[i]))
-            if len(averagebuffer[titles[i]][s][reskey]) > s:
-                averagebuffer[titles[i]][s][reskey].pop(0)
-            assert len(averagebuffer[titles[i]][s][reskey]) <= s
+            averagebuffer[titles[i]][s][reskey][0] += int(values[i])
+            averagebuffer[titles[i]][s][reskey][1] += 1
 
     return averagebuffer
 
