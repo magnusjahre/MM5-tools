@@ -361,6 +361,7 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
     sharedkey = "shared"
 
     averagebuffer = {}
+    
     for t in titles[2:]:
         averagebuffer[t] = {}
         abserrorsum[t] = {}
@@ -374,12 +375,23 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
             abserrorsum[t][s] = 0
             abserrorentries[t][s] = 0
 
+    maxmesurementlatency = {}
+    measurementlatencysum = {}
+    measurementlatencycnt = {}
+    prevmeasurementtick = {}
+    for ss in samplesizes:
+        maxmesurementlatency[ss] = 0
+        prevmeasurementtick[ss] = 0
+        measurementlatencysum[ss] = 0
+        measurementlatencycnt[ss] = 0
+
     missedAloneCnt = 0
     missedEstimateCnt = 0
     missedSharedCnt = 0
 
     inferror = {}
 
+    line = 0
     while not finished:
         estline = estimatefile.readline()
         aloneline = alonefile.readline()
@@ -393,6 +405,10 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
             finished = True
             missedEstimateCnt, missedAloneCnt, missedSharedCnt = finishFiles(estimatefile, alonefile, sharedfile)
             continue
+    
+        line += 1
+        if line % 50000 == 0:
+            print "Read "+str(line)+" lines"
     
         estline = estline.strip().split(";")
         aloneline = aloneline.strip().split(";")
@@ -430,6 +446,17 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
                         abserrorsum[type][ssize] += error
                         abserrorentries[type][ssize] += 1
 
+                    if type == "Total":
+                        if prevmeasurementtick[ssize] != 0:
+                            latency = int(estline[0]) - prevmeasurementtick[ssize]
+                            measurementlatencysum[ssize] += latency
+                            measurementlatencycnt[ssize] += 1
+                            if latency > maxmesurementlatency[ssize]:
+                                maxmesurementlatency[ssize] = latency
+                        
+                        prevmeasurementtick[ssize] = int(estline[0])
+
+
                     if not runningAvg:
                         averagebuffer[type][ssize][estimatekey] = []
                         averagebuffer[type][ssize][sharedkey] = []
@@ -447,7 +474,7 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
             else:
                 avgabserror[type][ssize] = abserrorsum[type][ssize] / float(abserrorentries[type][ssize])
     
-    return avgabserror, abserrorsum, abserrorentries, missedAloneCnt, missedEstimateCnt, missedSharedCnt, inferror
+    return avgabserror, abserrorsum, abserrorentries, missedAloneCnt, missedEstimateCnt, missedSharedCnt, inferror, maxmesurementlatency, measurementlatencysum, measurementlatencycnt
 
 def finishFiles(estimatefile, alonefile, sharedfile):
     missedEstimateCnt = 0
