@@ -335,23 +335,30 @@ def getSampleErrors(sharedFilename, sharedEstimationFilename, aloneFilename, pri
 
     return data
 
-def getTraceEstimateError(efn, afn, samplesizes):
+def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
 
     abserrorsum = {}
     abserrorentries = {}
     
     estimatefile = open(efn)
     alonefile = open(afn)
+    if sfn != "":
+        sharedfile = open(sfn)
+    else:
+        sharedfile = None
 
     finished = False
 
     tmptitle = estimatefile.readline()
     assert tmptitle == alonefile.readline()
+    if sharedfile != None:
+        assert tmptitle == sharedfile.readline()
 
     titles = tmptitle.strip().split(";")
 
     alonekey = "alone"
     estimatekey = "estimate"
+    sharedkey = "shared"
 
     averagebuffer = {}
     for t in titles[2:]:
@@ -362,34 +369,40 @@ def getTraceEstimateError(efn, afn, samplesizes):
             averagebuffer[t][s] = {}
             averagebuffer[t][s][alonekey] = []
             averagebuffer[t][s][estimatekey] = []
+            averagebuffer[t][s][sharedkey] = []
 
             abserrorsum[t][s] = 0
             abserrorentries[t][s] = 0
 
     missedAloneCnt = 0
     missedEstimateCnt = 0
+    missedSharedCnt = 0
 
-    lines = 0
+    inferror = {}
+
     while not finished:
         estline = estimatefile.readline()
         aloneline = alonefile.readline()
 
-        if estline == "":
-            while alonefile.readline() != "":
-                missedAloneCnt += 1
-            finished = True
-            continue
-        if aloneline =="":
-            while estimatefile.readline() != "":
-                missedEstimateCnt += 1
-            finished = True
-            continue
+        if sfn != "":
+            sharedline = sharedfile.readline()
+        else:
+            sharedline = sharedkey
 
+        if estline == "" or aloneline == "" or sharedline == "":
+            finished = True
+            missedEstimateCnt, missedAloneCnt, missedSharedCnt = finishFiles(estimatefile, alonefile, sharedfile)
+            continue
+    
         estline = estline.strip().split(";")
         aloneline = aloneline.strip().split(";")
 
         addToBuffer(titles,averagebuffer,estline,samplesizes,estimatekey)
         addToBuffer(titles,averagebuffer,aloneline,samplesizes,alonekey)
+
+        if sharedline != sharedkey:
+            sharedline = sharedline.strip().split(";")
+            addToBuffer(titles, averagebuffer, sharedline, samplesizes, sharedkey)
 
         for type in averagebuffer:
             for ssize in averagebuffer[type]:
@@ -398,12 +411,30 @@ def getTraceEstimateError(efn, afn, samplesizes):
                 
                     aloneavg = float(sum(averagebuffer[type][ssize][alonekey])) / float(len(averagebuffer[type][ssize][alonekey]))
                     estimateavg = float(sum(averagebuffer[type][ssize][estimatekey])) / float(len(averagebuffer[type][ssize][estimatekey]))
-                    error = abs(estimateavg - aloneavg)
+                    
+                    if sfn != "":
+                        sharedavg = float(sum(averagebuffer[type][ssize][sharedkey])) / float(len(averagebuffer[type][ssize][sharedkey]))                        
+                        if sharedavg == 0:
+                            error = "Inf"
+                        else:
+                            error = abs(estimateavg - aloneavg) / sharedavg
+                    else:
+                        error = abs(estimateavg - aloneavg)
 
-                    abserrorsum[type][ssize] += error
-                    abserrorentries[type][ssize] += 1
-        lines += 1
+                    if error == "Inf":
+                        if type not in inferror:
+                            inferror[type] = 1
+                        else:
+                            inferror[type] += 1
+                    else:
+                        abserrorsum[type][ssize] += error
+                        abserrorentries[type][ssize] += 1
 
+                    if not runningAvg:
+                        averagebuffer[type][ssize][estimatekey] = []
+                        averagebuffer[type][ssize][sharedkey] = []
+                        averagebuffer[type][ssize][alonekey] = []
+                        
     estimatefile.close()
     alonefile.close()
 
@@ -411,9 +442,30 @@ def getTraceEstimateError(efn, afn, samplesizes):
     for type in abserrorsum:
         avgabserror[type] = {}
         for ssize in abserrorsum[type]:
-            avgabserror[type][ssize] = abserrorsum[type][ssize] / float(abserrorentries[type][ssize])
+            if abserrorentries[type][ssize] == 0:
+                avgabserror[type][ssize] = "Inf"
+            else:
+                avgabserror[type][ssize] = abserrorsum[type][ssize] / float(abserrorentries[type][ssize])
+    
+    return avgabserror, abserrorsum, abserrorentries, missedAloneCnt, missedEstimateCnt, missedSharedCnt, inferror
 
-    return avgabserror, missedAloneCnt, missedEstimateCnt
+def finishFiles(estimatefile, alonefile, sharedfile):
+    missedEstimateCnt = 0
+    missedAloneCnt = 0
+    missedSharedCnt = 0
+
+    while alonefile.readline() != "":
+        missedAloneCnt += 1
+
+    while estimatefile.readline() != "":
+        missedEstimateCnt += 1
+
+    if sharedfile != None:
+        while sharedfile.readline() != "":
+            missedSharedCnt += 1
+
+    return missedEstimateCnt, missedAloneCnt, missedSharedCnt
+
 
 def addToBuffer(titles, averagebuffer, values, sizes, reskey):
     for i in range(2, len(values)):
