@@ -6,13 +6,14 @@ import os
 import interferencemethods as intmethods
 import deterministic_fw_wls as workloads
 from optparse import OptionParser
+from math import sqrt
 
-samplesizes = [1,5,10,25,50,100,500,1000,10000]
+samplesizes = [1,5,10,25,50,75,100,200,300,400,500,1000,10000, 100000]
 
 def writeOutput(errordict, filename):
     outfile = open(filename, "w")
     
-    errorkeys = errordict.keys()
+    errorkeys = errordict[samplesizes[0]].keys()
     errorkeys.sort()
     
     width = 20
@@ -25,10 +26,10 @@ def writeOutput(errordict, filename):
     for k in errorkeys:
         outfile.write( k.ljust(width))
         for ss in samplesizes:
-            if errordict[k][ss] != "Inf":
-                outfile.write( ("%.3f" % errordict[k][ss]).rjust(width))
+            if errordict[ss][k] != -1:
+                outfile.write( ("%.3f" % errordict[ss][k]).rjust(width))
             else:
-                outfile.write( "Inf".rjust(width))
+                outfile.write( "NaN".rjust(width))
         outfile.write("\n")
     
     outfile.flush()
@@ -69,17 +70,12 @@ def writeMissedReqOutput(missed, filename):
     width = 30
     
     outfile.write("".ljust(width))
-    outfile.write("Shared".rjust(width))
-    outfile.write("Estimate".rjust(width))
-    outfile.write("Alone".rjust(width))
+    outfile.write("Missed".rjust(width))
     outfile.write("\n")
     
     for mk in mkeys:
-        a, e, s = missed[mk]
         outfile.write(str(mk).ljust(width))
-        outfile.write(str(s).rjust(width))
-        outfile.write(str(e).rjust(width))
-        outfile.write(str(a).rjust(width))
+        outfile.write(str(missed[mk]).rjust(width))
         outfile.write("\n")
     
     outfile.flush()
@@ -108,7 +104,9 @@ def addToSSAggregate(aggregate, newvals, max):
             if newvals[ss] > aggregate[ss]:
                 aggregate[ss] = newvals[ss]
         else:
-            aggregate[ss] += newvals[ss] 
+            aggregate[ss] += newvals[ss]
+            
+    return aggregate
         
 def computeAvg(errors, numReqs):
     avgs = {}
@@ -121,6 +119,17 @@ def computeAvg(errors, numReqs):
             else:
                 avgs[type][ss] = float(errors[type][ss]) / float(numReqs[type][ss])
             
+    return avgs
+
+def computeRMS(errorSquareSum, numSamples):
+    avgs = {}
+    for ss in errorSquareSum:
+        avgs[ss] = {}
+        for type in errorSquareSum[ss]:
+            if numSamples[ss] == 0:
+                avgs[ss][type] = "Inf"
+            else:
+                avgs[ss][type] =  sqrt(float(errorSquareSum[ss][type]) / float(numSamples[ss]))
     return avgs
 
 def main():
@@ -166,10 +175,10 @@ def main():
                 
                 print "Analyzing workload "+wl+", "+benchmarks[i]+" (CPU "+str(i)+")"
                 
-                errors, errsum, numentries, amiss, emiss, smiss, inferror, maxlat, sumlat, numsamp = intmethods.getTraceEstimateError(sharedestfn, alonelatfn, samplesizes, sharedlatfn)
-                writeOutput(errors, outputdir+"/bmerrs-"+wl+"-"+benchmarks[i]+".txt")
+                errsum, maxlat, sumlat, numsamp, leftreqs = intmethods.getTraceEstimateError(sharedestfn, alonelatfn, samplesizes, sharedlatfn, wl+"-"+benchmarks[i])
+                writeOutput(computeRMS(errsum, numsamp), outputdir+"/bmerrs-"+wl+"-"+benchmarks[i]+".txt")
                 aggregateErr = addToAggregate(aggregateErr, errsum)
-                aggregateReqs = addToAggregate(aggregateReqs, numentries)
+                aggregateReqs = addToSSAggregate(aggregateReqs, numsamp, False)
                 
                 writeSSOutput(maxlat, sumlat, numsamp, outputdir+"/latencies-"+wl+"-"+benchmarks[i]+".txt")
                 
@@ -177,7 +186,7 @@ def main():
                 aggregateLat = addToSSAggregate(aggregateLat, sumlat, False)
                 aggregateSamples = addToSSAggregate(aggregateSamples, numsamp, False)
                 
-                missedReqs[wl+"-"+benchmarks[i]] = [amiss, emiss, smiss]
+                missedReqs[wl+"-"+benchmarks[i]] = leftreqs
                 
     writeOutput(computeAvg(aggregateErr, aggregateReqs), outputdir+"/"+searchkey+"-average.txt")
     writeSSOutput(maxLatRes, aggregateLat, aggregateSamples, outputdir+"/"+searchkey+"-latency.txt")

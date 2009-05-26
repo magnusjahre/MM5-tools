@@ -3,6 +3,7 @@ import sys
 import re
 import deterministic_fw_wls as fair_wls
 import subprocess
+import os
 
 def getResult(r, array, add):
     value = int(r.split()[1])
@@ -335,148 +336,25 @@ def getSampleErrors(sharedFilename, sharedEstimationFilename, aloneFilename, pri
 
     return data
 
-def getTraceEstimateError(efn, afn, samplesizes, sfn = "", runningAvg = False):
+def getTraceEstimateError(efn, afn, samplesizes, sfn, id):
 
-    abserrorsum = {}
-    abserrorentries = {}
+    binary = "/home/jahre/workspace/comparetrace/Release/comparetrace" 
+
+    samplesizestr = ""
+    for s in samplesizes:
+        samplesizestr += str(s)+";"
+    samplesizestr = samplesizestr[0:len(samplesizestr)-1]
+
+    subprocess.call([binary, efn, afn, sfn, samplesizestr, str(len(samplesizes)), id])
     
-    estimatefile = open(efn)
-    alonefile = open(afn)
-    if sfn != "":
-        sharedfile = open(sfn)
-    else:
-        sharedfile = None
-
-    finished = False
-
-    tmptitle = estimatefile.readline()
-    assert tmptitle == alonefile.readline()
-    if sharedfile != None:
-        assert tmptitle == sharedfile.readline()
-
-    titles = tmptitle.strip().split(";")
-
-    alonekey = "alone"
-    estimatekey = "estimate"
-    sharedkey = "shared"
-
-    averagebuffer = {}
+    results = __import__(id)
+    sumSqErr = results.sumSquareError 
+    avgLat = results.sumAvgLat
+    numSamp = results.numSamples
+    maxlat = results.maxlat
+    remaining = results.remainingReqs
     
-    for t in titles[2:]:
-        averagebuffer[t] = {}
-        abserrorsum[t] = {}
-        abserrorentries[t] = {}
-        for s in samplesizes:
-            averagebuffer[t][s] = {}
-            averagebuffer[t][s][alonekey] = [0,0]
-            averagebuffer[t][s][estimatekey] = [0,0]
-            averagebuffer[t][s][sharedkey] = [0,0]
-
-            abserrorsum[t][s] = 0
-            abserrorentries[t][s] = 0
-
-    maxmesurementlatency = {}
-    measurementlatencysum = {}
-    measurementlatencycnt = {}
-    prevmeasurementtick = {}
-    for ss in samplesizes:
-        maxmesurementlatency[ss] = 0
-        prevmeasurementtick[ss] = 0
-        measurementlatencysum[ss] = 0
-        measurementlatencycnt[ss] = 0
-
-    missedAloneCnt = 0
-    missedEstimateCnt = 0
-    missedSharedCnt = 0
-
-    inferror = {}
-
-    line = 0
-    while not finished:
-        estline = estimatefile.readline()
-        aloneline = alonefile.readline()
-
-        if sfn != "":
-            sharedline = sharedfile.readline()
-        else:
-            sharedline = sharedkey
-
-        if estline == "" or aloneline == "" or sharedline == "":
-            finished = True
-            missedEstimateCnt, missedAloneCnt, missedSharedCnt = finishFiles(estimatefile, alonefile, sharedfile)
-            continue
-    
-        line += 1
-        if line % 50000 == 0:
-            print "Read "+str(line)+" lines"
-    
-        estline = estline.strip().split(";")
-        aloneline = aloneline.strip().split(";")
-
-        addToBuffer(titles,averagebuffer,estline,samplesizes,estimatekey)
-        addToBuffer(titles,averagebuffer,aloneline,samplesizes,alonekey)
-
-        if sharedline != sharedkey:
-            sharedline = sharedline.strip().split(";")
-            addToBuffer(titles, averagebuffer, sharedline, samplesizes, sharedkey)
-
-        for type in averagebuffer:
-            for ssize in averagebuffer[type]:
-                if averagebuffer[type][ssize][alonekey][1] == ssize:
-                
-                    alonesum, alonereqs = averagebuffer[type][ssize][alonekey] 
-                    aloneavg = float(alonesum) / float(alonereqs)
-
-                    estimatesum, estimatereqs = averagebuffer[type][ssize][estimatekey] 
-                    estimateavg = float(estimatesum) / float(estimatereqs)
-                    
-                    if sfn != "":
-                        sharedsum, sharedreqs = averagebuffer[type][ssize][sharedkey] 
-                        sharedavg = float(sharedsum) / float(sharedreqs)
-                        if sharedavg == 0:
-                            error = "Inf"
-                        else:
-                            error = abs(estimateavg - aloneavg) / sharedavg
-                    else:
-                        error = abs(estimateavg - aloneavg)
-
-                    if error == "Inf":
-                        if type not in inferror:
-                            inferror[type] = 1
-                        else:
-                            inferror[type] += 1
-                    else:
-                        abserrorsum[type][ssize] += error
-                        abserrorentries[type][ssize] += 1
-
-                    if type == "Total":
-                        if prevmeasurementtick[ssize] != 0:
-                            latency = int(estline[0]) - prevmeasurementtick[ssize]
-                            measurementlatencysum[ssize] += latency
-                            measurementlatencycnt[ssize] += 1
-                            if latency > maxmesurementlatency[ssize]:
-                                maxmesurementlatency[ssize] = latency
-                        
-                        prevmeasurementtick[ssize] = int(estline[0])
-
-
-                    averagebuffer[type][ssize][estimatekey] = [0,0]
-                    averagebuffer[type][ssize][sharedkey] = [0,0]
-                    averagebuffer[type][ssize][alonekey] = [0,0]
-                        
-    estimatefile.close()
-    alonefile.close()
-
-    avgabserror = {}
-    for type in abserrorsum:
-        avgabserror[type] = {}
-        for ssize in abserrorsum[type]:
-            if abserrorentries[type][ssize] == 0:
-                avgabserror[type][ssize] = "Inf"
-            else:
-                avgabserror[type][ssize] = abserrorsum[type][ssize] / float(abserrorentries[type][ssize])
-    
-    return avgabserror, abserrorsum, abserrorentries, missedAloneCnt, missedEstimateCnt, missedSharedCnt, inferror, maxmesurementlatency, measurementlatencysum, measurementlatencycnt
+    return sumSqErr, avgLat, numSamp, maxlat, remaining
 
 def finishFiles(estimatefile, alonefile, sharedfile):
     missedEstimateCnt = 0
