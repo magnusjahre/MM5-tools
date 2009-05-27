@@ -35,17 +35,18 @@ def writeOutput(errordict, filename):
     outfile.flush()
     outfile.close()
     
-def writeSSOutput(maxdict, sumdict, samplesdict, filename):
+def writeSSOutput(maxdict, sumdict, samplesdict, sumSquares, filename):
     outfile = open(filename, "w")
     
     samplessizes = maxdict.keys()
     samplessizes.sort()
     
-    width = 30
+    width = 20
     
     outfile.write("".ljust(width))
     outfile.write("Max".rjust(width))
     outfile.write("Average".rjust(width))
+    outfile.write("Std Dev".rjust(width))
     outfile.write("\n")
     
     for k in samplessizes:
@@ -56,10 +57,24 @@ def writeSSOutput(maxdict, sumdict, samplesdict, filename):
             outfile.write( ("%.3f" % average).rjust(width) )
         else:
             outfile.write( "Inf".rjust(width) )
+            
+        if samplesdict[k] > 1:
+            stddev = calculateStddev(samplesdict[k], sumSquares[k], sumdict[k])
+            outfile.write( ("%.3f" % stddev).rjust(width) )
+        else:
+            outfile.write("0".rjust(width))
+            
         outfile.write("\n")
     
     outfile.flush()
     outfile.close()
+    
+def calculateStddev(n, sumsq, sum):
+    n = float(n)
+    sumsq = float(sumsq)
+    sum = float(sum)
+    assert n > 1
+    return  sqrt( ((n * sumsq) - sum * sum) / (n * (n-1)) )
     
 def writeMissedReqOutput(missed, filename):
     outfile = open(filename, "w")
@@ -110,14 +125,15 @@ def addToSSAggregate(aggregate, newvals, max):
         
 def computeAvg(errors, numReqs):
     avgs = {}
-    for type in errors:
-        assert type in numReqs
-        avgs[type] = {}
-        for ss in errors[type]:
-            if numReqs[type][ss] == 0:
-                avgs[type][ss] = "Inf"
+    
+    for ss in errors:
+        assert ss in numReqs
+        avgs[ss] = {}
+        for type in errors[ss]:
+            if numReqs[ss] == 0:
+                avgs[ss][type] = -1
             else:
-                avgs[type][ss] = float(errors[type][ss]) / float(numReqs[type][ss])
+                avgs[ss][type] = float(errors[ss][type]) / float(numReqs[ss])
             
     return avgs
 
@@ -126,10 +142,21 @@ def computeRMS(errorSquareSum, numSamples):
     for ss in errorSquareSum:
         avgs[ss] = {}
         for type in errorSquareSum[ss]:
-            if numSamples[ss] == 0:
-                avgs[ss][type] = "Inf"
+            if numSamples[ss] <= 0:
+                avgs[ss][type] = -1
             else:
                 avgs[ss][type] =  sqrt(float(errorSquareSum[ss][type]) / float(numSamples[ss]))
+    return avgs
+
+def computeStdDev(errorSum, errorSquareSum, numSamples):
+    avgs = {}
+    for ss in errorSquareSum:
+        avgs[ss] = {}
+        for type in errorSquareSum[ss]:
+            if numSamples[ss] <= 1:
+                avgs[ss][type] = 0
+            else:
+                avgs[ss][type] =  calculateStddev(numSamples[ss], errorSquareSum[ss][type], errorSum[ss][type])
     return avgs
 
 def main():
@@ -147,11 +174,13 @@ def main():
     os.mkdir(outputdir)
     
     aggregateErr = {}
-    aggregateReqs = {}
+    aggregateNumSamples = {}
+    aggregateErrSquare = {}
     
     maxLatRes = {}
     aggregateLat = {}
     aggregateSamples = {}
+    aggregateLatSquare = {}
     
     missedReqs = {}
     
@@ -164,7 +193,6 @@ def main():
             wl = pbsconfig.get_workload(config)
             benchmarks = workloads.getBms(wl, np) 
             
-            
             for i in range(np):
                 aparams = pbsconfig.get_alone_params(wl, i, config)
                 alonedir = pbsconfig.get_unique_id(aparams)
@@ -175,21 +203,30 @@ def main():
                 
                 print "Analyzing workload "+wl+", "+benchmarks[i]+" (CPU "+str(i)+")"
                 
-                errsum, maxlat, sumlat, numsamp, leftreqs = intmethods.getTraceEstimateError(sharedestfn, alonelatfn, samplesizes, sharedlatfn, wl+"-"+benchmarks[i])
-                writeOutput(computeRMS(errsum, numsamp), outputdir+"/bmerrs-"+wl+"-"+benchmarks[i]+".txt")
-                aggregateErr = addToAggregate(aggregateErr, errsum)
-                aggregateReqs = addToSSAggregate(aggregateReqs, numsamp, False)
+                results = intmethods.getTraceEstimateError(sharedestfn, alonelatfn, samplesizes, sharedlatfn, searchkey+"-"+wl+"-"+benchmarks[i])
                 
-                writeSSOutput(maxlat, sumlat, numsamp, outputdir+"/latencies-"+wl+"-"+benchmarks[i]+".txt")
+                writeOutput(computeRMS(results["sumSquareError"], results["numSamples"]), outputdir+"/bm-rmserror-"+wl+"-"+benchmarks[i]+".txt")
+                writeOutput(computeAvg(results["sumError"], results["numSamples"]), outputdir+"/bm-avgerror-"+wl+"-"+benchmarks[i]+".txt")
+                writeOutput(computeStdDev(results["sumError"], results["sumSquareError"], results["numSamples"]), outputdir+"/bm-stddev-"+wl+"-"+benchmarks[i]+".txt")
                 
-                maxLatRes = addToSSAggregate(maxLatRes, maxlat, True)
-                aggregateLat = addToSSAggregate(aggregateLat, sumlat, False)
-                aggregateSamples = addToSSAggregate(aggregateSamples, numsamp, False)
+                aggregateErr = addToAggregate(aggregateErr, results["sumError"])
+                aggregateErrSquare = addToAggregate(aggregateErrSquare, results["sumSquareError"])
+                aggregateNumSamples = addToSSAggregate(aggregateNumSamples, results["numSamples"], False)
                 
-                missedReqs[wl+"-"+benchmarks[i]] = leftreqs
                 
-    writeOutput(computeAvg(aggregateErr, aggregateReqs), outputdir+"/"+searchkey+"-average.txt")
-    writeSSOutput(maxLatRes, aggregateLat, aggregateSamples, outputdir+"/"+searchkey+"-latency.txt")
+                writeSSOutput(results["maxlat"], results["sumLatency"], results["numSamples"], results["sumSquareLatency"], outputdir+"/latencies-"+wl+"-"+benchmarks[i]+".txt")
+                
+                maxLatRes = addToSSAggregate(maxLatRes, results["maxlat"], True)
+                aggregateLat = addToSSAggregate(aggregateLat, results["sumLatency"], False)
+                aggregateSamples = addToSSAggregate(aggregateSamples, results["numSamples"], False)
+                aggregateLatSquare = addToSSAggregate(aggregateLatSquare, results["sumSquareLatency"], False)
+                
+                missedReqs[wl+"-"+benchmarks[i]] = results["remaining"]
+                
+    writeOutput(computeRMS(aggregateErrSquare, aggregateNumSamples), outputdir+"/"+searchkey+"-rms.txt")
+    writeOutput(computeAvg(aggregateErr, aggregateNumSamples), outputdir+"/"+searchkey+"-mean.txt")
+    writeOutput(computeStdDev(aggregateErr, aggregateErrSquare, aggregateNumSamples), outputdir+"/"+searchkey+"-stddev.txt")
+    writeSSOutput(maxLatRes, aggregateLat, aggregateSamples, aggregateLatSquare, outputdir+"/"+searchkey+"-latency.txt")
     writeMissedReqOutput(missedReqs, outputdir+"/"+searchkey+"-missed-reqs.txt")
             
     return 0

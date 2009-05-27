@@ -348,13 +348,18 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn, id):
     subprocess.call([binary, efn, afn, sfn, samplesizestr, str(len(samplesizes)), id])
     
     results = __import__(id)
-    sumSqErr = results.sumSquareError 
-    avgLat = results.sumAvgLat
-    numSamp = results.numSamples
-    maxlat = results.maxlat
-    remaining = results.remainingReqs
     
-    return sumSqErr, avgLat, numSamp, maxlat, remaining
+    resdict = {
+        "sumError": results.sumError,
+        "sumSquareError": results.sumSquareError,
+        "sumLatency": results.sumLatency,
+        "sumSquareLatency": results.sumSquareLatency,
+        "numSamples": results.numSamples,
+        "maxlat": results.maxlat,
+        "remaining": results.remainingReqs
+    }
+    
+    return resdict
 
 def finishFiles(estimatefile, alonefile, sharedfile):
     missedEstimateCnt = 0
