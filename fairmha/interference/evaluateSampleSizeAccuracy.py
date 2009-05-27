@@ -70,11 +70,16 @@ def writeSSOutput(maxdict, sumdict, samplesdict, sumSquares, filename):
     outfile.close()
     
 def calculateStddev(n, sumsq, sum):
+    
     n = float(n)
     sumsq = float(sumsq)
     sum = float(sum)
+    
     assert n > 1
-    return  sqrt( ((n * sumsq) - sum * sum) / (n * (n-1)) )
+    if n * sumsq < sum*sum:
+        assert abs(n * sumsq - sum*sum) < 1.0
+    
+    return  sqrt( max(((n * sumsq) - sum * sum) / (n * (n-1)), 0) )
     
 def writeMissedReqOutput(missed, filename):
     outfile = open(filename, "w")
