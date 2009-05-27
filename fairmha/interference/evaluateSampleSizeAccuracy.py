@@ -8,7 +8,7 @@ import deterministic_fw_wls as workloads
 from optparse import OptionParser
 from math import sqrt
 
-samplesizes = [1,5,10,25,50,75,100,200,300,400,500,1000,10000, 100000]
+samplesizes = [2**i for i in range(21)]
 
 def writeOutput(errordict, filename):
     outfile = open(filename, "w")
@@ -184,7 +184,6 @@ def main():
     
     maxLatRes = {}
     aggregateLat = {}
-    aggregateSamples = {}
     aggregateLatSquare = {}
     
     missedReqs = {}
@@ -218,21 +217,41 @@ def main():
                 aggregateErrSquare = addToAggregate(aggregateErrSquare, results["sumSquareError"])
                 aggregateNumSamples = addToSSAggregate(aggregateNumSamples, results["numSamples"], False)
                 
-                
                 writeSSOutput(results["maxlat"], results["sumLatency"], results["numSamples"], results["sumSquareLatency"], outputdir+"/latencies-"+wl+"-"+benchmarks[i]+".txt")
                 
                 maxLatRes = addToSSAggregate(maxLatRes, results["maxlat"], True)
                 aggregateLat = addToSSAggregate(aggregateLat, results["sumLatency"], False)
-                aggregateSamples = addToSSAggregate(aggregateSamples, results["numSamples"], False)
                 aggregateLatSquare = addToSSAggregate(aggregateLatSquare, results["sumSquareLatency"], False)
                 
                 missedReqs[wl+"-"+benchmarks[i]] = results["remaining"]
-                
-    writeOutput(computeRMS(aggregateErrSquare, aggregateNumSamples), outputdir+"/"+searchkey+"-rms.txt")
-    writeOutput(computeAvg(aggregateErr, aggregateNumSamples), outputdir+"/"+searchkey+"-mean.txt")
-    writeOutput(computeStdDev(aggregateErr, aggregateErrSquare, aggregateNumSamples), outputdir+"/"+searchkey+"-stddev.txt")
-    writeSSOutput(maxLatRes, aggregateLat, aggregateSamples, aggregateLatSquare, outputdir+"/"+searchkey+"-latency.txt")
+    
+    errorRMS = computeRMS(aggregateErrSquare, aggregateNumSamples)
+    errorAvg =  computeAvg(aggregateErr, aggregateNumSamples)
+    errorStdDev = computeStdDev(aggregateErr, aggregateErrSquare, aggregateNumSamples) 
+    
+    writeOutput(errorRMS, outputdir+"/"+searchkey+"-rms.txt")
+    writeOutput(errorAvg, outputdir+"/"+searchkey+"-mean.txt")
+    writeOutput(errorStdDev, outputdir+"/"+searchkey+"-stddev.txt")
+    writeSSOutput(maxLatRes, aggregateLat, aggregateNumSamples, aggregateLatSquare, outputdir+"/"+searchkey+"-latency.txt")
     writeMissedReqOutput(missedReqs, outputdir+"/"+searchkey+"-missed-reqs.txt")
+
+    dictdumpfile = open(searchkey+"-results.py", "w")
+    
+    dictdumpfile.write("aggregateErr = "+str(aggregateErr)+"\n\n")
+    dictdumpfile.write("aggregateErrSquare = "+str(aggregateErrSquare)+"\n\n")
+    
+    
+    dictdumpfile.write("aggregateLat = "+str(aggregateLat)+"\n\n")
+    dictdumpfile.write("aggregateLatSquare = "+str(aggregateLatSquare)+"\n\n")
+
+    dictdumpfile.write("aggregateNumSamples = "+str(aggregateNumSamples)+"\n\n")
+    
+    dictdumpfile.write("errorRMS = "+str(errorRMS)+"\n\n")
+    dictdumpfile.write("errorAvg = "+str(errorAvg)+"\n\n")
+    dictdumpfile.write("errorStdDev = "+str(errorStdDev)+"\n\n")
+    
+    dictdumpfile.flush()
+    dictdumpfile.close()
             
     return 0
 
