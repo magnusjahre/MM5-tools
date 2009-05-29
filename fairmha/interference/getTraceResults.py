@@ -36,6 +36,14 @@ def main():
             for parameter in resultmodules[key].errorRMS:
                 assert parameter not in data[key]
                 data[key][parameter] = resultmodules[key].errorRMS[parameter][dictionaryKey]
+                
+        if dictionaryName == "avgLat":
+            data[key] = {}
+            for ss in resultmodules[key].aggregateLat:
+                assert ss in resultmodules[key].aggregateNumSamples
+                assert ss not in data[key]
+                data[key][ss] =  float(resultmodules[key].aggregateLat[ss]) / float(resultmodules[key].aggregateNumSamples[ss])   
+            
         else:
             print "Dictionaryname not supported"
             return -1
