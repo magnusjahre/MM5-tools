@@ -234,7 +234,7 @@ def analyzeSampleExperiment(aggregates, searchkey):
 
     dumpDictFile(aggregates, searchkey+"-results.py", errorAvg, errorStdDev, errorRMS)
 
-def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS):
+def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS, relErrAvg = None, relErrStdDev = None, relErrRMS = None):
 
     dictdumpfile = open(filename, "w")
     
@@ -249,6 +249,13 @@ def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS):
     dictdumpfile.write("errorRMS = "+str(errorRMS)+"\n\n")
     dictdumpfile.write("errorAvg = "+str(errorAvg)+"\n\n")
     dictdumpfile.write("errorStdDev = "+str(errorStdDev)+"\n\n")
+    
+    if relErrRMS != None:
+        dictdumpfile.write("relErrorRMS = "+str(relErrRMS)+"\n\n")
+    if relErrAvg != None:
+        dictdumpfile.write("relErrorAvg = "+str(relErrAvg)+"\n\n")
+    if relErrStdDev != None:
+        dictdumpfile.write("relErrorStdDev = "+str(relErrStdDev)+"\n\n")
     
     dictdumpfile.flush()
     dictdumpfile.close()
@@ -306,7 +313,7 @@ def writeResultOutput(results, outputdir, basename, aggregates, samplesizes, key
     return aggregates
 
 
-def generateFilenames(searchkey):
+def generateFilenames(searchkey, onlyIncludeNP):
     
     filenames = []
 
@@ -316,6 +323,9 @@ def generateFilenames(searchkey):
 
         key = pbsconfig.get_key(cmd,config)
         np = pbsconfig.get_np(config)
+        
+        if np != -1 and np != onlyIncludeNP:
+            continue
         
         if searchPattern.findall(key) != []:
             shareddir = pbsconfig.get_unique_id(config)
@@ -360,11 +370,15 @@ def computeEstimators(aggregates):
 
     return errorAvg, errorStdDev, errorRMS, relErrorAvg, relErrorStdDev, relErrorRMS
 
-def analyzeAllKeys(aggregates, searchkey, rowid, rowkeyIsInt, swapColRow):    
+def analyzeAllKeys(aggregates, searchkey, rowid, rowkeyIsInt, swapColRow, onlyIncludeNP):
+        
     outputdir = "allkeys-tmp-storage"
+    if onlyIncludeNP != -1:
+        outputdir = str(onlyIncludeNP)+"-"+outputdir
+    
     os.mkdir(outputdir)
 
-    for filenames in generateFilenames(searchkey):
+    for filenames in generateFilenames(searchkey, onlyIncludeNP):
         
         print "Analyzing workload with ID "+filenames["basename"]
         
@@ -425,6 +439,14 @@ def analyzeAllKeys(aggregates, searchkey, rowid, rowkeyIsInt, swapColRow):
         if searchkey != ".*":
             outfn = searchkey.replace(".*","") + "-"+ fn
         writeKeybasedData(outputdir+"/"+outfn, keystorage, rowkeys, colkeys, outdata[fn], "Total", swapColRow)
+    
+    dumpFilename = "results.py"
+    if searchkey != ".*":
+        dumpFilename= searchkey.replace(".*","") + "-"+ dumpFilename
+    if onlyIncludeNP != -1:
+        dumpFilename = str(onlyIncludeNP)+"-"+dumpFilename
+    
+    dumpDictFile(aggregates, dumpFilename, errorAvg, errorStdDev, errorRMS, relErrorAvg, relErrorStdDev, relErrorRMS)
 
 def writeKeybasedData(filename, keystorage, rowkeys, colkeys, data, printkey, swapped):
     
@@ -456,6 +478,7 @@ def main():
     parser.add_option("-r", "--row-key-pos", type="int", action="store", dest="rowkeyid", default=0, help="Position to key to use in table rows")
     parser.add_option("--rowkey-is-int", action="store_true", dest="rowkeyIsInt", default=False, help="Position to key to use in table rows")
     parser.add_option("--swap-col-and-row", action="store_true", dest="swapColRow", default=False, help="Print the row elements in columns and vice versa")
+    parser.add_option("--only-np", action="store", type="int", dest="np", default=-1, help="Only include results with this processor count")
     options,args = parser.parse_args()
 
     cmdErrStr  = "Unknown command, alternatives are: samplesize, allkeys"
@@ -488,7 +511,7 @@ def main():
         assert options.searchkey != ".*"
         analyzeSampleExperiment(aggregates, options.searchkey)
     elif args[0] == "allkeys":
-        analyzeAllKeys(aggregates, options.searchkey, options.rowkeyid, options.rowkeyIsInt, options.swapColRow)
+        analyzeAllKeys(aggregates, options.searchkey, options.rowkeyid, options.rowkeyIsInt, options.swapColRow, options.np)
     else:
         print parser.usage
         print cmdErrStr
