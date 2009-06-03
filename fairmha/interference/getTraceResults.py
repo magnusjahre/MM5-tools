@@ -66,12 +66,6 @@ def main():
         for dk in dkeys:
             print ("%.3f" % data[dk][pk]).rjust(width),
         print
-            
-    
-        
-        
-    
-    
     
     return 0
 
