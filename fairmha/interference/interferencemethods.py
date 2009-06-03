@@ -340,14 +340,25 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn, id):
 
     binary = "/home/jahre/workspace/comparetrace/Release/comparetrace" 
 
+    outdir = "trace_estimate_tmp"
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    
+    os.chdir(outdir)
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.append(cwd)
+    
+    id = id.replace("-","_")
+
     samplesizestr = ""
     for s in samplesizes:
         samplesizestr += str(s)+";"
     samplesizestr = samplesizestr[0:len(samplesizestr)-1]
-
-    subprocess.call([binary, efn, afn, sfn, samplesizestr, str(len(samplesizes)), id])
     
-    results = __import__(id)
+    subprocess.call([binary, efn, afn, sfn, samplesizestr, str(len(samplesizes)), "rawres"+id])
+    
+    results = __import__("rawres"+id)
     
     resdict = {
         "sumError": results.sumError,
@@ -356,8 +367,12 @@ def getTraceEstimateError(efn, afn, samplesizes, sfn, id):
         "sumSquareLatency": results.sumSquareLatency,
         "numSamples": results.numSamples,
         "maxlat": results.maxlat,
-        "remaining": results.remainingReqs
+        "remaining": results.remainingReqs,
+        "sumRelativeError": results.sumRelativeError,
+        "sumSquareRelativeError": results.sumSquareRelativeError 
     }
+    
+    os.chdir("..")
     
     return resdict
 

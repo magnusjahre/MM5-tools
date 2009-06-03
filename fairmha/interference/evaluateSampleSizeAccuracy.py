@@ -3,14 +3,16 @@
 import sys
 import pbsconfig
 import os
+import re
 import interferencemethods as intmethods
 import deterministic_fw_wls as workloads
 from optparse import OptionParser
 from math import sqrt
 
-samplesizes = [2**i for i in range(21)]
+runTraceFile = "all-experiment-data.txt"
+rtWidth = 40
 
-def writeOutput(errordict, filename):
+def writeOutput(errordict, filename, samplesizes):
     outfile = open(filename, "w")
     
     errorkeys = errordict[samplesizes[0]].keys()
@@ -36,6 +38,7 @@ def writeOutput(errordict, filename):
     outfile.close()
     
 def writeSSOutput(maxdict, sumdict, samplesdict, sumSquares, filename):
+    
     outfile = open(filename, "w")
     
     samplessizes = maxdict.keys()
@@ -106,7 +109,19 @@ def writeMissedReqOutput(missed, filename):
     outfile.close()
 
 
-def addToAggregate(aggregate, newvals):
+def addToAggregate(aggregate, newvals, key, isSampleSize):
+
+    if not isSampleSize:
+        if key not in aggregate:
+            aggregate[key] = {}
+            for type in newvals[1]:
+                aggregate[key][type] = 0
+
+        for type in aggregate[key]:
+            aggregate[key][type] += newvals[1][type]
+
+        return aggregate
+
     if aggregate == {}:
         return newvals
     
@@ -118,7 +133,14 @@ def addToAggregate(aggregate, newvals):
             
     return aggregate
 
-def addToSSAggregate(aggregate, newvals, max):
+def addToSSAggregate(aggregate, newvals, max, key, isSampleSize):
+
+    if not isSampleSize:
+        if key not in aggregate:
+            aggregate[key] = 0
+        aggregate[key] += newvals[1]
+        return aggregate
+
     if aggregate == {}:
         return newvals
     
@@ -168,29 +190,16 @@ def computeStdDev(errorSum, errorSquareSum, numSamples):
                 avgs[ss][type] =  calculateStddev(numSamples[ss], errorSquareSum[ss][type], errorSum[ss][type])
     return avgs
 
-def main():
-    parser = OptionParser(usage="%prog [options] key")
-    options,args = parser.parse_args()
-    
-    assert len(args) == 1
-    searchkey = args[0]
-    
+def analyzeSampleExperiment(aggregates, searchkey):
+
+    samplesizes = [2**i for i in range(21)]
+
     print
     print "Analyzing sample sizes for key "+searchkey 
     print
-    
+
     outputdir = "samplesize-"+searchkey 
     os.mkdir(outputdir)
-    
-    aggregateErr = {}
-    aggregateNumSamples = {}
-    aggregateErrSquare = {}
-    
-    maxLatRes = {}
-    aggregateLat = {}
-    aggregateLatSquare = {}
-    
-    missedReqs = {}
     
     for cmd, config in pbsconfig.commandlines:
         key = pbsconfig.get_key(cmd,config)
@@ -211,44 +220,31 @@ def main():
                 
                 print "Analyzing workload "+wl+", "+benchmarks[i]+" (CPU "+str(i)+")"
                 
-                results = intmethods.getTraceEstimateError(sharedestfn, alonelatfn, samplesizes, sharedlatfn, searchkey+"-"+wl+"-"+benchmarks[i])
-                
-                writeOutput(computeRMS(results["sumSquareError"], results["numSamples"]), outputdir+"/bm-rmserror-"+wl+"-"+benchmarks[i]+".txt")
-                writeOutput(computeAvg(results["sumError"], results["numSamples"]), outputdir+"/bm-avgerror-"+wl+"-"+benchmarks[i]+".txt")
-                writeOutput(computeStdDev(results["sumError"], results["sumSquareError"], results["numSamples"]), outputdir+"/bm-stddev-"+wl+"-"+benchmarks[i]+".txt")
-                
-                aggregateErr = addToAggregate(aggregateErr, results["sumError"])
-                aggregateErrSquare = addToAggregate(aggregateErrSquare, results["sumSquareError"])
-                aggregateNumSamples = addToSSAggregate(aggregateNumSamples, results["numSamples"], False)
-                
-                writeSSOutput(results["maxlat"], results["sumLatency"], results["numSamples"], results["sumSquareLatency"], outputdir+"/latencies-"+wl+"-"+benchmarks[i]+".txt")
-                
-                maxLatRes = addToSSAggregate(maxLatRes, results["maxlat"], True)
-                aggregateLat = addToSSAggregate(aggregateLat, results["sumLatency"], False)
-                aggregateLatSquare = addToSSAggregate(aggregateLatSquare, results["sumSquareLatency"], False)
-                
-                missedReqs[wl+"-"+benchmarks[i]] = results["remaining"]
-    
-    errorRMS = computeRMS(aggregateErrSquare, aggregateNumSamples)
-    errorAvg =  computeAvg(aggregateErr, aggregateNumSamples)
-    errorStdDev = computeStdDev(aggregateErr, aggregateErrSquare, aggregateNumSamples) 
-    
-    writeOutput(errorRMS, outputdir+"/"+searchkey+"-rms.txt")
-    writeOutput(errorAvg, outputdir+"/"+searchkey+"-mean.txt")
-    writeOutput(errorStdDev, outputdir+"/"+searchkey+"-stddev.txt")
-    writeSSOutput(maxLatRes, aggregateLat, aggregateNumSamples, aggregateLatSquare, outputdir+"/"+searchkey+"-latency.txt")
-    writeMissedReqOutput(missedReqs, outputdir+"/"+searchkey+"-missed-reqs.txt")
+                results = intmethods.getTraceEstimateError("../"+sharedestfn, "../"+alonelatfn, samplesizes, "../"+sharedlatfn, searchkey+"-"+wl+"-"+benchmarks[i])
+                aggregates = writeResultOutput(results,outputdir,wl+"-"+benchmarks[i],aggregates, samplesizes, key, True)
 
-    dictdumpfile = open(searchkey+"-results.py", "w")
+    errorAvg,errorStdDev,errorRMS,relErrAvg,relErrStdDev,relErrRMS =  computeEstimators(aggregates)
     
-    dictdumpfile.write("aggregateErr = "+str(aggregateErr)+"\n\n")
-    dictdumpfile.write("aggregateErrSquare = "+str(aggregateErrSquare)+"\n\n")
+    writeOutput(errorRMS, outputdir+"/"+searchkey+"-rms.txt", samplesizes)
+    writeOutput(errorAvg, outputdir+"/"+searchkey+"-mean.txt", samplesizes)
+    writeOutput(errorStdDev, outputdir+"/"+searchkey+"-stddev.txt", samplesizes)
     
-    
-    dictdumpfile.write("aggregateLat = "+str(aggregateLat)+"\n\n")
-    dictdumpfile.write("aggregateLatSquare = "+str(aggregateLatSquare)+"\n\n")
+    writeSSOutput(aggregates["maxLatRes"], aggregates["aggregateLat"], aggregates["aggregateNumSamples"], aggregates["aggregateLatSquare"], outputdir+"/"+searchkey+"-latency.txt")
+    writeMissedReqOutput(aggregates["missedReqs"], outputdir+"/"+searchkey+"-missed-reqs.txt")
 
-    dictdumpfile.write("aggregateNumSamples = "+str(aggregateNumSamples)+"\n\n")
+    dumpDictFile(aggregates, searchkey+"-results.py", errorAvg, errorStdDev, errorRMS)
+
+def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS):
+
+    dictdumpfile = open(filename, "w")
+    
+    dictdumpfile.write("aggregateErr = "+str(aggregates["aggregateErr"])+"\n\n")
+    dictdumpfile.write("aggregateErrSquare = "+str(aggregates["aggregateErrSquare"])+"\n\n")
+    
+    dictdumpfile.write("aggregateLat = "+str(aggregates["aggregateLat"])+"\n\n")
+    dictdumpfile.write("aggregateLatSquare = "+str(aggregates["aggregateLatSquare"])+"\n\n")
+
+    dictdumpfile.write("aggregateNumSamples = "+str(aggregates["aggregateNumSamples"])+"\n\n")
     
     dictdumpfile.write("errorRMS = "+str(errorRMS)+"\n\n")
     dictdumpfile.write("errorAvg = "+str(errorAvg)+"\n\n")
@@ -256,7 +252,248 @@ def main():
     
     dictdumpfile.flush()
     dictdumpfile.close()
+
+def traceTotalData(name, average, stddev, rms):
+
+    assert len(average.keys()) == 1
+    assert average.keys()[0] == 1
+
+    of = open(runTraceFile, "a")
+    of.write(name.ljust(rtWidth))
+    of.write(("%.3f" % average[1]["Total"]).rjust(rtWidth))
+    of.write(("%.3f" % stddev[1]["Total"]).rjust(rtWidth))
+    of.write(("%.3f" % rms[1]["Total"]).rjust(rtWidth))
+    of.write("\n")
+    of.flush()
+    of.close()
+
+def writeResultOutput(results, outputdir, basename, aggregates, samplesizes, key, isSampleSize = False):
+
+    avgResult,stddevResult,rmsResult = computeResultEstimators(results)
+    
+    writeOutput(rmsResult, outputdir+"/bm-rmserror-"+basename+".txt", samplesizes)
+    writeOutput(avgResult, outputdir+"/bm-avgerror-"+basename+".txt", samplesizes)
+    writeOutput(stddevResult, outputdir+"/bm-stddev-"+basename+".txt", samplesizes)
+
+    if not isSampleSize:
+        traceTotalData(basename, avgResult,stddevResult,rmsResult)
+
+    aggregates["aggregateErr"] = addToAggregate(aggregates["aggregateErr"], results["sumError"], key, isSampleSize)
+    aggregates["aggregateErrSquare"] = addToAggregate(aggregates["aggregateErrSquare"], results["sumSquareError"], key, isSampleSize)
+    
+    aggregates["aggregateRelErr"] = addToAggregate(aggregates["aggregateRelErr"], results["sumRelativeError"], key, isSampleSize)
+    aggregates["aggregateRelErrSquare"] = addToAggregate(aggregates["aggregateRelErrSquare"], results["sumSquareRelativeError"], key, isSampleSize)
+    
+    aggregates["aggregateNumSamples"] = addToSSAggregate(aggregates["aggregateNumSamples"],
+                                                         results["numSamples"],
+                                                         False,
+                                                         key,
+                                                         isSampleSize)
+
+    writeSSOutput(results["maxlat"], results["sumLatency"], results["numSamples"],
+                  results["sumSquareLatency"], outputdir+"/latencies-"+basename+".txt")
+
+    if isSampleSize:
+        aggregates["maxLatRes"] = addToSSAggregate(aggregates["maxLatRes"], results["maxlat"], True, "", isSampleSize)
+        aggregates["aggregateLat"] = addToSSAggregate(aggregates["aggregateLat"], results["sumLatency"], False, "", isSampleSize)
+        aggregates["aggregateLatSquare"] = addToSSAggregate(aggregates["aggregateLatSquare"],
+                                                            results["sumSquareLatency"],
+                                                            False, "",
+                                                            isSampleSize)
+                
+    aggregates["missedReqs"][basename] = results["remaining"]
+
+    return aggregates
+
+
+def generateFilenames(searchkey):
+    
+    filenames = []
+
+    searchPattern = re.compile(searchkey)
+
+    for cmd, config in pbsconfig.commandlines:
+
+        key = pbsconfig.get_key(cmd,config)
+        np = pbsconfig.get_np(config)
+        
+        if searchPattern.findall(key) != []:
+            shareddir = pbsconfig.get_unique_id(config)
+            wl = pbsconfig.get_workload(config)
+            benchmarks = workloads.getBms(wl, np) 
             
+            for i in range(np):
+                aparams = pbsconfig.get_alone_params(wl, i, config)
+                alonedir = pbsconfig.get_unique_id(aparams)
+ 
+                sharedlatfn = shareddir+"/CPU"+str(i)+"LatencyTrace.txt"
+                sharedestfn = shareddir+"/CPU"+str(i)+"InterferenceTrace.txt"
+                alonelatfn = alonedir+"/CPU0LatencyTrace.txt"
+
+                fndict = {"shared": "../"+sharedlatfn,
+                          "estimate": "../"+sharedestfn,
+                          "alone": "../"+alonelatfn,
+                          "basename":key+"-"+wl+"-"+benchmarks[i],
+                          "key":key}
+
+                filenames.append(fndict)
+
+    return filenames
+
+def computeResultEstimators(results):
+
+    errorRMS = computeRMS(results["sumSquareError"],results["numSamples"])
+    errorAvg = computeAvg(results["sumError"], results["numSamples"])
+    errorStdDev = computeStdDev(results["sumError"], results["sumSquareError"], results["numSamples"])
+
+    return errorAvg, errorStdDev, errorRMS
+
+def computeEstimators(aggregates):
+    
+    errorRMS = computeRMS(aggregates["aggregateErrSquare"], aggregates["aggregateNumSamples"])
+    errorAvg =  computeAvg(aggregates["aggregateErr"], aggregates["aggregateNumSamples"])
+    errorStdDev = computeStdDev(aggregates["aggregateErr"], aggregates["aggregateErrSquare"], aggregates["aggregateNumSamples"]) 
+
+    relErrorRMS = computeRMS(aggregates["aggregateRelErrSquare"],aggregates["aggregateNumSamples"])
+    relErrorAvg = computeAvg(aggregates["aggregateRelErr"], aggregates["aggregateNumSamples"])
+    relErrorStdDev = computeStdDev(aggregates["aggregateRelErr"], aggregates["aggregateRelErrSquare"], aggregates["aggregateNumSamples"])
+
+    return errorAvg, errorStdDev, errorRMS, relErrorAvg, relErrorStdDev, relErrorRMS
+
+def analyzeAllKeys(aggregates, searchkey, rowid, rowkeyIsInt, swapColRow):    
+    outputdir = "allkeys-tmp-storage"
+    os.mkdir(outputdir)
+
+    for filenames in generateFilenames(searchkey):
+        
+        print "Analyzing workload with ID "+filenames["basename"]
+        
+        results = intmethods.getTraceEstimateError(filenames["estimate"],
+                                                   filenames["alone"],
+                                                   [1],
+                                                   filenames["shared"],
+                                                   filenames["basename"])
+
+        aggregates = writeResultOutput(results, outputdir, filenames["basename"], aggregates, [1], filenames["key"])
+
+    keys = aggregates["aggregateErr"].keys()
+
+    keystorage = {}
+    rowkeys = []
+    colkeys = []
+    for k in keys:
+        splitted = k.split("-")
+        prev = splitted[0:rowid]
+        if rowkeyIsInt:
+            rk = int(splitted[rowid])
+        else:
+            rk = splitted[rowid]
+        post = splitted[rowid+1:]
+                
+        colKey = ""
+        for e in prev:
+            colKey += e+"-"
+        for e in post:
+            colKey += e+"-"
+
+        if rk not in rowkeys:
+            rowkeys.append(rk)
+        if colKey not in colkeys:
+            colkeys.append(colKey)
+        keystorage[(rk, colKey)] = k 
+
+    rowkeys.sort()
+    colkeys.sort()
+
+    if swapColRow:
+        tmp = rowkeys
+        rowkeys = colkeys
+        colkeys = tmp
+
+    errorAvg, errorStdDev, errorRMS, relErrorAvg, relErrorStdDev, relErrorRMS =  computeEstimators(aggregates)
+
+    outdata = {"agg-avgerr.txt": errorAvg, 
+                "agg-error-stddev.txt": errorStdDev,
+                "agg-rmserr.txt": errorRMS,
+                "agg-relative-avgerr.txt": relErrorAvg, 
+                "agg-relative-error-stddev.txt": relErrorStdDev,
+                "agg-relative-rmserr.txt": relErrorRMS, 
+                }
+    
+    for fn in outdata: 
+        outfn = fn
+        if searchkey != ".*":
+            outfn = searchkey.replace(".*","") + "-"+ fn
+        writeKeybasedData(outputdir+"/"+outfn, keystorage, rowkeys, colkeys, outdata[fn], "Total", swapColRow)
+
+def writeKeybasedData(filename, keystorage, rowkeys, colkeys, data, printkey, swapped):
+    
+    print "Writing output to file "+filename
+    
+    width = 30
+    outfile = open(filename, "w")
+
+    outfile.write("".ljust(width))
+    for ck in colkeys:
+        outfile.write(str(ck).rjust(width))
+    outfile.write("\n")
+
+    
+    for rk in rowkeys:
+        outfile.write(str(rk).ljust(width))
+        for ck in colkeys:
+            if not swapped:
+                reskey = keystorage[(rk,ck)]
+            else:
+                reskey = keystorage[(ck,rk)]
+            outfile.write(("%.3f" % data[reskey][printkey]).rjust(width))
+        outfile.write("\n")
+    
+
+def main():
+    parser = OptionParser(usage="evaluateSampleSizeAccuracy.py [options] command")
+    parser.add_option("-k", "--search-key", action="store", dest="searchkey", default=".*", help="Only include results that matches this key")
+    parser.add_option("-r", "--row-key-pos", type="int", action="store", dest="rowkeyid", default=0, help="Position to key to use in table rows")
+    parser.add_option("--rowkey-is-int", action="store_true", dest="rowkeyIsInt", default=False, help="Position to key to use in table rows")
+    parser.add_option("--swap-col-and-row", action="store_true", dest="swapColRow", default=False, help="Print the row elements in columns and vice versa")
+    options,args = parser.parse_args()
+
+    cmdErrStr  = "Unknown command, alternatives are: samplesize, allkeys"
+
+    if len(args) != 1:
+        print "Usage: "+parser.usage
+        print cmdErrStr
+        print
+        return 0
+
+    rt = open(runTraceFile, "w")
+    rt.write("".ljust(rtWidth))
+    rt.write("Average".rjust(rtWidth))
+    rt.write("Stddev".rjust(rtWidth))
+    rt.write("RMS".rjust(rtWidth)+"\n")
+    rt.flush()
+    rt.close()
+
+    aggregates = {"aggregateErr": {},
+                  "aggregateNumSamples": {},
+                  "aggregateErrSquare": {},
+                  "maxLatRes": {},
+                  "aggregateLat": {},
+                  "aggregateLatSquare": {},
+                  "missedReqs": {},
+                  "aggregateRelErr": {},
+                  "aggregateRelErrSquare": {}}
+    
+    if args[0] == "samplesize":
+        assert options.searchkey != ".*"
+        analyzeSampleExperiment(aggregates, options.searchkey)
+    elif args[0] == "allkeys":
+        analyzeAllKeys(aggregates, options.searchkey, options.rowkeyid, options.rowkeyIsInt, options.swapColRow)
+    else:
+        print parser.usage
+        print cmdErrStr
+        print
+
     return 0
 
 if __name__ == "__main__":
