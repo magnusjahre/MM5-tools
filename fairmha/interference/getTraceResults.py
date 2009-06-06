@@ -82,7 +82,20 @@ def main():
                 assert ss in resultmodules[key].aggregateNumSamples
                 assert ss not in data[key]
                 data[key][ss] =  float(resultmodules[key].aggregateLat[ss]) / float(resultmodules[key].aggregateNumSamples[ss])   
-            
+        
+        elif dictionaryName == "allBusQueueRMS":
+            data[key] = {}
+            for id in resultmodules[key].rmsAllResults:
+                ids = id.split("-")
+                assert len(ids) == 4
+                expkey = ids[0]+"-"+ids[1]
+                bmkey = ids[2]+"-"+ids[3]
+                
+                if expkey not in data[key]:
+                    data[key][expkey] = {}
+                    
+                data[key][expkey][bmkey] = resultmodules[key].rmsAllResults[id][1]["bus_queue"]
+        
         else:
             print "Dictionary name "+dictionaryName+" not supported"
             return -1
@@ -94,7 +107,44 @@ def main():
     paramkeys = data[dkeys[0]].keys()
     paramkeys.sort()
     
-    if not options.printBreakdown:
+    if dictionaryName == "allBusQueueRMS":
+        
+        dataArrays = {}
+        
+        for np in data:
+            dataArrays[np] = {}
+            for expkey in data[np]:
+                values = []
+                for bmkey in data[np][expkey]:    
+                    values.append(data[np][expkey][bmkey])
+                values.sort()
+                dataArrays[np][expkey] = values
+                assert len(values) == 160
+                
+        nps = dataArrays.keys()
+        nps.sort()
+        
+        exps = dataArrays[nps[0]].keys()
+        exps.sort()
+        
+        print "".ljust(width),
+        for np in nps:
+            for exp in exps:
+                print (str(np)+"-"+str(exp)).rjust(width),
+        print
+        
+        for i in range(160):
+            print str(i).ljust(width),
+            for np in nps:
+                for exp in exps:
+                    try:
+                        print ("%.3f" % dataArrays[np][exp][i]).rjust(width),
+                    except:
+                        print str(dataArrays[np][exp][i]).rjust(width),
+            print
+        
+        
+    elif not options.printBreakdown:
     
         print "".ljust(width),
         for k in dkeys:

@@ -9,8 +9,8 @@ import deterministic_fw_wls as workloads
 from optparse import OptionParser
 from math import sqrt
 
-runTraceFile = "all-experiment-data.txt"
-rtWidth = 40
+noSamplesErrStr = "NoSamples"
+rmsAllResults = {}
 
 def writeOutput(errordict, filename, samplesizes):
     outfile = open(filename, "w")
@@ -28,7 +28,7 @@ def writeOutput(errordict, filename, samplesizes):
     for k in errorkeys:
         outfile.write( k.ljust(width))
         for ss in samplesizes:
-            if errordict[ss][k] != -1:
+            if errordict[ss][k] != noSamplesErrStr:
                 outfile.write( ("%.3f" % errordict[ss][k]).rjust(width))
             else:
                 outfile.write( "NaN".rjust(width))
@@ -162,7 +162,7 @@ def computeAvg(errors, numReqs):
         avgs[ss] = {}
         for type in errors[ss]:
             if numReqs[ss] == 0:
-                avgs[ss][type] = -1
+                avgs[ss][type] = noSamplesErrStr
             else:
                 avgs[ss][type] = float(errors[ss][type]) / float(numReqs[ss])
             
@@ -174,7 +174,7 @@ def computeRMS(errorSquareSum, numSamples):
         avgs[ss] = {}
         for type in errorSquareSum[ss]:
             if numSamples[ss] <= 0:
-                avgs[ss][type] = -1
+                avgs[ss][type] = noSamplesErrStr
             else:
                 avgs[ss][type] =  sqrt(float(errorSquareSum[ss][type]) / float(numSamples[ss]))
     return avgs
@@ -185,7 +185,7 @@ def computeStdDev(errorSum, errorSquareSum, numSamples):
         avgs[ss] = {}
         for type in errorSquareSum[ss]:
             if numSamples[ss] <= 1:
-                avgs[ss][type] = 0
+                avgs[ss][type] = noSamplesErrStr
             else:
                 avgs[ss][type] =  calculateStddev(numSamples[ss], errorSquareSum[ss][type], errorSum[ss][type])
     return avgs
@@ -257,33 +257,75 @@ def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS, relErrAv
     if relErrStdDev != None:
         dictdumpfile.write("relErrorStdDev = "+str(relErrStdDev)+"\n\n")
     
+    if rmsAllResults != {}:
+        dictdumpfile.write("rmsAllResults = "+str(rmsAllResults)+"\n\n")
+        
     dictdumpfile.flush()
     dictdumpfile.close()
 
-def traceTotalData(name, average, stddev, rms):
-
-    assert len(average.keys()) == 1
-    assert average.keys()[0] == 1
-
-    of = open(runTraceFile, "a")
-    of.write(name.ljust(rtWidth))
-    of.write(("%.3f" % average[1]["Total"]).rjust(rtWidth))
-    of.write(("%.3f" % stddev[1]["Total"]).rjust(rtWidth))
-    of.write(("%.3f" % rms[1]["Total"]).rjust(rtWidth))
-    of.write("\n")
+def initTotalTrace(name, keys):
+    rt = open(name, "w")
+    
+    for k in keys:
+        rt.write("; "+str(k))
+    rt.write("\n")
+    
+    rt.flush()
+    rt.close()
+    
+def addDataTrace(filename, entryname, data, keys):
+    
+    of  = open(filename, "a")
+    of.write(entryname+";")
+    
+    for k in keys:
+        try:
+            of.write(("%.3f" % data[k]))
+        except:
+            of.write(str(data[k]))
+        if k != keys[-1]:
+            of.write(";")
+        else:
+            of.write("\n")
+            
+    
     of.flush()
     of.close()
 
+def traceTotalData(prefix, name, average, stddev, rms, outdir):
+
+    files = {prefix+"-all-mean-results.txt": average,
+             prefix+"-all-stddev-results.txt": stddev,
+             prefix+"-all-rms-results.txt": rms}
+
+    assert len(average.keys()) == 1
+    assert average.keys()[0] == 1
+    assert average.keys() == stddev.keys() == rms.keys()
+    assert average.keys()[0] == stddev.keys()[0] == rms.keys()[0]
+
+    for fn in files:
+        header = files[fn][1].keys()
+        header.sort()
+        outfilename = outdir+"/"+fn
+        
+        if not os.path.exists(outfilename):
+            initTotalTrace(outfilename, header)
+        
+        addDataTrace(outfilename, name, files[fn][1], header)
+        
+
 def writeResultOutput(results, outputdir, basename, aggregates, samplesizes, key, isSampleSize = False):
 
-    avgResult,stddevResult,rmsResult = computeResultEstimators(results)
+    avgResult,stddevResult,rmsResult,relErrorAvg,relErrorStdDev,relErrorRMS = computeResultEstimators(results)
     
     writeOutput(rmsResult, outputdir+"/bm-rmserror-"+basename+".txt", samplesizes)
     writeOutput(avgResult, outputdir+"/bm-avgerror-"+basename+".txt", samplesizes)
     writeOutput(stddevResult, outputdir+"/bm-stddev-"+basename+".txt", samplesizes)
 
     if not isSampleSize:
-        traceTotalData(basename, avgResult,stddevResult,rmsResult)
+        traceTotalData("error", basename, avgResult, stddevResult, rmsResult, outputdir)
+        traceTotalData("relative-error", basename, relErrorAvg, relErrorStdDev, relErrorRMS, outputdir)
+        rmsAllResults[basename] = rmsResult
 
     aggregates["aggregateErr"] = addToAggregate(aggregates["aggregateErr"], results["sumError"], key, isSampleSize)
     aggregates["aggregateErrSquare"] = addToAggregate(aggregates["aggregateErrSquare"], results["sumSquareError"], key, isSampleSize)
@@ -355,8 +397,12 @@ def computeResultEstimators(results):
     errorRMS = computeRMS(results["sumSquareError"],results["numSamples"])
     errorAvg = computeAvg(results["sumError"], results["numSamples"])
     errorStdDev = computeStdDev(results["sumError"], results["sumSquareError"], results["numSamples"])
+    
+    relErrorRMS = computeRMS(results["sumSquareRelativeError"],results["numSamples"])
+    relErrorAvg = computeAvg(results["sumRelativeError"],results["numSamples"])
+    relErrorStdDev = computeStdDev(results["sumRelativeError"],results["sumSquareRelativeError"], results["numSamples"])
 
-    return errorAvg, errorStdDev, errorRMS
+    return errorAvg, errorStdDev, errorRMS, relErrorAvg, relErrorStdDev, relErrorRMS
 
 def computeEstimators(aggregates):
     
@@ -488,14 +534,6 @@ def main():
         print cmdErrStr
         print
         return 0
-
-    rt = open(runTraceFile, "w")
-    rt.write("".ljust(rtWidth))
-    rt.write("Average".rjust(rtWidth))
-    rt.write("Stddev".rjust(rtWidth))
-    rt.write("RMS".rjust(rtWidth)+"\n")
-    rt.flush()
-    rt.close()
 
     aggregates = {"aggregateErr": {},
                   "aggregateNumSamples": {},

@@ -54,7 +54,7 @@ for cmd, params in pbsconfig.commandlines:
                                       "Latency (clock cycles)", 
                                       data, 
                                       ['Shared', 'Interference', 'Estimate', 'Alone'],
-                                      "figures/"+wl+"_"+bms[i],
+                                      "figures/"+resID+"-"+wl+"-"+bms[i],
                                       False)
             
             plotfiles.append(plotfile)
