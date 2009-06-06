@@ -224,7 +224,7 @@ int main(int argc, char** argv){
 					sqErrorSum[i][j] += sqerror;
 
 					if(sharedAvgLat > 0){
-						double relativeError = abs(estimate -  aloneAvgLat) / ((double) sharedAvgLat);
+						double relativeError = (estimate -  aloneAvgLat) / ((double) sharedAvgLat);
 						assert(!isinf(relativeError) && !isnan(relativeError));
 
 						double sqRelativeError = pow(relativeError, 2);
@@ -287,7 +287,7 @@ int main(int argc, char** argv){
 
 	resfile << "\nmaxlat = {\n";
 	for(unsigned int i=0;i<samplesizes.size();i++){
-		resfile << samplesizes[i] << ":" << (maxLatencyBuffer[i] == 0 ? -1 : maxLatencyBuffer[i]);
+		resfile << samplesizes[i] << ":" << maxLatencyBuffer[i];
 		if(i < samplesizes.size()-1) resfile << ",";
 		resfile << "\n";
 	}
