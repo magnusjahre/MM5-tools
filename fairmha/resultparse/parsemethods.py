@@ -208,7 +208,6 @@ def findPattern(patternString, filename, warn):
         return {}
     
     results = pattern.findall(text)
-    
     retval = {}
     for r in results:
          tmp = r.split()

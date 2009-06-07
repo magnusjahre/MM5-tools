@@ -14,6 +14,7 @@ class CompareResults:
     results = {}
     legend = {}
     numDirs = 0
+    np = -1
     
     def __init(self):
         pass
@@ -26,11 +27,14 @@ class CompareResults:
         parser.add_option("-a", "--compare-absolute", action="store_true", dest="compareAbsolute", default=False, help="present absolute diffrence rather than relative (wtr SPM)")
         parser.add_option("--spm-pattern", action="store", dest="spmPattern", default="", help="the pattern to search for in single program mode")
         parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False, help="print progress information")
+        parser.add_option("--np", action="store", type="int", dest="np", default=4, help="only return results for this number of CPUs")
 
         options,args = parser.parse_args()
         
         self.options = options
         self.args = args
+        
+        self.np = options.np
         
         if len(self.args) < 1:
             print "Parse error: at least one directory must be provided"
@@ -66,7 +70,7 @@ class CompareResults:
             key = pbsconfig.get_key(cmd,config)
             np = pbsconfig.get_np(config)
             
-            if keypat.findall(key) != []:
+            if keypat.findall(key) != [] and np == self.np:
                 
                 
                 if self.options.verbose:
@@ -76,6 +80,10 @@ class CompareResults:
                 resfilename, alonefiles = parsemethods.getFilenames(pbsconfig, cmd, config, np)
                 
                 sharedResult = parsemethods.findPattern(self.options.statPattern, resfilename, self.options.verbose)
+                
+                if sharedResult == {}:
+                    print "Shared pattern search for pattern .*\..*"+self.options.statPattern+".* did not return any results, quitting"
+                    sys.exit(-1)
                 
                 aloneResult = {}
                 
@@ -89,7 +97,7 @@ class CompareResults:
                             for aresult in aresults:
                                 if aresult.startswith("detailedCPU"):
                                     unifiedkey = string.replace(aresult, "detailedCPU0", "detailedCPU"+str(cpuID))
-                                elif aresult.endswith("_[0-9]*"):
+                                elif aresult.endswith("_[0-9]"):
                                     print "detected per cpu pattern, not implemented"
                                     assert False
                                 else:
