@@ -80,11 +80,14 @@ def calculateStddev(n, sumsq, sum):
     
     assert n > 1
     if n * sumsq < sum*sum:
+        percerr = sum*sum / n*sumsq
         errtrace = open("errortrace.txt", "a")
-        errtrace.write("n*sumsq = "+str(n*sumsq)+"\n")
-        errtrace.write("sum*sum = "+str(sum*sum)+"\n")
+        errtrace.write("n*sumsq           = "+str(n*sumsq)+"\n")
+        errtrace.write("sum*sum           = "+str(sum*sum)+"\n")
         errtrace.write("n*sumsq - sum*sum = "+str(n * sumsq - sum*sum)+"\n")
-        assert abs(n * sumsq - sum*sum) < 2.0
+        errtrace.write("percerr           = "+str(percerr)+"\n")        
+        
+        assert percerr < 1.001
     
     return  sqrt( max(((n * sumsq) - sum * sum) / (n * (n-1)), 0) )
     
