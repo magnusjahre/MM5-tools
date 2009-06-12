@@ -3,6 +3,7 @@
 import sys
 import pbsconfig
 import re
+import math
 
 def generateFilenames():
     
@@ -102,17 +103,25 @@ def main():
     print "".ljust(width),
     print "Avg Rel Err".rjust(width),
     print "RMS Rel Err".rjust(width),
+    print "StdDev Rel Err".rjust(width),
     print
     
     for np in nps:
         for key in keys:
             
             avgerr = relerrsum[np][key] / numerrs[np][key]
-            rmserr = relerrsumsq[np][key] / numerrs[np][key]
+            rmserr = math.sqrt(relerrsumsq[np][key] / numerrs[np][key])
+            
+            nsumsq = relerrsumsq[np][key] * numerrs[np][key]
+            sumsum = relerrsum[np][key]*relerrsum[np][key]
+            tmp = (nsumsq - sumsum) / (numerrs[np][key]*(numerrs[np][key]-1))
+            assert tmp > 0
+            stddev = math.sqrt(tmp)
             
             print (str(np)+"-"+key).ljust(width),
             print ("%.3f" % avgerr ).rjust(width),
             print ("%.3f" % rmserr).rjust(width),
+            print ("%.3f" % stddev).rjust(width),
             print
 
 if __name__ == "__main__":

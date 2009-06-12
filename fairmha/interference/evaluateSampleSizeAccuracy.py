@@ -80,14 +80,19 @@ def calculateStddev(n, sumsq, sum):
     
     assert n > 1
     if n * sumsq < sum*sum:
-        percerr = sum*sum / n*sumsq
+        percerr = (sum*sum) / (n*sumsq)
         errtrace = open("errortrace.txt", "a")
+        errtrace.write("n                 = "+str(n)+"\n")
+        errtrace.write("sum               = "+str(sum)+"\n")
+        errtrace.write("sumsq             = "+str(sumsq)+"\n")
         errtrace.write("n*sumsq           = "+str(n*sumsq)+"\n")
         errtrace.write("sum*sum           = "+str(sum*sum)+"\n")
         errtrace.write("n*sumsq - sum*sum = "+str(n * sumsq - sum*sum)+"\n")
-        errtrace.write("percerr           = "+str(percerr)+"\n")        
+        errtrace.write("percerr           = "+str(percerr)+"\n")
+        errtrace.flush()
+        errtrace.close()        
         
-        assert percerr < 1.001
+        assert percerr < 1.001 and percerr >= 1.0
     
     return  sqrt( max(((n * sumsq) - sum * sum) / (n * (n-1)), 0) )
     
@@ -235,9 +240,9 @@ def analyzeSampleExperiment(aggregates, searchkey):
     writeSSOutput(aggregates["maxLatRes"], aggregates["aggregateLat"], aggregates["aggregateNumSamples"], aggregates["aggregateLatSquare"], outputdir+"/"+searchkey+"-latency.txt")
     writeMissedReqOutput(aggregates["missedReqs"], outputdir+"/"+searchkey+"-missed-reqs.txt")
 
-    dumpDictFile(aggregates, searchkey+"-results.py", errorAvg, errorStdDev, errorRMS)
+    dumpDictFile(aggregates, searchkey+"-results.py", errorAvg, errorStdDev, errorRMS, relErrAvg, relErrStdDev, relErrRMS)
 
-def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS, relErrAvg = None, relErrStdDev = None, relErrRMS = None):
+def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS, relErrAvg, relErrStdDev, relErrRMS):
 
     dictdumpfile = open(filename, "w")
     
@@ -253,12 +258,9 @@ def dumpDictFile(aggregates, filename, errorAvg, errorStdDev, errorRMS, relErrAv
     dictdumpfile.write("errorAvg = "+str(errorAvg)+"\n\n")
     dictdumpfile.write("errorStdDev = "+str(errorStdDev)+"\n\n")
     
-    if relErrRMS != None:
-        dictdumpfile.write("relErrorRMS = "+str(relErrRMS)+"\n\n")
-    if relErrAvg != None:
-        dictdumpfile.write("relErrorAvg = "+str(relErrAvg)+"\n\n")
-    if relErrStdDev != None:
-        dictdumpfile.write("relErrorStdDev = "+str(relErrStdDev)+"\n\n")
+    dictdumpfile.write("relErrorRMS = "+str(relErrRMS)+"\n\n")    
+    dictdumpfile.write("relErrorAvg = "+str(relErrAvg)+"\n\n")
+    dictdumpfile.write("relErrorStdDev = "+str(relErrStdDev)+"\n\n")
     
     if rmsAllResults != {}:
         dictdumpfile.write("rmsAllResults = "+str(rmsAllResults)+"\n\n")
@@ -369,7 +371,7 @@ def generateFilenames(searchkey, onlyIncludeNP):
         key = pbsconfig.get_key(cmd,config)
         np = pbsconfig.get_np(config)
         
-        if np != -1 and np != onlyIncludeNP:
+        if onlyIncludeNP != -1 and np != onlyIncludeNP:
             continue
         
         if searchPattern.findall(key) != []:
@@ -426,7 +428,7 @@ def analyzeAllKeys(aggregates, searchkey, rowid, rowkeyIsInt, swapColRow, onlyIn
         outputdir = str(onlyIncludeNP)+"-"+outputdir
     
     os.mkdir(outputdir)
-
+    
     for filenames in generateFilenames(searchkey, onlyIncludeNP):
         
         print "Analyzing workload with ID "+filenames["basename"]

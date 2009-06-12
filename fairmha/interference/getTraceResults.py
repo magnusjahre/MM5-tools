@@ -69,12 +69,24 @@ def main():
                     
         elif dictionaryName == "relErrorStdDev":
             data[key] = {}
-            for parameter in resultmodules[key].relErrorAvg:
+            for parameter in resultmodules[key].relErrorStdDev:
                 assert parameter not in data[key]
                 if options.printBreakdown:
                     data[key][parameter] = resultmodules[key].relErrorStdDev[parameter]
                 else:
                     data[key][parameter] = resultmodules[key].relErrorStdDev[parameter][dictionaryKey]
+        
+        elif dictionaryName == "relErrorRMS":
+            data[key] = {}
+            for parameter in resultmodules[key].relErrorRMS:
+                assert parameter not in data[key]
+                if options.printBreakdown:
+                    data[key][parameter] = resultmodules[key].relErrorRMS[parameter]
+                else:
+                    data[key][parameter] = resultmodules[key].relErrorRMS[parameter][dictionaryKey]
+        
+        elif dictionaryName == "samples":
+            data[key] = resultmodules[key].aggregateNumSamples
         
         elif dictionaryName == "avgLat":
             data[key] = {}
