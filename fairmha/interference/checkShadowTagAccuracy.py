@@ -4,6 +4,8 @@ import sys
 import pbsconfig
 import re
 import math
+from optparse import OptionParser
+import deterministic_fw_wls as workloads
 
 def generateFilenames():
     
@@ -25,16 +27,19 @@ def generateFilenames():
             alonedir = pbsconfig.get_unique_id(aparams)
             afilenames.append(alonedir+"/"+alonedir+".txt")
             
-        filenames.append( (np, key, sfilename, afilenames) )
+        filenames.append( (np, key, sfilename, afilenames, wl) )
             
     return filenames
 
 def find(pattern, filename, cpuid = -1):
-    
-    file = open(filename)
-    text = file.read()
-    file.close()
-    
+    try:
+        file = open(filename)
+        text = file.read()
+        file.close()
+    except IOError:
+        print "Read error on file "+filename
+        return []
+        
     res = pattern.findall(text)
     
     results = {}
@@ -56,7 +61,17 @@ def find(pattern, filename, cpuid = -1):
     
     return results
 
+def parseParameters():
+    parser = OptionParser(usage="checkShadowTagAccuracy.py [options]")
+    parser.add_option("--full-map", action="store_true", dest="fullMap", default=False, help="Use full-map implementation results in parsing")
+    parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print requests per workload")
+    options,args = parser.parse_args()
+    
+    return options,args
+
 def main():
+    
+    options,args = parseParameters()
     
     relerrsum = {}
     relerrsumsq = {}
@@ -64,65 +79,145 @@ def main():
     
     missPattern = re.compile("Shared.*misses_per_cpu_.*")
     aloneMissPattern = re.compile("Shared.*misses_per_cpu.*")
-    shadowMissPattern = re.compile("Shared.*cpu_extra_misses_.*")
+    if options.fullMap:
+        shadowMissPattern = re.compile("Shared.*cpu_extra_misses_.*")
+    else:
+        shadowAloneEstimatePattern = re.compile("Shared.*estimated_shadow_misses_.*")
     
-    for np, key, sharedfile, alonefiles in generateFilenames():
+    breakdownres = {}
+    
+    for np, key, sharedfile, alonefiles, wl in generateFilenames():
     
         if np not in relerrsum:
             relerrsum[np] = {}
             relerrsumsq[np] = {}
             numerrs[np] = {}
+            breakdownres[np] = {} 
             
         if key not in relerrsum[np]:
             relerrsum[np][key] = 0
             relerrsumsq[np][key] = 0
             numerrs[np][key] = 0
-            
+            breakdownres[np][key] = {}
+        
         sharedMisses = find(missPattern, sharedfile)
-        shadowMisses = find(shadowMissPattern, sharedfile)
         aloneMisses = [find(aloneMissPattern, alonefiles[i], i) for i in range(np) ]
-    
+        
+        if wl not in breakdownres[np][key]:
+            breakdownres[np][key][wl] = {}
+            for cachekey in sharedMisses:
+                breakdownres[np][key][wl][cachekey] = {}
+                for i in range(np):
+                    breakdownres[np][key][wl][cachekey][i] = {"estimate": "N/A", "actual": "N/A", "relerror": "N/A"} 
+        
+        if options.fullMap:
+            shadowMisses = find(shadowMissPattern, sharedfile)            
+        else:
+            shadowAloneMissEstimate = find(shadowAloneEstimatePattern, sharedfile)
+        
         for cachekey in sharedMisses:
             for cpukey in sharedMisses[cachekey]:
                 
-                est = sharedMisses[cachekey][cpukey] - shadowMisses[cachekey][cpukey]
-                err = float(est) - float(float(aloneMisses[cpukey][cachekey][cpukey]))
+                if aloneMisses[cpukey] == []:
+                    continue
+
+                if options.fullMap:    
+                    est = sharedMisses[cachekey][cpukey] - shadowMisses[cachekey][cpukey]
+                else:
+                    est = shadowAloneMissEstimate[cachekey][cpukey]
+                
+                err = float(est) - float(aloneMisses[cpukey][cachekey][cpukey])
                 relErr = float(err)/float(sharedMisses[cachekey][cpukey])
+                
+                breakdownres[np][key][wl][cachekey][cpukey]["estimate"] = float(est)
+                breakdownres[np][key][wl][cachekey][cpukey]["actual"] = float(aloneMisses[cpukey][cachekey][cpukey])
+                breakdownres[np][key][wl][cachekey][cpukey]["relerror"] =  relErr
                             
                 relerrsum[np][key] += relErr
                 relerrsumsq[np][key] += relErr**2
                 numerrs[np][key] += 1.0
     
-    nps = relerrsum.keys()
-    nps.sort()
-    keys = relerrsum[nps[0]].keys()
-    keys.sort()
+    if not options.printAll:
     
-    width = 30
-    
-    print "".ljust(width),
-    print "Avg Rel Err".rjust(width),
-    print "RMS Rel Err".rjust(width),
-    print "StdDev Rel Err".rjust(width),
-    print
-    
-    for np in nps:
-        for key in keys:
+        nps = relerrsum.keys()
+        nps.sort()
+        keys = relerrsum[nps[0]].keys()
+        keys.sort()
+        
+        width = 30
+        
+        print "".ljust(width),
+        print "Avg Rel Err".rjust(width),
+        print "RMS Rel Err".rjust(width),
+        print "StdDev Rel Err".rjust(width),
+        print
+        
+        for np in nps:
+            for key in keys:
+                
+                avgerr = relerrsum[np][key] / numerrs[np][key]
+                rmserr = math.sqrt(relerrsumsq[np][key] / numerrs[np][key])
+                
+                nsumsq = relerrsumsq[np][key] * numerrs[np][key]
+                sumsum = relerrsum[np][key]*relerrsum[np][key]
+                tmp = (nsumsq - sumsum) / (numerrs[np][key]*(numerrs[np][key]-1))
+                assert tmp > 0
+                stddev = math.sqrt(tmp)
+                
+                print (str(np)+"-"+key).ljust(width),
+                print ("%.3f" % avgerr ).rjust(width),
+                print ("%.3f" % rmserr).rjust(width),
+                print ("%.3f" % stddev).rjust(width),
+                print
+    else:
+        
+        #TODO: add support for choosing which p-cnt to print
+        cpus = breakdownres.keys()[0]
+        
+        print
+        print "Result breakdown for "+str(cpus)+" CPUs"
+        print
+        
+        keys = breakdownres[cpus].keys()
+        keys.sort()
+        
+        wls = breakdownres[cpus][keys[0]].keys()
+        wls.sort()
+        
+        caches = breakdownres[cpus][keys[0]][wls[0]].keys()
+        caches.sort()        
+        
+        width = 20
+        
+        print "".ljust(40),
+        print "Estimate".rjust(width),
+        print "Actual".rjust(width),
+        print "Relative Error".rjust(width)
+        
+        for k in keys:
             
-            avgerr = relerrsum[np][key] / numerrs[np][key]
-            rmserr = math.sqrt(relerrsumsq[np][key] / numerrs[np][key])
-            
-            nsumsq = relerrsumsq[np][key] * numerrs[np][key]
-            sumsum = relerrsum[np][key]*relerrsum[np][key]
-            tmp = (nsumsq - sumsum) / (numerrs[np][key]*(numerrs[np][key]-1))
-            assert tmp > 0
-            stddev = math.sqrt(tmp)
-            
-            print (str(np)+"-"+key).ljust(width),
-            print ("%.3f" % avgerr ).rjust(width),
-            print ("%.3f" % rmserr).rjust(width),
-            print ("%.3f" % stddev).rjust(width),
             print
+            print str(k)+" results"
+            print
+            
+            for w in wls:
+                bmnames = workloads.getBms(w,cpus)
+                for i in range(int(cpus)):
+                    for c in caches:
+                        
+                        print (str(w)+"-"+str(c)+"-"+bmnames[i]).ljust(40),
+                        
+                        if breakdownres[cpus][k][w] != {}:
+                            print str(breakdownres[cpus][k][w][c][i]["estimate"]).rjust(width),                        
+                            print str(breakdownres[cpus][k][w][c][i]["actual"]).rjust(width),
+                        
+                            try:
+                                print ("%.2f" % breakdownres[cpus][k][w][c][i]["relerror"]).rjust(width)
+                            except TypeError:
+                                print str(breakdownres[cpus][k][w][c][i]["relerror"]).rjust(width)
+                        else:
+                            print "No data..".rjust(width)
+
 
 if __name__ == "__main__":
     sys.exit(main())
