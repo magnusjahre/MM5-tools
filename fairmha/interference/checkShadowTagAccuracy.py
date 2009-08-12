@@ -65,6 +65,7 @@ def parseParameters():
     parser = OptionParser(usage="checkShadowTagAccuracy.py [options]")
     parser.add_option("--full-map", action="store_true", dest="fullMap", default=False, help="Use full-map implementation results in parsing")
     parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print requests per workload")
+    parser.add_option("--key-is-int", action="store_true", dest="keyIsInt", default=False, help="The keys can be sorted as integers")
     options,args = parser.parse_args()
     
     return options,args
@@ -142,6 +143,10 @@ def main():
         nps = relerrsum.keys()
         nps.sort()
         keys = relerrsum[nps[0]].keys()
+        
+        if options.keyIsInt:
+            keys = [int(i) for i in keys]
+        
         keys.sort()
         
         width = 30
@@ -153,7 +158,12 @@ def main():
         print
         
         for np in nps:
-            for key in keys:
+            for arrKey in keys:
+                
+                if options.keyIsInt:
+                    key = str(arrKey)
+                else:
+                    key = arrKey
                 
                 avgerr = relerrsum[np][key] / numerrs[np][key]
                 rmserr = math.sqrt(relerrsumsq[np][key] / numerrs[np][key])
