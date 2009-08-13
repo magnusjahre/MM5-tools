@@ -11,6 +11,7 @@ PROJECT_NUM = "nn4650k"
 PPN = 8
 PBS_DIR_NAME = "pbsfiles"
 
+experimentname = 'opp'
 
 header = """#!/bin/bash
 #PBS -N m5sim
@@ -23,13 +24,14 @@ header = """#!/bin/bash
 header = header + "#PBS -lnodes=1:ppn="+str(PPN)+"\n"
 header = header + "#PBS -A "+str(PROJECT_NUM)+"\n\n"
 
+header = header + "date\n"
+header = header + "rm -rf /local/work/grannas/\n"
+header = header + "mkdir /local/work/grannas/\n"
+header = header + "cp " + pbsconfig.experimentpath + '/m5.opt /local/work/grannas/\n'
+
 latest_commands = []
 
 def commit_command(fileID, cmd, cnt, fcnt):
-    
-    # make experiment directory
-    os.mkdir(fileID)
-    print 'Created an experiment directory for '+fileID
     
     latest_commands.append((fileID, cmd))
 
@@ -47,15 +49,24 @@ def flush_commands(fcnt):
     for fileID, command in latest_commands:
 
         # Change directory into the output directory
-        output.write('cd ' + pbsconfig.experimentpath + '/'+fileID+'\n');
+        output.write('mkdir /local/work/grannas/' +fileID+'\n');
+        output.write('cd /local/work/grannas/' +fileID+'\n');
     
         # Write command into pbsfile    
         output.write(command + '\n\n');
     
+
+
+    output.write("wait\n")
+
+    for fileID, command in latest_commands:
+        output.write('cp /local/work/' + fileID + '/' + fileID + '.txt' + ' ' + pbsconfig.experimentpath + '\n')
+        output.write('cp /local/work/' + fileID + '/stdout' + ' ' + pbsconfig.experimentpath + '/stdout.'+ fileID + '\n')
+
     del latest_commands[:]
 
-    output.write("wait")
-
+    output.write('rm -rf /local/work/grannas/\n')
+    output.write('date\n')
     # Finish file
     output.close()
    
@@ -72,23 +83,24 @@ def get_command(benchmark,config):
     arguments.append('-EPROTOCOL=none')
     arguments.append('-EINTERCONNECT=crossbar')
     arguments.append('-ESTATSFILE='+pbsconfig.get_unique_id(benchmark,config)+'.txt')
-    arguments.append('-EMSHRSL1D='+str(pbsconfig.l1DataMshrs))
-    arguments.append('-EMSHRSL1I='+str(pbsconfig.l1InstMshrs))
-    arguments.append('-EMSHRL1TARGETS='+str(pbsconfig.l1mshrTargets))
-    arguments.append('-EMSHRSL2='+str(pbsconfig.l2mshrs))
-    arguments.append('-EMSHRL2TARGETS='+str(pbsconfig.l2mshrTargets))
-    arguments.append('-EISEXPERIMENT')
+    arguments.append('-EMSHRSL1D=8')
+    arguments.append('-EMSHRSL1I=8')
+    arguments.append('-EMSHRL1TARGETS=4')
+    arguments.append('-EMSHRSL2=16')
+    arguments.append('-EMSHRL2TARGETS=4')
+    #arguments.append('-EISEXPERIMENT')
+    arguments.append(pbsconfig.commonconfig)
     arguments.append(config[1])
   
     arguments.append('-ESIMULATETICKS='+str(pbsconfig.simticks))
-    #arguments.append('-EFASTFORWARDTICKS='+str(pbsconfig.fwticks))
+    arguments.append('-EFASTFORWARDTICKS='+str(pbsconfig.fwticks))
 
     
-    command = pbsconfig.simbinary+' '
+    command = '/local/work/grannas/m5.opt'+' '
     for argument in arguments:
         command = command+argument+' '
 
-    command = command+pbsconfig.configfile+" &"
+    command = command+pbsconfig.configfile+" > stdout &"
 
     return command
 
@@ -97,6 +109,8 @@ command_counter = 0
 file_counter = 0
 
 os.mkdir(pbsconfig.experimentpath+"/"+PBS_DIR_NAME)
+# Copy the binary
+os.system('cp ' + pbsconfig.simbinary + ' ' + pbsconfig.experimentpath)
 
 for benchmark in pbsconfig.benchmarks:
     for config in pbsconfig.configs:
