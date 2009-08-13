@@ -66,6 +66,7 @@ def parseParameters():
     parser.add_option("--full-map", action="store_true", dest="fullMap", default=False, help="Use full-map implementation results in parsing")
     parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print requests per workload")
     parser.add_option("--key-is-int", action="store_true", dest="keyIsInt", default=False, help="The keys can be sorted as integers")
+    parser.add_option("--tolerance", type="int", action="store", dest="tolerance", default=-1, help="The number of misses needed to include the results in the statistics")
     options,args = parser.parse_args()
     
     return options,args
@@ -133,10 +134,15 @@ def main():
                 breakdownres[np][key][wl][cachekey][cpukey]["estimate"] = float(est)
                 breakdownres[np][key][wl][cachekey][cpukey]["actual"] = float(aloneMisses[cpukey][cachekey][cpukey])
                 breakdownres[np][key][wl][cachekey][cpukey]["relerror"] =  relErr
-                            
-                relerrsum[np][key] += relErr
-                relerrsumsq[np][key] += relErr**2
-                numerrs[np][key] += 1.0
+                
+                sm = float(sharedMisses[cachekey][cpukey])
+                am = float(aloneMisses[cpukey][cachekey][cpukey])
+                breakdownres[np][key][wl][cachekey][cpukey]["interference-miss-rate"] = (sm - am) / sm
+                
+                if options.tolerance == -1 or sharedMisses[cachekey][cpukey] >= options.tolerance:
+                    relerrsum[np][key] += relErr
+                    relerrsumsq[np][key] += relErr**2
+                    numerrs[np][key] += 1.0
     
     if not options.printAll:
     
@@ -189,12 +195,15 @@ def main():
         print
         
         keys = breakdownres[cpus].keys()
+        firstkey = keys[0]
+        if options.keyIsInt:
+            keys = [int(i) for i in keys]
         keys.sort()
         
-        wls = breakdownres[cpus][keys[0]].keys()
+        wls = breakdownres[cpus][firstkey].keys()
         wls.sort()
         
-        caches = breakdownres[cpus][keys[0]][wls[0]].keys()
+        caches = breakdownres[cpus][firstkey][wls[0]].keys()
         caches.sort()        
         
         width = 20
@@ -203,8 +212,12 @@ def main():
         print "Estimate".rjust(width),
         print "Actual".rjust(width),
         print "Relative Error".rjust(width)
+        print "Interference MR".rjust(width)
         
         for k in keys:
+            
+            if options.keyIsInt:
+                k = str(k)
             
             print
             print str(k)+" results"
@@ -222,9 +235,16 @@ def main():
                             print str(breakdownres[cpus][k][w][c][i]["actual"]).rjust(width),
                         
                             try:
-                                print ("%.2f" % breakdownres[cpus][k][w][c][i]["relerror"]).rjust(width)
+                                print ("%.2f" % breakdownres[cpus][k][w][c][i]["relerror"]).rjust(width),
                             except TypeError:
-                                print str(breakdownres[cpus][k][w][c][i]["relerror"]).rjust(width)
+                                print str(breakdownres[cpus][k][w][c][i]["relerror"]).rjust(width),
+                            
+                            try:
+                                print ("%.2f" % breakdownres[cpus][k][w][c][i]["interference-miss-rate"]).rjust(width)
+                            except TypeError:
+                                print str(breakdownres[cpus][k][w][c][i]["interference-miss-rate"]).rjust(width)
+                                    
+                                
                         else:
                             print "No data..".rjust(width)
 
