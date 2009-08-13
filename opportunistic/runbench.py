@@ -25,6 +25,7 @@ header = header + "#PBS -lnodes=1:ppn="+str(PPN)+"\n"
 header = header + "#PBS -A "+str(PROJECT_NUM)+"\n\n"
 
 header = header + "date\n"
+header = header + "uname -a\n"
 header = header + "rm -rf /local/work/grannas/\n"
 header = header + "mkdir /local/work/grannas/\n"
 header = header + "cp " + pbsconfig.experimentpath + '/m5.opt /local/work/grannas/\n'
@@ -60,8 +61,8 @@ def flush_commands(fcnt):
     output.write("wait\n")
 
     for fileID, command in latest_commands:
-        output.write('cp /local/work/' + fileID + '/' + fileID + '.txt' + ' ' + pbsconfig.experimentpath + '\n')
-        output.write('cp /local/work/' + fileID + '/stdout' + ' ' + pbsconfig.experimentpath + '/stdout.'+ fileID + '\n')
+        output.write('cp /local/work/grannas/' + fileID + '/' + fileID + '.txt' + ' ' + pbsconfig.experimentpath + '\n')
+        output.write('cp /local/work/grannas/' + fileID + '/stdout' + ' ' + pbsconfig.experimentpath + '/stdout.'+ fileID + '\n')
 
     del latest_commands[:]
 
