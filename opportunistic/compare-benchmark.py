@@ -125,7 +125,8 @@ for benchmark in benchmarks:
     index= 0
 
     for config in prefetchers:
-        resID = 'opportunistic_' + str(benchmark) +'_FR-FCFS'
+        #resID = 'opportunistic_' + str(benchmark) +'_FR-FCFS'
+        resID = 'opportunistic_' + str(benchmark) +'_FCFS'
 
         try:
           resultfile = open(config + '/' + resID+'/'+resID+'.txt')
