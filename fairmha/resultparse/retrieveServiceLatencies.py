@@ -4,95 +4,11 @@ import sys
 import pbsconfig
 import re
 import os
+import parsemethods
 import fairmha.plot.plot as plot
 
-def addToDistribution(data, currentKey, line):
-    splitted = line.split()
-    try:
-        histogramKey = int(splitted[0])
-        frequency = int(splitted[1])
-    except:
-        print "Warning: could not parse: "+line.strip()
-        return data, True
-        
-    
-    if histogramKey not in data[currentKey]:
-        data[currentKey][histogramKey] = 0
-        
-    data[currentKey][histogramKey] += frequency
-        
-    return data, False
-
-def readDistributions(startPatterns, endPatterns, distributionNames, filename, data):
-    
-    file = open(filename)
-    
-    numPatterns = len(startPatterns)
-    assert numPatterns == len(endPatterns) and numPatterns == len(distributionNames)
-    
-    if data == {}:
-        for dn in distributionNames:
-            data[dn] = {}
-    
-    currentTypeIndex = -1
-    
-    error = False
-    for l in file:
-        
-        if currentTypeIndex == -1:    
-            for i in range(numPatterns):
-                searchres = startPatterns[i].findall(l)
-                if searchres != []:
-                    currentTypeIndex = i
-        else:
-            searchres = endPatterns[currentTypeIndex].findall(l)
-            if searchres != []:
-                currentTypeIndex = -1
-            else:
-                data, error = addToDistribution(data, distributionNames[currentTypeIndex], l)
-    
-    file.close()
-    
-    return data, error
-
-def createHistograms():
-    startReadName = "min_value"
-    endReadName = "max_value"
-
-    distributionNames = ["conflict_distribution_read",
-                         "conflict_distribution_write",
-                         "miss_distribution_read",
-                         "miss_distribution_write"]
-    data = {}
-    startPatterns = []
-    endPatterns = []
-    for dn in distributionNames:
-        startPatterns.append(re.compile(dn+"."+startReadName))
-        endPatterns.append(re.compile(dn+"."+endReadName))
-    
-    cnt = 0
-    for cmd,params in pbsconfig.commandlines:
-        expid = pbsconfig.get_unique_id(params)
-        key = pbsconfig.get_key(cmd,params)
-        resfile = expid+"/"+expid+".txt"
-        
-        if key not in data:
-            data[key] = {}
-        
-        data[key], error = readDistributions(startPatterns, 
-                                             endPatterns,
-                                             distributionNames,
-                                             resfile,
-                                             data[key])
-        
-        if error:
-            print "Warning: parse error for file "+resfile
-
-    return data
-
 def writeResults(histograms):
-    
-    
+        
     averages = {}
     
     for k in histograms:
@@ -204,8 +120,14 @@ def main(argv):
     except:
         print "Output directory exists, quitting..."
         return -1
+
     
-    histograms = createHistograms()
+    distributionNames = ["conflict_distribution_read",
+                         "conflict_distribution_write",
+                         "miss_distribution_read",
+                         "miss_distribution_write"]
+    
+    histograms = parsemethods.createHistograms(pbsconfig, distributionNames)
 
     print
     print "Parsing finished, writing result files..."

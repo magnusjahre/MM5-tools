@@ -99,9 +99,13 @@ def main():
             data[key] = {}
             for id in resultmodules[key].rmsAllResults:
                 ids = id.split("-")
-                assert len(ids) == 4
-                expkey = ids[0]+"-"+ids[1]
-                bmkey = ids[2]+"-"+ids[3]
+#                assert len(ids) == 4
+#                expkey = ids[0]+"-"+ids[1]
+#                bmkey = ids[2]+"-"+ids[3]
+                assert len(ids) == 3
+                expkey = ids[0]
+                bmkey = ids[1]+"-"+ids[2]    
+                
                 
                 if expkey not in data[key]:
                     data[key][expkey] = {}

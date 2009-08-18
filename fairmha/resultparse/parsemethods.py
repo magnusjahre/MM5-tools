@@ -220,3 +220,97 @@ def findPattern(patternString, filename, warn):
          retval[statkey] = value
     
     return retval
+
+
+def addToDistribution(data, currentKey, line):
+
+    splitted = line.split()
+
+    overflowPat = re.compile("overflows")
+    underflowPat = re.compile("underflows")
+
+    if overflowPat.findall(splitted[0]) != []:
+        histogramKey = "overflow"
+        frequency = int(splitted[1])
+    elif underflowPat.findall(splitted[0]) != []:
+        histogramKey = "underflow"
+        frequency = int(splitted[1])
+    else:
+        try:
+            histogramKey = int(splitted[0])
+            frequency = int(splitted[1])
+        except:
+            print "Warning: could not parse: "+line.strip()
+            return data, True
+        
+    
+    if histogramKey not in data[currentKey]:
+        data[currentKey][histogramKey] = 0
+        
+    data[currentKey][histogramKey] += frequency
+        
+    return data, False
+
+def readDistributions(startPatterns, endPatterns, distributionNames, filename, data):
+    
+    file = open(filename)
+    
+    numPatterns = len(startPatterns)
+    assert numPatterns == len(endPatterns) and numPatterns == len(distributionNames)
+    
+    if data == {}:
+        for dn in distributionNames:
+            data[dn] = {}
+    
+    currentTypeIndex = -1
+    
+    error = False
+    for l in file:
+        
+        if currentTypeIndex == -1:    
+            for i in range(numPatterns):
+                searchres = startPatterns[i].findall(l)
+                if searchres != []:
+                    currentTypeIndex = i
+        else:
+            searchres = endPatterns[currentTypeIndex].findall(l)
+            if searchres != []:
+                currentTypeIndex = -1
+            else:
+                data, error = addToDistribution(data, distributionNames[currentTypeIndex], l)
+    
+    file.close()
+    
+    return data, error
+
+
+def createHistograms(pbsconfig, distributionNames):
+    startReadName = "min_value"
+    endReadName = "max_value"
+
+    data = {}
+    startPatterns = []
+    endPatterns = []
+    for dn in distributionNames:
+        startPatterns.append(re.compile(dn+"."+startReadName))
+        endPatterns.append(re.compile(dn+"."+endReadName))
+    
+    cnt = 0
+    for cmd,params in pbsconfig.commandlines:
+        expid = pbsconfig.get_unique_id(params)
+        key = pbsconfig.get_key(cmd,params)
+        resfile = expid+"/"+expid+".txt"
+        
+        if key not in data:
+            data[key] = {}
+        
+        data[key], error = readDistributions(startPatterns, 
+                                             endPatterns,
+                                             distributionNames,
+                                             resfile,
+                                             data[key])
+        
+        if error:
+            print "Warning: parse error for file "+resfile
+
+    return data
