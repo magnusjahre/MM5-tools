@@ -77,6 +77,9 @@ class ExperimentConfiguration:
     
     def generateAllArgumentCombinations(self):    
         
+        if self.variableSimulatorArguments == {}:
+            return [[]]
+
         keys = self.variableSimulatorArguments.keys()
         keys.sort()
         
@@ -155,7 +158,6 @@ class ExperimentConfiguration:
         
         commandlines = []
         
-        assert self.variableSimulatorArguments != {}
         allCombs = self.generateAllArgumentCombinations()
         
         sortedNps = self.workloads.keys()
