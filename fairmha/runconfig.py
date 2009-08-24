@@ -15,7 +15,7 @@ PROJECT_NUM = "nn4650k"
 PBS_DIR_NAME = "pbsfiles"
 
 ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
-walltime = {1:48, 4:7, 8:10, 16:12}             # in hours
+walltime = {1:4, 4:7, 8:10, 16:12}             # in hours
 perProcMem = {1:1792, 4:1792, 8:1792, 16:3584} # in MB
 
 finPattern = re.compile("End Simulation Statistics")
