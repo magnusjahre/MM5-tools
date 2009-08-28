@@ -1,6 +1,7 @@
 
 import re
 import popen2
+import sys
 
 class M5Command:
     
@@ -57,4 +58,6 @@ class M5Command:
             file.write("Program output\n\n")
             file.write(out)
             file.close()
+            
+        sys.stdout.flush()
         

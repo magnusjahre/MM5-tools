@@ -27,6 +27,9 @@ def main():
     
     print
     print "Generating checkpoints..."
+    
+    sys.stdout.flush()
+    
     for m in memsys:
         for bm in bms:
             testconfig = m5test.M5Command(bm, np, m, channels)
