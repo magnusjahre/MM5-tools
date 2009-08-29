@@ -21,8 +21,7 @@ def main():
     
     memsys = ["RingBased", "CrossbarBased"]
     tmpconfig = expconfig.ExperimentConfiguration("", "", "")
-    # bms = tmpconfig.specBenchmarks
-    bms = ["vpr0"]
+    bms = tmpconfig.specBenchmarks
 
     testnum = 0
     successnum = 0
