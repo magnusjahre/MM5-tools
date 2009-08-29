@@ -4,10 +4,10 @@ import sys
 import fairmha.experimentconfig as expconfig
 import m5test
 
-def addArguments(testconfig):
-    testconfig.addArgument("MEMORY-ADDRESS-OFFSET", 0)
-    testconfig.addArgument("MEMORY-ADDRESS-PARTS", 4)
-    testconfig.addArgument("MEMORY-BUS-SCHEDULER", "RDFCFS")    
+def setArguments(testconfig):
+    testconfig.setArgument("MEMORY-ADDRESS-OFFSET", 0)
+    testconfig.setArgument("MEMORY-ADDRESS-PARTS", 4)
+    testconfig.setArgument("MEMORY-BUS-SCHEDULER", "RDFCFS")    
     return testconfig
 
 def main():
@@ -16,44 +16,62 @@ def main():
 
     np = 1
     fwinsts = 50*10**6
-    siminsts = 3*10**6
+    siminsts = 2*10**6
     channels = 1
     
     memsys = ["RingBased", "CrossbarBased"]
     tmpconfig = expconfig.ExperimentConfiguration("", "", "")
-    bms = tmpconfig.specBenchmarks
-    
+    # bms = tmpconfig.specBenchmarks
+    bms = ["vpr0"]
+
     testnum = 0
+    successnum = 0
     
     print
     print "Generating checkpoints..."
     
     sys.stdout.flush()
     
+
+    testconfig = m5test.M5Command()
     for m in memsys:
         for bm in bms:
-            testconfig = m5test.M5Command(bm, np, m, channels)
-            testconfig = addArguments(testconfig)
+     
+            testconfig.setUpTest(bm, np, m, channels)
+            testconfig = setArguments(testconfig)
             
-            testconfig.addArgument("GENERATE-CHECKPOINT", "")
-            testconfig.addArgument("SIMINSTS", fwinsts)
+            testconfig.setArgument("GENERATE-CHECKPOINT", "")
+            testconfig.setArgument("SIMINSTS", fwinsts)
+            testconfig.setExpectedComInsts(fwinsts)
             
-            testconfig.run(testnum)
+            success = testconfig.run(testnum, "simpleCPU.*num_insts.*")
             testnum += 1
+            if success:
+                successnum += 1
+
+    testconfig.clearArguments()
 
     print
     print "Running from checkpoints..."
     for m in memsys:
         for bm in bms:
-            testconfig = m5test.M5Command(bm, np, m, channels)
-            testconfig = addArguments(testconfig)
+
+            testconfig.setUpTest(bm, np, m, channels)
+            testconfig = setArguments(testconfig)
             
-            testconfig.addArgument("USE-CHECKPOINT", ".")
-            testconfig.addArgument("SIMINSTS", siminsts)
-            
-            testconfig.run(testnum)
+            testconfig.setArgument("USE-CHECKPOINT", ".")
+            testconfig.setArgument("SIMINSTS", siminsts)
+            testconfig.setExpectedComInsts(siminsts)
+
+            success = testconfig.run(testnum, "detailedCPU.*COM:count.*")
             testnum += 1
-    
+            if success:
+                successnum += 1
+
+    print
+    print "Completed "+str(successnum)+" out of "+str(testnum)+" tests successfully, "+str((float(successnum)/float(testnum))*100)+" % success"
+    print
+
 
 if __name__ == '__main__':
     main()

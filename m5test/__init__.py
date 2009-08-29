@@ -3,6 +3,26 @@ import re
 import popen2
 import sys
 
+
+def findStatsPattern(patternString, statsfilename):
+    pattern = re.compile(patternString)
+
+    statsfile = open(statsfilename)
+    res = pattern.findall(statsfile.read())
+    statsfile.close()
+
+    resDict = {}
+    for r in res:
+        splitted = r.split()
+        simObj = splitted[0].split(".")[0]
+        value = float(splitted[1])
+        
+        assert simObj not in resDict
+        resDict[simObj] = value
+
+    return resDict
+
+
 class M5Command:
     
     binary = "/home/jahre/workspace/m5sim-fairmha/m5/build/ALPHA_SE/m5.opt"
@@ -13,22 +33,32 @@ class M5Command:
     
     arguments = {}
     
-    def __init__(self, bm, np, memsys, channels):
-        self.addArgument("NP", np)
-        self.addArgument("MEMORY-SYSTEM", memsys)
-        self.addArgument("MEMORY-BUS-CHANNELS", channels)
-        self.addArgument("BENCHMARK", bm)
-        
-        self.addArgument("STATSFILE", "m5stats.txt")
+    def __init__(self):
+        pass
+
+    def setUpTest(self, bm, np, memsys, channels):
+        self.setArgument("NP", np)
+        self.setArgument("MEMORY-SYSTEM", memsys)
+        self.setArgument("MEMORY-BUS-CHANNELS", channels)
+        self.setArgument("BENCHMARK", bm)
+
+        self.statsfilename = "m5stats.txt"
+        self.setArgument("STATSFILE", self.statsfilename)
         
         self.correct_pattern = re.compile(self.successString)
         self.lost_req_pattern = re.compile(self.lostString)
         
         self.bmName = bm
+
+    def clearArguments(self):
+        self.arguments = {}
+
+    def setExpectedComInsts(self, insts):
+        self.expCommittedInsts = insts
         
-    def addArgument(self, name, value):
+    def setArgument(self, name, value):
         self.arguments[name] = value
-    
+        
     def getCommandline(self):
         commandstr = self.binary
         for arg in self.arguments:
@@ -37,7 +67,7 @@ class M5Command:
         
         return commandstr
             
-    def run(self, testnum):
+    def run(self, testnum, completedInstPat):
         
         cmd = self.getCommandline()
         
@@ -48,11 +78,24 @@ class M5Command:
         lostReq = self.lost_req_pattern.search(out)
         
         if correct and (not lostReq):
+            error = False
+        else:
+            error = True
+
+        comInsts = findStatsPattern(completedInstPat, self.statsfilename)
+        for simObj in comInsts:
+            if int(comInsts[simObj]) < self.expCommittedInsts:
+                error = True
+        
+        
+        if not error:
             print (str(testnum)+": "+str(self.bmName)).ljust(40)+"Test passed!".rjust(20)
         else:
             print (str(testnum)+": "+str(self.bmName)).ljust(40)+"Test failed!".rjust(20)
             
             file = open("test"+str(testnum)+".output", "w");
+            file.write("Committed instructions\n\n")
+            file.write(str(comInsts)+"\n\n")
             file.write("Command line\n\n")
             file.write(cmd+"\n\n")
             file.write("Program output\n\n")
@@ -60,4 +103,5 @@ class M5Command:
             file.close()
             
         sys.stdout.flush()
-        
+
+        return not error
