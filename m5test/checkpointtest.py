@@ -2,7 +2,7 @@
 
 import sys
 import fairmha.experimentconfig as expconfig
-import m5test
+from M5Command import M5Command
 
 def setArguments(testconfig):
     testconfig.setArgument("MEMORY-ADDRESS-OFFSET", 0)
@@ -15,8 +15,9 @@ def main():
     print "Running M5 Checkpoint test"
 
     np = 1
-    fwinsts = 50*10**6
-    siminsts = 2*10**6
+    fwinsts = 200*10**6
+    siminsts = 10*10**6
+    
     channels = 1
     
     memsys = ["RingBased", "CrossbarBased"]
@@ -32,7 +33,7 @@ def main():
     sys.stdout.flush()
     
 
-    testconfig = m5test.M5Command()
+    testconfig = M5Command()
     for m in memsys:
         for bm in bms:
      
@@ -47,22 +48,22 @@ def main():
             testnum += 1
             if success:
                 successnum += 1
-
-    testconfig.clearArguments()
+    
+    useCheckptConfig = M5Command()
 
     print
     print "Running from checkpoints..."
     for m in memsys:
         for bm in bms:
 
-            testconfig.setUpTest(bm, np, m, channels)
-            testconfig = setArguments(testconfig)
+            useCheckptConfig.setUpTest(bm, np, m, channels)
+            useCheckptConfig = setArguments(useCheckptConfig)
             
-            testconfig.setArgument("USE-CHECKPOINT", ".")
-            testconfig.setArgument("SIMINSTS", siminsts)
-            testconfig.setExpectedComInsts(siminsts)
+            useCheckptConfig.setArgument("USE-CHECKPOINT", ".")
+            useCheckptConfig.setArgument("SIMINSTS", siminsts)
+            useCheckptConfig.setExpectedComInsts(siminsts)
 
-            success = testconfig.run(testnum, "detailedCPU.*COM:count.*")
+            success = useCheckptConfig.run(testnum, "detailedCPU.*COM:count.*")
             testnum += 1
             if success:
                 successnum += 1
