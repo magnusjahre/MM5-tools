@@ -1,5 +1,5 @@
 
-from IniFileSection import CacheState
+from CacheState import CacheState
 import re
 import sys
 
@@ -86,8 +86,6 @@ def read(filename, outfilename, newCoreID):
 def write(filename, sharedCaches):
     
     outfile = open(filename, "a")
-    
-    outfile.write("// Checkpoint written by script\n\n")
     
     for scName in sharedCaches:
         sharedCaches[scName].writeValues(outfile)

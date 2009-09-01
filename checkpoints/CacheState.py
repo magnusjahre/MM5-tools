@@ -47,7 +47,7 @@ class CacheState():
         indexes.sort()
         for i in indexes:
             for pos in self.content[i]:
-                IniFile.writeHeader("blk_"+str(i)+"_"+str(pos), outfile)
+                IniFile.writeHeader(self.name+".blk_"+str(i)+"_"+str(pos), outfile)
                 outfile.write(self.content[i][pos])
 
         

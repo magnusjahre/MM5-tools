@@ -1,4 +1,4 @@
-import popen2
+import subprocess
 import sys
 import re
 import m5test
@@ -51,8 +51,9 @@ class M5Command():
         
         cmd = self.getCommandline()
         
-        res = popen2.popen4(cmd)
-        out = res[0].read()
+        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = p.communicate()
+        out = stdout+"\n"+stderr
         
         correct = self.correct_pattern.search(out)
         lostReq = self.lost_req_pattern.search(out)

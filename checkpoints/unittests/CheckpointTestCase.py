@@ -31,14 +31,21 @@ class CheckpointTestCase(unittest.TestCase):
         checkpoint2 = Checkpoint()
         checkpoint2.createFromFile(outfilename, "vpr0-50000.cpt.mock", 3)
         
-        chk1Sections = checkpoint1.sections
-        chk2Sections = checkpoint2.sections
+        chk1CacheState = checkpoint1.sharedCaches
+        chk2CacheState = checkpoint2.sharedCaches
         
-        self.assert_(len(chk1Sections) == len(chk2Sections))
+        self.assert_(len(chk1CacheState) == len(chk2CacheState))
         
-#        for i in range(len(chk1Sections)):
-#            self.assert_(chk1Sections[i].name == chk2Sections[i].name)
-#            self.assertEquals(chk)
+        for bankName in chk1CacheState:
+            self.assert_(bankName in chk2CacheState)
+            
+            chk1Content = chk1CacheState[bankName].content
+            chk2Content = chk2CacheState[bankName].content
+            
+            for i in chk1Content:
+                for p in chk1Content[i]:
+                    self.assertEqual(chk1Content[i][p], chk2Content[i][p])
+                
 
 if __name__ == "__main__":
     unittest.main()

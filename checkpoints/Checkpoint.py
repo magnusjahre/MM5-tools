@@ -7,7 +7,7 @@ __metaclass__ = type
 class Checkpoint():
 
     def __init__(self):
-        self.sections = None
+        self.sharedCaches = None
     
     def prepareOutputFile(self, outfilename):
         of = open(outfilename, "w")
@@ -16,12 +16,12 @@ class Checkpoint():
         of.close()
     
     def createFromFile(self, filename, outfilename, newCoreID):
-        self.sections = IniFile.read(filename, outfilename, newCoreID)
+        self.sharedCaches = IniFile.read(filename, outfilename, newCoreID)
         
     def mergeSharedCache(self, checkpoints):
         print "Merge not impl"
         
     def writeToFile(self, filename):
-        IniFile.write(filename, self.sections)
+        IniFile.write(filename, self.sharedCaches)
         
         
