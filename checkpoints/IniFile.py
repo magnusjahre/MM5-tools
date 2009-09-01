@@ -1,122 +1,100 @@
 
-from IniFileSection import IniFileSection
+from IniFileSection import CacheState
 import re
 import sys
 
-__metaclass__ = type
+sectionPattern = re.compile("\[.*\]")
+whitespacePattern = re.compile("^\s+")
+commentPattern = re.compile("^//.*")
+elementPattern = re.compile(".*=.*")
 
-class IniFile():
+sharedCachePattern = re.compile("SharedCache[0-9]")
+simpleCPUPattern = re.compile("SimpleCPU[0-9]")
+l1cachePattern = re.compile("L1[di]caches[0-9]")
+blkPattern = re.compile("blk") 
 
-    sectionPattern = re.compile("\[.*\]")
-    whitespacePattern = re.compile("^\s+")
-    commentPattern = re.compile("^//.*")
-    elementPattern = re.compile(".*=.*")
+
     
-    cacheBlockPattern = re.compile("blk.*")
-
-    def __init__(self):
-        pass
+def read(filename, outfilename, newCoreID):
+    inifile = open(filename)
+    
+    outfile = open(outfilename, "a")
+    
+    sharedCaches = {}
+    
+    curSec = None
+    writeToFile = False
+    
+    for l in inifile:
         
-    def read(self, filename):
-        inifile = open(filename)
+        if whitespacePattern.match(l) != None:
+            # skip whitespace
+            continue
+        elif commentPattern.match(l) != None:
+            # skip comments
+            continue
         
-        sections = {}
-        
-        curSec = None
-        
-        for l in inifile:
+        elif sectionPattern.match(l) != None:
+            name = l.strip()
+            name = name.replace("[","")
+            name = name.replace("]", "") 
             
-            if self.whitespacePattern.findall(l) != []:
-                # skip whitespace
-                continue
-            elif self.commentPattern.findall(l) != []:
-                # skip comments
-                continue
+            if sharedCachePattern.match(name) != None:
             
-            elif self.sectionPattern.findall(l) != []:
-                name = l.strip()
-                name = name.replace("[","")
-                name = name.replace("]", "") 
-                
-                path = name.split(".")
-                
-                currentDict = sections
-                while path != []:
+                if blkPattern.search(name) != None:
+                    cache, blk = name.split(".")
+                    assert cache in sharedCaches
+                    sharedCaches[cache].setCurrentBlock(name)
                     
-                    if path[0] not in currentDict:
-                        thisSection = IniFileSection()
-                        thisSection.setName(path[0])
-                        currentDict[thisSection.name] = thisSection
-                    else:
-                        thisSection = currentDict[path[0]]
-                            
-                    currentDict = thisSection.children
-                    path.pop(0)
-                
-                curSec = thisSection
-                
-                
-            elif self.elementPattern.findall(l) != []:
-                data = l.split("=")
-                curSec.addDataElement(data[0].strip(), data[1].strip())
+                else:
+                    if name not in sharedCaches:
+                        thisSection = CacheState()
+                        thisSection.setName(name)
+                        sharedCaches[name] = thisSection
+                        curSec = thisSection
+                        
+
+                writeToFile = False
             
             else:
-                print "Unknown section encountered in checkpointfile "+filename
-                print "Line: "+l
-                sys.exit(-1)
+                writeHeader(name, outfile)
+                writeToFile = True
+                curSec = None
             
             
-        inifile.close()
+        elif elementPattern.match(l) != None:
+            if writeToFile:
+                assert curSec == None
+                outfile.write(l.strip()+"\n")
+            else:
+                assert curSec != None
+                curSec.addContent(l)
         
-        self.pruneSections(sections)
-        
-        return sections
-        
-        
-    def write(self, filename, sectionDict):
-        
-        outfile = open(filename, "w")
-        
-        outfile.write("// Checkpoint written by script\n\n")
-        
-        self.writeSection(outfile, sectionDict, [])
-        
-        outfile.flush()
-        outfile.close()
-        
-    def writeSection(self, file, sectionDict, parentNames):
-        
-        for secName in sectionDict:
+        else:
+            print "Unknown section encountered in checkpointfile "+filename
+            print "Line: "+l
+            sys.exit(-1)
             
-            curParentNames = parentNames[:]
-            curParentNames.append(secName)
-            
-            path = curParentNames[0]
-            for pathElement in curParentNames[1:]:
-                path += "."+pathElement
-            
-            file.write("["+path+"]\n")
-            sectionDict[secName].writeValues(file)
-            self.writeSection(file, sectionDict[secName].children, curParentNames)
-            file.write("\n")
-
-        
-    def pruneSections(self, parentDict):
-        
-        delkeys = []
-        for secName in parentDict:
-            self.pruneSections(parentDict[secName].children)
-            if parentDict[secName].isEmpty():
-                delkeys.append(secName)
-                
-        for dk in delkeys:
-            del parentDict[dk]
-                
-    def printStructureWithoutCacheBlks(self, parentList, indent):
-        for secName in parentList:
-            if self.cacheBlockPattern.findall(secName) != []:
-                continue
-            
-            print indent+secName+" empty="+str(parentList[secName].isEmpty())
-            self.printStructureWithoutCacheBlks(parentList[secName].children, indent+"\t")
-            
+    inifile.close()
+    
+    outfile.flush()
+    outfile.close()
+    
+    return sharedCaches
+    
+    
+def write(filename, sharedCaches):
+    
+    outfile = open(filename, "a")
+    
+    outfile.write("// Checkpoint written by script\n\n")
+    
+    for scName in sharedCaches:
+        sharedCaches[scName].writeValues(outfile)
+    
+    outfile.flush()
+    outfile.close()
+    
+def writeHeader(name, outfile):        
+    outfile.write("\n["+name+"]\n")
+    

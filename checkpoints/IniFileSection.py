@@ -1,46 +1,53 @@
 
+import IniFile
+
 __metaclass__ = type
 
-class IniFileSection():
+class CacheState():
 
     def __init__(self):
         self.name = ""
-        self.dataElements = {}
-        self.children = {}
+        self.cacheParams = ""
+        
+        self.content = {}
+        
+        self.curIndex = -1
+        self.curLRUPos = -1
     
     def setName(self, name):
         self.name = name
         
-    def addDataElement(self, elementName, value):
-        if elementName in self.dataElements:
-            print elementName+" exists in "+self.name
-        assert elementName not in self.dataElements
-        self.dataElements[elementName] = value
+    def setCurrentBlock(self, sectionName):
         
-    def addChild(self, child):
-        assert child.name not in self.children
-        self.children[child.name] = child
+        cacheName, blkName = sectionName.split(".")
+        assert cacheName == self.name
         
-    def dump(self):
-        print "Section "+self.name
-        for name in self.dataElements:
-            print name+"="+self.dataElements[name]
+        t, index, LRUPos = blkName.split("_")
+        self.curIndex = int(index)
+        self.curLRUPos = int(LRUPos)
         
-        if self.children != []:
-            print "Children:"
-            for child in self.children:
-                print "-- "+child.name
-    
-    def isEmpty(self):
-        if self.dataElements != {}:
-            return False
         
-        if self.children !=  {}:
-            return False
+    def addContent(self, line):
+        if self.curIndex == -1 and self.curLRUPos == -1:
+            self.cacheParams += line
+            return
         
-        return True
-    
-    def writeValues(self, outfile):
-        for dataKey in self.dataElements:
-            outfile.write(dataKey+"="+self.dataElements[dataKey]+"\n")
+        if self.curIndex not in self.content:
+            self.content[self.curIndex] = {}
+            
+        if self.curLRUPos not in self.content[self.curIndex]:
+            self.content[self.curIndex][self.curLRUPos] = ""    
+        self.content[self.curIndex][self.curLRUPos] += line
+            
+    def writeValues(self, outfile):    
+        IniFile.writeHeader(self.name, outfile)
+        outfile.write(self.cacheParams)
+        
+        indexes = self.content.keys()
+        indexes.sort()
+        for i in indexes:
+            for pos in self.content[i]:
+                IniFile.writeHeader("blk_"+str(i)+"_"+str(pos), outfile)
+                outfile.write(self.content[i][pos])
+
         

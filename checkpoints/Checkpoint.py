@@ -8,15 +8,20 @@ class Checkpoint():
 
     def __init__(self):
         self.sections = None
-        self.iniFile = IniFile.IniFile()
     
-    def createFromFile(self, filename):
-        self.sections = self.iniFile.read(filename)
+    def prepareOutputFile(self, outfilename):
+        of = open(outfilename, "w")
+        of.write("")
+        of.flush()
+        of.close()
+    
+    def createFromFile(self, filename, outfilename, newCoreID):
+        self.sections = IniFile.read(filename, outfilename, newCoreID)
         
-    def createFromCheckpoints(self, checkpoints):
+    def mergeSharedCache(self, checkpoints):
         print "Merge not impl"
         
     def writeToFile(self, filename):
-        self.iniFile.write(filename, self.sections)
+        IniFile.write(filename, self.sections)
         
         

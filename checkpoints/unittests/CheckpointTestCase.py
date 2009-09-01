@@ -2,7 +2,6 @@
 
 import unittest
 from checkpoints.Checkpoint import Checkpoint
-from checkpoints.IniFileSection import IniFileSection
 
 from guppy import hpy
 import gc
