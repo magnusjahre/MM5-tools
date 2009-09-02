@@ -40,7 +40,7 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint = -1):
     if simpoint == -1:
         for bm in workloads.getBms(workload, np):
             bmname = bm+"0"            
-            chkPath = checkpoints.getCheckpointDirectory(1, memsys, bmname)
+            chkPath = checkpoints.getCheckpointDirectory(np, memsys, bmname)
             if os.path.exists(chkPath):
                 print "Checkpoint allready exists for "+bmname+", skipping..."
                 continue
@@ -59,7 +59,7 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint = -1):
     wlCheckpoints = []
     cpuID = 0
     for bm in curWorkload:
-        checkPath = checkpoints.getCheckpointDirectory(1, memsys, bm+"0", simpoint)
+        checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm+"0", simpoint)
         checkFile = checkPath+"/m5.cpt" 
         print "Reading checkpoint from file "+checkFile
         newCheckpoint = Checkpoint()
