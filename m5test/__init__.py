@@ -1,7 +1,6 @@
 
 import re
 
-
 def findStatsPattern(patternString, statsfilename):
     pattern = re.compile(patternString)
 

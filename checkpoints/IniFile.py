@@ -9,11 +9,13 @@ commentPattern = re.compile("^//.*")
 elementPattern = re.compile(".*=.*")
 
 sharedCachePattern = re.compile("SharedCache[0-9]")
-simpleCPUPattern = re.compile("SimpleCPU[0-9]")
+simpleCPUPattern = re.compile("simpleCPU[0-9]")
 l1cachePattern = re.compile("L1[di]caches[0-9]")
+privL2cachePattern = re.compile("PrivateL2Cache[0-9]")
+detailedCPUPattern = re.compile("detailedCPU")
 blkPattern = re.compile("blk") 
-
-
+cacheCPUIDPattern = re.compile("cacheCpuID")
+workloadPattern = re.compile("workload")
     
 def read(filename, outfilename, newCoreID):
     inifile = open(filename)
@@ -48,27 +50,41 @@ def read(filename, outfilename, newCoreID):
                     
                 else:
                     if name not in sharedCaches:
-                        thisSection = CacheState()
-                        thisSection.setName(name)
+                        thisSection = CacheState(name, newCoreID)
                         sharedCaches[name] = thisSection
                         curSec = thisSection
                         
-
                 writeToFile = False
             
             else:
-                writeHeader(name, outfile)
-                writeToFile = True
+                if translationNeeded(name):
+                    newName = translateHeader(name, newCoreID)
+                    
+                    if workloadPattern.search(newName) != None:
+                        newName = newName.replace("workload0", "workload")
+                    
+                    writeHeader(newName, outfile)
+                    writeToFile = True
+                else:
+                    if newCoreID == 0 and detailedCPUPattern.match(name) == None:
+                        writeHeader(name, outfile)
+                        writeToFile = True
+                    else:
+                        writeToFile = False
                 curSec = None
             
             
         elif elementPattern.match(l) != None:
             if writeToFile:
                 assert curSec == None
-                outfile.write(l.strip()+"\n")
+                line = l.strip()
+                if cacheCPUIDPattern.match(line):
+                    outfile.write("cacheCpuID="+str(newCoreID)+"\n")
+                else:
+                    outfile.write(l.strip()+"\n")
             else:
-                assert curSec != None
-                curSec.addContent(l)
+                if curSec != None:
+                    curSec.addContent(l)
         
         else:
             print "Unknown section encountered in checkpointfile "+filename
@@ -81,8 +97,21 @@ def read(filename, outfilename, newCoreID):
     outfile.close()
     
     return sharedCaches
+
+def translateHeader(name, newCPUID):
+    split = name.split(".")
     
+    newName = split[0].replace("0", str(newCPUID))
+    for n in split[1:]:
+        newName += "."+n
+    return newName
+
+def translationNeeded(name):
+    if sharedCachePattern.match(name) != None or simpleCPUPattern.match(name) != None or l1cachePattern.match(name) != None or privL2cachePattern.match(name) != None:
+        return True
+    return False
     
+
 def write(filename, sharedCaches):
     
     outfile = open(filename, "a")

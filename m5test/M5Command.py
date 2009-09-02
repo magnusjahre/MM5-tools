@@ -47,7 +47,7 @@ class M5Command():
         
         return commandstr
             
-    def run(self, testnum, completedInstPat):
+    def run(self, testnum, completedInstPat, doInstCheck = True):
         
         cmd = self.getCommandline()
         
@@ -63,10 +63,11 @@ class M5Command():
         else:
             error = True
 
-        comInsts = m5test.findStatsPattern(completedInstPat, self.statsfilename)
-        for simObj in comInsts:
-            if int(comInsts[simObj]) < self.expCommittedInsts:
-                error = True
+        if doInstCheck:
+            comInsts = m5test.findStatsPattern(completedInstPat, self.statsfilename)
+            for simObj in comInsts:
+                if int(comInsts[simObj]) < self.expCommittedInsts:
+                    error = True
         
         
         if not error:

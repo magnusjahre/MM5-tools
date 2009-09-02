@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import unittest
+import checkpoints
 from checkpoints.Checkpoint import Checkpoint
 
 from guppy import hpy
@@ -18,9 +19,10 @@ class CheckpointTestCase(unittest.TestCase):
         h.setrelheap()
         
         outfilename = "vpr0-50000.cpt.out"
+
+        checkpoints.prepareOutputFile(outfilename)
         
         checkpoint1 = Checkpoint()
-        checkpoint1.prepareOutputFile(outfilename)
         checkpoint1.createFromFile(path+"vpr0-50000.cpt", outfilename , 3)
 
         

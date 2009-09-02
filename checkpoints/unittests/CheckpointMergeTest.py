@@ -53,6 +53,15 @@ class CheckpointMergeTest(unittest.TestCase):
     def testCheckpointMerge(self):
         
         wlCheckpoints = []
+        cpuID = 0
+        
+        outdir = checkpoints.getCheckpointDirectory(4, self.memsys, self.wlName)
+        if not os.path.exists(outdir):
+            os.mkdir(checkpoints.getCheckpointDirectory(4, self.memsys, self.wlName))
+        outfilename = outdir+"/m5.cpt"
+        
+        checkpoints.prepareOutputFile(outfilename)
+        
         for bm in self.testWorkload:
             checkPath = checkpoints.getCheckpointDirectory(1, self.memsys, bm+"0")
             checkFile = checkPath+"/m5.cpt" 
@@ -60,10 +69,26 @@ class CheckpointMergeTest(unittest.TestCase):
             print "Reading checkpoint from file "+checkFile
             
             newCheckpoint = Checkpoint()
-            newCheckpoint.createFromFile(checkFile)
+            newCheckpoint.createFromFile(checkFile, outfilename, cpuID)
             
             wlCheckpoints.append(newCheckpoint)
+            
+            cpuID += 1
 
+        siminsts = 1000000
+        
+        print "Running workload "+self.wlName+" for "+str(siminsts)+" instructions..."
+        
+        m5cmd = M5Command()
+        m5cmd.setUpTest(self.wlName, 4, "RingBased", 1)
+        m5cmd.setArgument("MEMORY-BUS-SCHEDULER", "RDFCFS") 
+        m5cmd.setArgument("USE-CHECKPOINT", ".")
+        m5cmd.setArgument("SIMINSTS", siminsts)
+        m5cmd.setExpectedComInsts(siminsts)
+        
+        #TODO: insert committed inst check when stats parsing has been implemented
+        success = m5cmd.run(0, "detailedCPU.*COM:count.*", False)
+        self.assert_(success)
 
 if __name__ == "__main__":
     unittest.main()

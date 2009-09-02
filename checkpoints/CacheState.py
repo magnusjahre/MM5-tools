@@ -5,17 +5,14 @@ __metaclass__ = type
 
 class CacheState():
 
-    def __init__(self):
-        self.name = ""
-        self.cacheParams = ""
+    def __init__(self, name, cpuID):
+        self.name = name
+        self.cpuID = cpuID
         
+        self.cacheParams = ""        
         self.content = {}
-        
         self.curIndex = -1
         self.curLRUPos = -1
-    
-    def setName(self, name):
-        self.name = name
         
     def setCurrentBlock(self, sectionName):
         
@@ -31,6 +28,8 @@ class CacheState():
         if self.curIndex == -1 and self.curLRUPos == -1:
             self.cacheParams += line
             return
+        
+        line = line.replace("origRequestingCpuID=0", "origRequestingCpuID="+str(self.name))
         
         if self.curIndex not in self.content:
             self.content[self.curIndex] = {}
