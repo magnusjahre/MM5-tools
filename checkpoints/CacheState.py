@@ -68,7 +68,7 @@ class CacheState():
             
             for i in range(perCoreBlocks):
                 for j in range(np):
-                    mergedLRUPos = (i*perCoreBlocks)+j
+                    mergedLRUPos = (i*np)+j
                     assert mergedLRUPos not in self.content[index]
                     self.content[index][mergedLRUPos] = cacheStates[j].content[index][i]
         
