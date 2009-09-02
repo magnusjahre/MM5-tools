@@ -32,7 +32,8 @@ resultfiles = ["interconnect*.txt",
                "private_estimated_arrival_order_*.txt",
                "private_execution_order_*.txt",
                "*QueueOccupancyTrace.txt",
-               "bbv_outfile.bb"]
+               "bbv_outfile.bb",
+               "statsDumpOrder.txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
