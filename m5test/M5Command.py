@@ -10,7 +10,8 @@ class M5Command():
     binary = "/home/jahre/workspace/m5sim-fairmha/m5/build/ALPHA_SE/m5.opt"
     configfile = "/home/jahre/workspace/m5sim-fairmha/m5/configs/CMP/run.py"
     
-    successString = 'Simulation complete'
+    successStringSim = 'all CPUs have reached their instruction limit'
+    successStringCheckpoint = 'Reached checkpoint instruction'
     lostString = 'Sampler exit lost'
     
     def __init__(self):
@@ -25,7 +26,8 @@ class M5Command():
         self.statsfilename = "m5stats.txt"
         self.setArgument("STATSFILE", self.statsfilename)
         
-        self.correct_pattern = re.compile(self.successString)
+        self.correct_pattern_sim = re.compile(self.successStringSim)
+        self.correct_pattern_checkpoint = re.compile(self.successStringCheckpoint)
         self.lost_req_pattern = re.compile(self.lostString)
         
         self.bmName = bm
@@ -55,10 +57,11 @@ class M5Command():
         stdout, stderr = p.communicate()
         out = stdout+"\n"+stderr
         
-        correct = self.correct_pattern.search(out)
+        simCorrect = self.correct_pattern_sim.search(out)
+        checkpointCorrect = self.correct_pattern_checkpoint.search(out)
         lostReq = self.lost_req_pattern.search(out)
         
-        if correct and (not lostReq):
+        if (simCorrect or checkpointCorrect) and (not lostReq):
             error = False
         else:
             error = True

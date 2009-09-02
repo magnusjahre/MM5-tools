@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import unittest
-import new
 
 import checkpoints.Checkpoint
 from m5test.M5Command import M5Command
@@ -135,6 +134,7 @@ class CheckpointTestCase(unittest.TestCase):
         self.assert_(True)
         
         fwinst = 50000000
+        
         checkpoints.Checkpoint.generateCheckpoint(wlname, 4, fwinst, "RingBased")
         
         print "Running workload "+wlname+"..."
