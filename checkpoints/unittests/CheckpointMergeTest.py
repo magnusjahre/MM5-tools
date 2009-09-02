@@ -5,6 +5,7 @@ import os
 import deterministic_fw_wls as workloads
 from m5test.M5Command import M5Command
 import checkpoints
+import checkpoints.Checkpoint
 from checkpoints.Checkpoint import Checkpoint
 
 class CheckpointMergeTest(unittest.TestCase):
@@ -74,6 +75,9 @@ class CheckpointMergeTest(unittest.TestCase):
             wlCheckpoints.append(newCheckpoint)
             
             cpuID += 1
+
+        print "Merging and dumping shared cache state"
+        checkpoints.Checkpoint.mergeSharedCache(wlCheckpoints, outfilename)
 
         siminsts = 1000000
         

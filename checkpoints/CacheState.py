@@ -24,12 +24,12 @@ class CacheState():
         self.curLRUPos = int(LRUPos)
         
         
-    def addContent(self, line):
+    def addContent(self, line, newCPUID):
         if self.curIndex == -1 and self.curLRUPos == -1:
             self.cacheParams += line
             return
         
-        line = line.replace("origRequestingCpuID=0", "origRequestingCpuID="+str(self.name))
+        line = line.replace("origRequestingCpuID=0", "origRequestingCpuID="+str(newCPUID))
         
         if self.curIndex not in self.content:
             self.content[self.curIndex] = {}
@@ -49,4 +49,27 @@ class CacheState():
                 IniFile.writeHeader(self.name+".blk_"+str(i)+"_"+str(pos), outfile)
                 outfile.write(self.content[i][pos])
 
+    def merge(self, cacheStates, np):
+        assert len(cacheStates) > 0
+        
+        print "Merging for "+self.name
+        
+        indexes = cacheStates[0].content.keys()
+        indexes.sort()
+        perCoreBlocks = len(cacheStates[0].content[0])
+        
+        for index in indexes:
+            for c in cacheStates:
+                assert index in c.content
+                assert perCoreBlocks == len(c.content[index])
+            
+            assert index not in self.content
+            self.content[index] = {}
+            
+            for i in range(perCoreBlocks):
+                for j in range(np):
+                    mergedLRUPos = (i*perCoreBlocks)+j
+                    assert mergedLRUPos not in self.content[index]
+                    self.content[index][mergedLRUPos] = cacheStates[j].content[index][i]
+        
         

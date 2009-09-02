@@ -84,7 +84,7 @@ def read(filename, outfilename, newCoreID):
                     outfile.write(l.strip()+"\n")
             else:
                 if curSec != None:
-                    curSec.addContent(l)
+                    curSec.addContent(l, newCoreID)
         
         else:
             print "Unknown section encountered in checkpointfile "+filename

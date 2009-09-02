@@ -75,9 +75,10 @@ class M5Command():
         else:
             print (str(testnum)+": "+str(self.bmName)).ljust(40)+"Test failed!".rjust(20)
             
-            file = open("test"+str(testnum)+".output", "w");
-            file.write("Committed instructions\n\n")
-            file.write(str(comInsts)+"\n\n")
+            file = open("test"+str(testnum)+".output", "w")
+            if doInstCheck:
+                file.write("Committed instructions\n\n")
+                file.write(str(comInsts)+"\n\n")
             file.write("Command line\n\n")
             file.write(cmd+"\n\n")
             file.write("Program output\n\n")
