@@ -92,15 +92,30 @@ def flush_commands(fcnt):
     output = open(pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs','w')
     output.write(getHeader(current_cpu_count))
     
+    print >> output, "cd /local/work"
+    print >> output, "mkdir jahre"
+    print >> output, "cd jahre"
+    
     for fileID, command in latest_commands:
 
-        output.write('cd ' + pbsconfig.experimentpath + '/'+fileID+'\n');    
-        output.write('echo '+command+'\n\n')
-        output.write(command + '\n\n');
+        print >> output, "mkdir "+fileID
+        print >> output, "cd "+fileID
+        print >> output, 'echo '+command+'\n\n'
+        print >> output, command + '\n\n'
+        
+        print >> output, "cd .."
     
-    del latest_commands[:]
+    
+    print >> output, "wait"
+    print >> output, ""
 
-    output.write("wait\n\n")
+    for fileID, command in latest_commands:
+        print >> output, 'cp -R '+fileID+'/* '+ pbsconfig.experimentpath + '/'+fileID+'\n'
+
+    print >> output, "cd .."
+    print >> output, "rm -Rf jahre"
+
+    del latest_commands[:]
 
     # Finish file
     output.close()
