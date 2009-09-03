@@ -31,6 +31,7 @@ class ExperimentConfiguration:
     def __init__(self, _root, _binaryPath, _configPath):
         self.binaryPath = _root +"/"+_binaryPath
         self.configPath = _root +"/"+_configPath
+        self.simticks = -1
         for b in self.specnames:
             self.specBenchmarks.append(b+"0")
         
@@ -142,7 +143,8 @@ class ExperimentConfiguration:
         if bm == self.noBMIndentifier:
             args.append(self.makeArgument("NP", np))
             args.append(self.makeArgument("BENCHMARK", workload))
-            args.append(self.makeArgument("SIMULATETICKS", str(self.simticks)))
+            if self.simticks != -1:
+                args.append(self.makeArgument("SIMULATETICKS", str(self.simticks)))
         else:
             assert siminsts
             args.append(self.makeArgument("NP", 1))
