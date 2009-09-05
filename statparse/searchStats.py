@@ -23,7 +23,6 @@ def parseArgs():
     parser.add_option_group(searchOptions)
     
     resultOptions = OptionGroup(parser, "Result Presentation Options")
-    resultOptions.add_option("--width", action="store", dest="width", type="int", default=30, help="Width of each result column")
     resultOptions.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to print for float results")
     parser.add_option_group(resultOptions)
     
@@ -76,15 +75,11 @@ def createSingleFileIndex(opts, args):
         if not opts.quiet:
             print "Index does not exist, generating it..."
         index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
-        if not opts.quiet:
-            print "Done!"
         
         if not opts.quiet:
             print "Storing index in file "+indexmodulename+" for future use"
         
         index.dumpIndex(indexmodule)
-        if not opts.quiet:
-            print "Done!"
         
     return index 
 
@@ -122,7 +117,7 @@ def main():
         
     statSearch = StatSearch(index, searchConfig)
     statSearch.plainSearch(args[0])
-    statSearch.printAllResults(opts.width, opts.decimals)
+    statSearch.printAllResults(opts.decimals)
 
 if __name__ == '__main__':
     main()
