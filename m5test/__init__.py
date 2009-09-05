@@ -1,5 +1,6 @@
 
 import re
+import os
 
 def findStatsPattern(patternString, statsfilename):
     pattern = re.compile(patternString)
@@ -20,3 +21,8 @@ def findStatsPattern(patternString, statsfilename):
     return resDict
 
 
+def getWorkspaceRoot():
+    envVarName = "M5TOOLSROOT" 
+    if envVarName in os.environ:
+        return os.environ[envVarName]
+    return "/home/jahre/workspace/m5sim-tools/"
