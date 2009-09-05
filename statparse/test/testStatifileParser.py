@@ -3,6 +3,7 @@
 import unittest
 import re
 from statparse.statfileParser import StatfileIndex
+from statparse.statfileParser import ExperimentConfiguration
 import deterministic_fw_wls as workloads
 
 class TestStatfileParser(unittest.TestCase):
@@ -52,8 +53,11 @@ class TestStatfileParser(unittest.TestCase):
             if whitespacePat.search(line):
                 pass
             elif startPat.search(line):
-                currentConfig = index.findConfiguration(np, params, bms[order[0]], wl)
-                self.assertNotEqual(currentConfig, None)
+                searchConfig = ExperimentConfiguration(np, params, bms[order[0]], wl)
+                matches = index.findConfiguration(searchConfig)
+                self.assertNotEqual(matches, [])
+                self.assertEqual(len(matches), 1)
+                currentConfig = matches[0]
             elif endPat.search(line):
                 order.pop(0)
             elif inDist:
@@ -112,7 +116,31 @@ class TestStatfileParser(unittest.TestCase):
                     
         statfile.close()
 
-
+    def testIndexDump(self):
+        
+        np = 8
+        wl = "fair19"
+        params = {}
+        
+        index = StatfileIndex()
+        index.addFile(self.statfile, self.dumporderfile, np, wl, params)
+        
+        indexmodname = "testindex"
+        
+        index.dumpIndex(indexmodname)
+        
+        readIndex = StatfileIndex(indexmodname)
+        
+        
+        for statkey in index.resultstore:
+            self.assert_(statkey in readIndex.resultstore)
+            
+            data1 = index.resultstore[statkey]
+            data2 = readIndex.resultstore[statkey]
+            
+            self.assertEqual(data1, data2)
+            
+    
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
