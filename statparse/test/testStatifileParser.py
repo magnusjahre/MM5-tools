@@ -3,7 +3,7 @@
 import unittest
 import re
 
-from statparse.statfileParser import StatfileIndex
+from statparse.statfileParser import StatfileIndex, privateStatNames
 from statparse.statfileParser import ExperimentConfiguration
 
 import deterministic_fw_wls as workloads
@@ -15,6 +15,12 @@ class TestStatfileParser(unittest.TestCase):
     statfile = filepath+"fair19-8-stats.txt"
     dumporderfile = filepath+"statsDumpOrder.txt"
     distributionfile = filepath+"distribution.txt"
+    
+    privateStatNames = ["detailedCPU", 
+                        "L1dcaches", 
+                        "L1icaches", 
+                        "PointToPointLink",
+                        "PrivateL2Cache"] 
 
     def testDumpOrderRead(self):
         index = StatfileIndex()
@@ -50,8 +56,7 @@ class TestStatfileParser(unittest.TestCase):
         currentConfig = None
         keyname = ""
         
-        currentCPUPat = None
-        isLast = False
+        currentCPUPatterns = []
         
         bms = workloads.getBms(wl, np)
         
@@ -65,9 +70,8 @@ class TestStatfileParser(unittest.TestCase):
                 self.assertEqual(len(matches), 1)
                 currentConfig = matches[0]
                 
-                currentCPUPat = re.compile("detailedCPU"+str(currentConfig.getIDInWorkload()))
-                if len(order) == 1:
-                    isLast = True
+                cpuID = str(currentConfig.getIDInWorkload())
+                currentCPUPatterns = [re.compile(stat+cpuID) for stat in privateStatNames]
                 
             elif endPat.search(line):
                 order.pop(0)
@@ -77,7 +81,7 @@ class TestStatfileParser(unittest.TestCase):
                     inDist = False
                     continue
                 
-                if not self.putInIndex(keyname, currentCPUPat, isLast):
+                if not self.putInIndex(keyname, currentCPUPatterns):
                     continue
                 
                 vals = line.split()
@@ -107,7 +111,7 @@ class TestStatfileParser(unittest.TestCase):
                 for k in keyvals[1:-1]:
                     keyname += "."+k
                 
-                if self.putInIndex(line, currentCPUPat, isLast):
+                if self.putInIndex(line, currentCPUPatterns):
                     self.assertNotEqual(index.findDistribution(keyname,currentConfig), None)    
                 
             else:
@@ -125,7 +129,7 @@ class TestStatfileParser(unittest.TestCase):
                     value = int(val)
                     inIndex = True
             
-                if not self.putInIndex(key, currentCPUPat, isLast):
+                if not self.putInIndex(key, currentCPUPatterns):
                     inIndex = False
                 
                 if inIndex:
@@ -134,17 +138,15 @@ class TestStatfileParser(unittest.TestCase):
                     
         statfile.close()
 
-    def putInIndex(self, instr, cpupat, isLast):
-        allCPUPat = re.compile("detailedCPU")
-        if isLast:
-            if allCPUPat.search(instr) != None:
-                if cpupat.search(instr) == None:
+    def putInIndex(self, instr, curPats):
+        allPrivPats = [re.compile(stat) for stat in self.privateStatNames]
+        
+        for i in range(len(allPrivPats)):
+            if allPrivPats[i].search(instr):
+                if not curPats[i].search(instr):
                     return False
-            return True
-        else:
-            if cpupat.search(instr) == None:
-                return False
-            return True
+        return True
+        
 
     def testIndexDump(self):
         

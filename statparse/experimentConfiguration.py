@@ -4,6 +4,7 @@ import deterministic_fw_wls as workloads
 __metaclass__ = type
 
 singleWlID = "single"
+NO_SIMPOINT_VAL = -1
 
 def generateExpID():
     if not "static" in dir(generateExpID):
@@ -14,11 +15,12 @@ def generateExpID():
     
 class ExperimentConfiguration:
     
-    def __init__(self, np, params, bm, wl=singleWlID, expID = -1):
+    def __init__(self, np, params, bm, wl=singleWlID, expID = -1, simpoint = NO_SIMPOINT_VAL):
         
         self.np = np
         self.benchmark = bm
         self.workload = wl
+        self.simpoint = simpoint
         
         if expID == -1:
             self.experimentID = generateExpID()
@@ -64,7 +66,16 @@ class ExperimentConfiguration:
         return initstr
     
     def toString(self):
-        return "ExperimentConfig.toString()"
+        initstr = str(self.np)+"-"
+        initstr += str(self.workload)+"-"
+        initstr += str(self.benchmark)
+        if self.simpoint != NO_SIMPOINT_VAL:
+            initstr += str(self.simpoint)
+        
+        for p in self.parameters:
+            initstr += "-"+str(self.parameters[p])
+        
+        return initstr
     
     def getIDInWorkload(self):
         assert self.workload != "*"

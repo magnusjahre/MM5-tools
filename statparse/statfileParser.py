@@ -7,7 +7,12 @@ from statparse.experimentConfiguration import ExperimentConfiguration
 __metaclass__ = type
 
 distKeySuffix = ".dist"
-detailedCPUName = "detailedCPU"
+
+privateStatNames = ["detailedCPU", 
+                    "L1dcaches", 
+                    "L1icaches", 
+                    "PointToPointLink",
+                    "PrivateL2Cache"] 
 
 class StatfileIndex():
 
@@ -19,6 +24,8 @@ class StatfileIndex():
             storemod = __import__(modulename)
             self.resultstore = storemod.resultstore
             self.configurations = storemod.configurations
+            
+        self.privateStatPatterns = [re.compile(stat) for stat in privateStatNames]
         
     def addstat(self, statkey, configid, value):
         if statkey not in self.resultstore:
@@ -60,8 +67,7 @@ class StatfileIndex():
         statfile = open(filename)
         
         inDistribution = False
-        curCPU = ""
-        isLast = False
+        currentPrivateStatPatterns = []
         distribDict = {}
         
         for l in statfile:
@@ -74,9 +80,8 @@ class StatfileIndex():
                         curConf = config
                         break
                 
-                curCPU = detailedCPUName+str(curConf.getIDInWorkload())
-                if len(configIDs) == 1:
-                    isLast = True
+                curCPUID = curConf.getIDInWorkload()
+                currentPrivateStatPatterns = [re.compile(stat+str(curCPUID)) for stat in privateStatNames]
                 continue
             elif l.startswith("---------- End Simulation"):
                 configIDs.pop(0)
@@ -88,7 +93,7 @@ class StatfileIndex():
             if inDistribution:
                 if self._findLastKeyPart(l) == "end_dist":
                     inDistribution = False
-                    if self._canAdd(l, curCPU):
+                    if self._canAdd(l, currentPrivateStatPatterns):
                         self.addstat(self._findKeyWithoutLast(l)+distKeySuffix, configIDs[0], distribDict)
                 else:
                     
@@ -114,22 +119,22 @@ class StatfileIndex():
                 inDistribution = True
                 distribDict = {}
                 continue
-            
-            # add stats for the current CPU
-            if l.startswith(curCPU) or isLast:
+                        
+            if not self._canAdd(l, currentPrivateStatPatterns):
+                continue
                 
-                if not self._canAdd(l, curCPU):
-                    continue
-                
-                self._storeStat(l, configIDs[0])
+            self._storeStat(l, configIDs[0])
                 
         
         statfile.close()
     
-    def _canAdd(self, line, curCPU):
-        if line.startswith(detailedCPUName):
-            if not line.startswith(curCPU):
-                return False
+    def _canAdd(self, line, currentPrivStatPats):
+        
+        for i in range(len(self.privateStatPatterns)):
+            if self.privateStatPatterns[i].search(line):
+                if not currentPrivStatPats[i].search(line):
+                    return False 
+        
         return True
     
     def _findLastKeyPart(self, line):
