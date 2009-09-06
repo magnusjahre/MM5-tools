@@ -30,6 +30,9 @@ class StatSearch():
                 
         self._print(outtext, leftJustify, outfile)
     
+    def printAggregateResults(self, decimals, outfile, metric):
+        print "Aggregate printing routine not implemented"
+    
     def printAggregateDistribution(self, decimalPlaces, outfile):
         
         for statkey in self.results:

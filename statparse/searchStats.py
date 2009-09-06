@@ -29,6 +29,7 @@ def parseArgs():
     resultOptions.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to print for float results")
     resultOptions.add_option("--print-agg-distribution", action="store_true", dest="printAggDistribution", default=False, help="Use distribution mode when printing results")
     resultOptions.add_option("--print-distribution-file", action="store_true", dest="printDistFile", default=False, help="Create one python file with all matching distributions")
+    resultOptions.add_option("--aggregation-metric", action="store", dest="aggregationMetric", default="", help="Metric to use when aggregating results")
     parser.add_option_group(resultOptions)
     
     otherOptions = OptionGroup(parser, "Other options")
@@ -113,7 +114,12 @@ def createMultifileIndex(opts, args):
     print "Not implemented "+str(pbsconfig)
 
 def writeSearchResults(statSearch, opts, outfile):
-    if opts.printAggDistribution:
+    if opts.aggregationMetric != "":
+        metric = None # TODO: create metric object, with metric factory 
+        if not opts.quiet:
+            print "Aggregating results with metric "
+        statSearch.printAggregateResults(opts.decimals, outfile, metric)
+    elif opts.printAggDistribution:
         statSearch.printAggregateDistribution(opts.decimals, outfile)
     elif opts.printDistFile:
         if not opts.quiet:
