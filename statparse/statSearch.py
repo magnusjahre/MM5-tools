@@ -1,4 +1,6 @@
 
+import sys
+
 __metaclass__ = type
 
 class StatSearch():
@@ -11,7 +13,7 @@ class StatSearch():
         matchingConfigs = self.index.findConfiguration(self.searchConfig)
         self.results = self.index.searchForValues(regexp, matchingConfigs)
 
-    def printAllResults(self, decimalPlaces):
+    def printAllResults(self, decimalPlaces, outfile):
         statkeys = self.results.keys()
         statkeys.sort()
     
@@ -26,17 +28,71 @@ class StatSearch():
                 line.append(self._numberToString(self.results[statkey][config], decimalPlaces))
                 outtext.append(line) 
                 
-        self._print(outtext, leftJustify)
+        self._print(outtext, leftJustify, outfile)
+    
+    def printAggregateDistribution(self, decimalPlaces, outfile):
+        
+        for statkey in self.results:
+        
+            print >> outfile, ""
+            print >> outfile, "Aggregate distribution for pattern "+statkey
+        
+            aggDistrib = {}
+            for config in self.results[statkey]:
+                curDistrib = self.results[statkey][config]
                 
+                for key in curDistrib:
+                    if key not in aggDistrib:
+                        aggDistrib[key] = curDistrib[key]
+                    else:
+                        aggDistrib[key] += curDistrib[key]
+                            
+            outtext = [["Key", "Value"]]
+            leftJustify = [True, False]
+            
+            
+            
+            distKeys = aggDistrib.keys()
+            distKeys.sort()
+            for d in distKeys:
+                line = [self._numberToString(d, decimalPlaces)]
+                line.append(self._numberToString(aggDistrib[d], decimalPlaces))
+                outtext.append(line)
+            
+            self._print(outtext, leftJustify, outfile)
+    
+    def printDistributionsToFile(self, outfile):
+        if outfile == sys.stdout:
+            outfile = open("distributions.py", "w")
+        
+        outdict = {}
+        for statkey in self.results:
+            
+            outdict[statkey] = {}
+            for config in self.results[statkey]:
+                distrib = self.results[statkey][config]
+                configKey = config.toString()
+                outdict[statkey][configKey] = distrib
+             
+        print >> outfile, ""
+        print >> outfile, "distributions = "+str(outdict)
+        
+        outfile.flush()
+        outfile.close()
+    
     def _numberToString(self, number, decimalPlaces):
         if type(number) == type(int()):
             return str(number)
         elif type(number) == type(float()):
             return ("%."+str(decimalPlaces)+"f") % number
-        else:
-            raise TypeError("number is not int or float")
+        elif type(number) == type(dict()):
+            return "Distribution"
+        elif type(number) == type(str()):
+            return number
+        
+        raise TypeError("number is not int or float")
     
-    def _print(self, textarray, leftJust):
+    def _print(self, textarray, leftJust, outfile):
         if textarray == []:
             raise ValueError("array cannot be empty")
         if textarray[0] == []:
@@ -60,9 +116,9 @@ class StatSearch():
         for i in range(len(textarray)):
             for j in range(len(textarray[i])):
                 if leftJust[j]:
-                    print textarray[i][j].ljust(colwidths[j]),
+                    print >> outfile, textarray[i][j].ljust(colwidths[j]),
                 else:
-                    print textarray[i][j].rjust(colwidths[j]),
-            print
+                    print >> outfile, textarray[i][j].rjust(colwidths[j]),
+            print >> outfile, ""
  
         
