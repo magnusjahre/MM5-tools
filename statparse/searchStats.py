@@ -1,8 +1,9 @@
 #!/usr/bin/python
-from statparse import statSearch
 
 import sys
 import os
+
+import metrics
 
 from optparse import OptionParser
 from optparse import OptionGroup
@@ -30,7 +31,6 @@ def parseArgs():
     aggregationOptions.add_option("--agg-simpoints", action="store_true", dest="aggSimpoints", default=False, help="Aggregate simpoint results into one value representative for the whole execution")
     aggregationOptions.add_option("--relative-to-column", action="store", dest="relToColumn", type="int", default=-1, help="An integer pointing to the data column to use as the baseline (starts with 0, not counting text columns)")
     parser.add_option_group(aggregationOptions)
-    
     
     resultOptions = OptionGroup(parser, "Result Presentation Options")
     resultOptions.add_option("--outfile", action="store", dest="outfile", type="string", default="stdout", help="Write output to file (Default: stdout)")
@@ -121,16 +121,33 @@ def createMultifileIndex(opts, args):
     print "Not implemented "+str(pbsconfig)
 
 def writeSearchResults(statSearch, opts, outfile):
-    if opts.wlAggMetric != "" or opts.aggSimpoints:
-        # TODO: create metric object, with metric factory
-        wlMetric = None  
-        expMetric = None
+    if opts.wlAggMetric != "" or opts.expAggMetric != "" or opts.aggSimpoints:
+        
+        wlMetric = None
+        if opts.wlAggMetric != "":
+            try:
+                wlMetric = metrics.createMetric(opts.wlAggMetric)
+            except Exception, e:
+                print e
+                metrics.printPossibleMetrics()
+                sys.exit(-1)
+        
+        expMetric = None    
+        if opts.expAggMetric != "":
+            try:
+                expMetric = metrics.createMetric(opts.expAggMetric)
+            except Exception, e:
+                print e
+                metrics.printPossibleMetrics()
+                sys.exit(-1)  
         
         if not opts.quiet:
             print "Aggregating results with metric "
         statSearch.printAggregateResults(opts.decimals, outfile, wlMetric, expMetric, opts.aggSimpoints, opts.relToColumn)
+        
     elif opts.printAggDistribution:
         statSearch.printAggregateDistribution(opts.decimals, outfile)
+        
     elif opts.printDistFile:
         if not opts.quiet:
             if outfile == sys.stdout:
