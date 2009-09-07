@@ -13,7 +13,7 @@ from statfileParser import StatfileIndex
 from statSearch import StatSearch
 
 def parseArgs():
-    parser = OptionParser(usage="parseStats.py [key-expression]")
+    parser = OptionParser(usage="parseStats.py [options] (STATKEY | NUMERATOR-KEY DENOMINATOR-KEY)")
     
     searchOptions = OptionGroup(parser, "Search options")
     searchOptions.add_option("--np", action="store", dest="np", type="int", default=-1, help="Limit the file to configurations with n processors")
@@ -24,12 +24,19 @@ def parseArgs():
     searchOptions.add_option("--search-file", action="store", dest="searchFile", type="string", default="", help="Search after key in this file")
     parser.add_option_group(searchOptions)
     
+    aggregationOptions = OptionGroup(parser, "Result Aggregation Options")
+    aggregationOptions.add_option("--workload-agg-metric", action="store", dest="wlAggMetric", default="", help="Metric to use when aggregating workloads")
+    aggregationOptions.add_option("--experiment-agg-metric", action="store", dest="expAggMetric", default="", help="Metric to use when aggregating workloads")
+    aggregationOptions.add_option("--agg-simpoints", action="store_true", dest="aggSimpoints", default=False, help="Aggregate simpoint results into one value representative for the whole execution")
+    aggregationOptions.add_option("--relative-to-column", action="store", dest="relToColumn", type="int", default=-1, help="An integer pointing to the data column to use as the baseline (starts with 0, not counting text columns)")
+    parser.add_option_group(aggregationOptions)
+    
+    
     resultOptions = OptionGroup(parser, "Result Presentation Options")
     resultOptions.add_option("--outfile", action="store", dest="outfile", type="string", default="stdout", help="Write output to file (Default: stdout)")
     resultOptions.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to print for float results")
     resultOptions.add_option("--print-agg-distribution", action="store_true", dest="printAggDistribution", default=False, help="Use distribution mode when printing results")
     resultOptions.add_option("--print-distribution-file", action="store_true", dest="printDistFile", default=False, help="Create one python file with all matching distributions")
-    resultOptions.add_option("--aggregation-metric", action="store", dest="aggregationMetric", default="", help="Metric to use when aggregating results")
     parser.add_option_group(resultOptions)
     
     otherOptions = OptionGroup(parser, "Other options")
@@ -39,7 +46,7 @@ def parseArgs():
     
     opts, args = parser.parse_args()
     
-    if len(args) != 1:
+    if len(args) > 2 or len(args) < 1:
         print "Error: wrong number of arguments"
         print "Usage: "+parser.usage
         sys.exit(-1)
@@ -114,11 +121,14 @@ def createMultifileIndex(opts, args):
     print "Not implemented "+str(pbsconfig)
 
 def writeSearchResults(statSearch, opts, outfile):
-    if opts.aggregationMetric != "":
-        metric = None # TODO: create metric object, with metric factory 
+    if opts.wlAggMetric != "" or opts.aggSimpoints:
+        # TODO: create metric object, with metric factory
+        wlMetric = None  
+        expMetric = None
+        
         if not opts.quiet:
             print "Aggregating results with metric "
-        statSearch.printAggregateResults(opts.decimals, outfile, metric)
+        statSearch.printAggregateResults(opts.decimals, outfile, wlMetric, expMetric, opts.aggSimpoints, opts.relToColumn)
     elif opts.printAggDistribution:
         statSearch.printAggregateDistribution(opts.decimals, outfile)
     elif opts.printDistFile:

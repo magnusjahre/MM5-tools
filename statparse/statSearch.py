@@ -30,7 +30,7 @@ class StatSearch():
                 
         self._print(outtext, leftJustify, outfile)
     
-    def printAggregateResults(self, decimals, outfile, metric):
+    def printAggregateResults(self, decimals, outfile, wlMetric, expMetric, useSimpoints, relToColumn):
         print "Aggregate printing routine not implemented"
     
     def printAggregateDistribution(self, decimalPlaces, outfile):

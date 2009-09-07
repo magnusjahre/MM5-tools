@@ -11,7 +11,6 @@ def generateExpID():
         generateExpID.static = 0
     generateExpID.static += 1
     return generateExpID.static
-
     
 class ExperimentConfiguration:
     
@@ -46,6 +45,10 @@ class ExperimentConfiguration:
         
         if otherConfig.workload != "*":
             if otherConfig.workload != self.workload:
+                isWl = False
+        
+        if otherConfig.simpoint != NO_SIMPOINT_VAL:
+            if otherConfig.simpoint != self.simpoint:
                 isWl = False
         
         for p in otherConfig.parameters:
