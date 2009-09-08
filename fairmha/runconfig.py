@@ -1,13 +1,10 @@
 #!/usr/bin/python
 import sys
-import time
 import popen2
 import pbsconfig
-import shutil
 import os
-import workloads
-import time
 import re
+import time
 
 SLEEP_TIME = 1*60
 
@@ -93,6 +90,7 @@ def flush_commands(fcnt):
     output.write(getHeader(current_cpu_count))
     
     print >> output, "cd /local/work"
+    print >> output, "rm -Rf jahre"
     print >> output, "mkdir jahre"
     print >> output, "cd jahre"
     
