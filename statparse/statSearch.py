@@ -86,7 +86,9 @@ class StatSearch():
             if self.expMetric != None:
                 self._aggregateExperimentResults()
     
-        print aggregate
+        print >> outfile, "Temporary print for aggregate"
+        for config in aggregate:
+            print >> outfile, str(config), aggregate[config]
     
     def _aggregateWorkloadResults(self, np, params, wl):
         nomMpAggregate, nomSpAggregate = self._computeWorkloadAggregate(self.noPatResults, np, params, wl)
