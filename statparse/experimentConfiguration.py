@@ -30,7 +30,6 @@ class ExperimentConfiguration:
         for p in params:
             self.parameters[p] = params[p]
     
-    
     def compareTo(self, otherConfig):
         
         isWl = True
@@ -59,6 +58,16 @@ class ExperimentConfiguration:
         
         return isWl
     
+    def paramsAreEqual(self, otherParams):
+        for p in self.parameters:
+            if p not in otherParams:
+                return False
+            
+            if self.parameters[p] != otherParams[p]:
+                return False
+            
+        return True
+    
     def getInitCall(self):
         initstr = "ExperimentConfiguration("
         initstr += str(self.np)+","
@@ -68,7 +77,7 @@ class ExperimentConfiguration:
         initstr += str(self.experimentID)+")"
         return initstr
     
-    def toString(self):
+    def __str__(self):
         initstr = str(self.np)+"-"
         initstr += str(self.workload)+"-"
         initstr += str(self.benchmark)
@@ -93,4 +102,3 @@ class ExperimentConfiguration:
                 retindex = i
         
         return retindex
-

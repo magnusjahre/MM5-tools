@@ -2,6 +2,7 @@
 
 import sys
 import os
+import traceback
 
 import metrics
 
@@ -42,6 +43,7 @@ def parseArgs():
     otherOptions = OptionGroup(parser, "Other options")
     otherOptions.add_option("--orderfile", action="store", dest="orderFile", type="string", default="statsDumpOrder.txt", help="Dump order file to use in single file mode")
     otherOptions.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only print search results")
+    otherOptions.add_option("--show-stacktrace", action="store_true", dest="showStackTrace", default=False, help="Show stacktrace on caught exceptions")
     parser.add_option_group(otherOptions)
     
     opts, args = parser.parse_args()
@@ -143,7 +145,19 @@ def writeSearchResults(statSearch, opts, outfile):
         
         if not opts.quiet:
             print "Aggregating results with metric "
-        statSearch.printAggregateResults(opts.decimals, outfile, wlMetric, expMetric, opts.aggSimpoints, opts.relToColumn)
+            
+        try:
+            statSearch.printAggregateResults(opts.decimals, outfile, wlMetric, expMetric, opts.aggSimpoints, opts.relToColumn)
+        except Exception, e:
+            print 
+            print "Error:    Result aggregation failed"
+            print "Message:  "+str(e)
+            print
+            if opts.showStackTrace:
+                print "Stacktrace:"
+                traceback.print_exc(file=sys.stdout)
+                print
+            sys.exit(-1)
         
     elif opts.printAggDistribution:
         statSearch.printAggregateDistribution(opts.decimals, outfile)
@@ -163,9 +177,12 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.flush()
         outfile.close()
 
-def doSearch(index, searchConfig, pattern):
+def doSearch(index, searchConfig, args):
     statSearch = StatSearch(index, searchConfig)
-    statSearch.plainSearch(pattern)
+    if len(args) == 1:
+        statSearch.plainSearch(args[0])
+    else:
+        statSearch.plainSearch(args[0], args[1])
 
     return statSearch
 
@@ -185,10 +202,13 @@ def main():
         index = createMultifileIndex(opts, args)
         
     if not opts.quiet:
-        print "Searching for pattern "+args[0]+"..."
+        if len(args) == 1:
+            print "Searching for pattern "+args[0]+"..."
+        else:
+            print "Searching for nominator pattern "+args[0]+" and denominator pattern "+args[1]
         print
         
-    statSearch = doSearch(index, searchConfig, args[0])
+    statSearch = doSearch(index, searchConfig, args)
     
     if not opts.quiet:
         print "Printing search results..."

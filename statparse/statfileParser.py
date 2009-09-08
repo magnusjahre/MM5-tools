@@ -240,3 +240,4 @@ class StatfileIndex():
         outfile.flush()
         outfile.close()
         
+            
