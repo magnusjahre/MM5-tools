@@ -2,7 +2,6 @@
 
 import sys
 import os
-import os.path
 import pbsconfig
 import re
 import time

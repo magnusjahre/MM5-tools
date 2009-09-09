@@ -4,7 +4,8 @@ import deterministic_fw_wls as workloads
 
 class ExperimentConfiguration:
     
-    noBMIndentifier = "w"
+    noBMIndentifier = "b"
+    noWlIdentifier = "w"
     
     binaryPath = ""
     configPath = ""
@@ -12,6 +13,9 @@ class ExperimentConfiguration:
     
     fixedSimulatorArguments = {}
     variableSimulatorArguments = {}
+    
+    fixedSingleCoreArguments = {}
+    variableSingleCoreArguments = {}
     
     singleProgramModeParams = {}
     singleProgramModeNotIssued = {}
@@ -41,15 +45,22 @@ class ExperimentConfiguration:
     def registerFixedArgument(self, argument, value):
         assert argument not in self.fixedSimulatorArguments
         self.fixedSimulatorArguments[argument] = value
+    
+    def registerFixedSingleCoreArgument(self, argument, value):
+        assert argument not in self.fixedSingleCoreArguments
+        self.fixedSingleCoreArguments[argument] = value
         
     def registerVariableArgument(self, argument, values):
         assert argument not in self.variableSimulatorArguments
         self.variableSimulatorArguments[argument] = values
     
+    def registerVariableSingleCoreArgument(self, argument, values):
+        assert argument not in self.variableSingleCoreArguments
+        self.variableSingleCoreArguments[argument] = values
+    
     def registerWorkload(self, np, firstnum, lastnum):
         
         assert np not in self.workloads
-        assert 1 not in self.workloads
         self.workloads[np] = []
         
         for i in range(firstnum, lastnum+1):
@@ -69,35 +80,40 @@ class ExperimentConfiguration:
             else:
                 self.workloads[np].append("fair"+str(i))
         
-    def registerBenchmarks(self):
-        assert self.workloads == {}
-        
-        self.workloads[1] = []
-        for bm in self.specBenchmarks:
-            self.workloads[1].append(bm) 
+    def registerBenchmarks(self, memAddrParts):
+        self.registerBenchmarksByName(self.specBenchmarks, memAddrParts)
     
-    def generateAllArgumentCombinations(self):    
+    def registerBenchmarksByName(self, bmnames, memAddrParts):
+        assert 1 not in self.workloads
+        self.workloads[1] = []
+        for bm in bmnames:
+            self.workloads[1].append(bm)
+            
+        self.registerVariableSingleCoreArgument("MEMORY-ADDRESS-PARTS", memAddrParts)
+        self.registerFixedSingleCoreArgument("MEMORY-ADDRESS-OFFSET", 0)
+    
+    def generateAllArgumentCombinations(self, variableArguments):    
         
-        if self.variableSimulatorArguments == {}:
+        if variableArguments == {}:
             return [[]]
 
-        keys = self.variableSimulatorArguments.keys()
+        keys = variableArguments.keys()
         keys.sort()
         
         combinations = 1
         for k in keys:
-            combinations *= len(self.variableSimulatorArguments[k])
+            combinations *= len(variableArguments[k])
             
-        periods = [combinations / len(self.variableSimulatorArguments[keys[0]])]
+        periods = [combinations / len(variableArguments[keys[0]])]
         for i in range(len(keys))[1:]:
-            periods.append(periods[i-1]/len(self.variableSimulatorArguments[keys[i]]))
+            periods.append(periods[i-1]/len(variableArguments[keys[i]]))
         
         paramCombinations = []
         for i in range(combinations):
             vals = []
             for j in range(len(keys)):
-                index = i / periods[j] % len(self.variableSimulatorArguments[keys[j]])
-                vals.append( (keys[j], self.variableSimulatorArguments[keys[j]][index]) )
+                index = i / periods[j] % len(variableArguments[keys[j]])
+                vals.append( (keys[j], variableArguments[keys[j]][index]) )
             
             paramCombinations.append(vals)
 
@@ -140,9 +156,15 @@ class ExperimentConfiguration:
     
     def generateCommonCommands(self, args, np, workload, params, bm, bmid, siminsts):
         
-        if bm == self.noBMIndentifier:
+        if bmid == self.noBMIndentifier:
             args.append(self.makeArgument("NP", np))
-            args.append(self.makeArgument("BENCHMARK", workload))
+            
+            if workload != self.noWlIdentifier:
+                args.append(self.makeArgument("BENCHMARK", workload))
+            else:
+                assert bm != self.noBMIndentifier
+                args.append(self.makeArgument("BENCHMARK", bm))
+                
             if self.simticks != -1:
                 args.append(self.makeArgument("SIMULATETICKS", str(self.simticks)))
         else:
@@ -160,7 +182,7 @@ class ExperimentConfiguration:
         
         commandlines = []
         
-        allCombs = self.generateAllArgumentCombinations()
+        allCombs = self.generateAllArgumentCombinations(self.variableSimulatorArguments)
         
         sortedNps = self.workloads.keys()
         sortedNps.sort()
@@ -168,9 +190,20 @@ class ExperimentConfiguration:
             for wl in self.workloads[np]:
                 for varArgs in allCombs:
                     
-                    params = self.getParams(np, wl, self.noBMIndentifier, self.noBMIndentifier, varArgs)
-                    command = self.getCommand(np, wl, params, self.noBMIndentifier, 0, 0, varArgs)
-                    commandlines.append( (command, params) ) 
+                    if np > 1:
+                        params = self.getParams(np, wl, self.noBMIndentifier, self.noBMIndentifier, varArgs)
+                        command = self.getCommand(np, wl, params, self.noBMIndentifier, self.noBMIndentifier, 0, varArgs)
+                        commandlines.append( (command, params) )
+                    else:
+                        allSingleCombs =  self.generateAllArgumentCombinations(self.variableSingleCoreArguments)
+                        
+                        for singleVarArgs in allSingleCombs:
+                            for arg in varArgs:
+                                singleVarArgs.append(arg)
+                                
+                            singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, singleVarArgs)
+                            singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, singleVarArgs)
+                            commandlines.append( (singleCommand, singleParams) )
                     
                     if doSingleProgramMode:
                         bms = workloads.getBms(wl,np)
@@ -192,6 +225,10 @@ class ExperimentConfiguration:
         
         for arg in self.fixedSimulatorArguments:
             args.append(self.makeArgument(arg, self.fixedSimulatorArguments[arg]))
+        
+        if np == 1:
+            for arg in self.fixedSingleCoreArguments:
+                args.append(self.makeArgument(arg, self.fixedSingleCoreArguments[arg]))
         
         for arg, val in varargs:
             args.append(self.makeArgument(arg, val))

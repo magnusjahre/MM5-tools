@@ -1,10 +1,14 @@
 #!/usr/bin/python
+
 import sys
 import popen2
-import pbsconfig
 import os
 import re
 import time
+import pbsconfig
+
+
+print "imports finished"
 
 SLEEP_TIME = 1*60
 
