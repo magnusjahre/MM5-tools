@@ -1,3 +1,4 @@
+from statparse import experimentConfiguration
 
 import sys
 import simpoints3
@@ -78,6 +79,10 @@ class StatSearch():
             raise Exception("Single CPU experiment aggregation not implemented")
         else:
             for np in allNPs:
+                if np == 1:
+                    # 1 CPU experiments are interference-free baseline
+                    continue
+                
                 for params in allParams:
                     for wl in allWls:
                         wlConfig = ExperimentConfiguration(np, params, "*", wl)
@@ -100,14 +105,17 @@ class StatSearch():
         else:
             mpAgg, spAgg = nomMpAggregate, nomSpAggregate
 
+        
         self.wlMetric.setValues(mpAgg, spAgg)
-        return self.wlMetric.computeMetricValue()
+        return self.wlMetric.computeMetricValue() 
     
     def _computeRatio(self, nominator, denominator):
         ratio = {}
+
         for simpoint in nominator:
             ratio[simpoint] = {}
             assert simpoint in denominator
+            
             for bm in nominator[simpoint]:
                 assert bm in denominator[simpoint]
                 ratio[simpoint][bm] = float(nominator[simpoint][bm]) / float(denominator[simpoint][bm])
@@ -123,27 +131,29 @@ class StatSearch():
         
     def _computeWorkloadAggregate(self, results, np, params, wl):
         
-        bms = workloads.getBms(wl, np)
+        bms = workloads.getBms(wl, np, True)
         
         mpAggregate = {}
         spAggregate = {}
         for bm in bms:
-            filteredRes = self._filterResults(results, np, params, wl, bm)
+            filteredRes = self._filterResults(results, np, params, wl, bm, np)
             
             if self.aggregateSimpoints:
                 mpAggregate = self._aggregateSimpoints(filteredRes)
             else:
                 mpAggregate = self._createSimpointDict(filteredRes, mpAggregate, bm)
-                
+            
             if self.wlMetric.spmNeeded:
-                singleRes = self._filterResults(results, 1, params, wl, bm)
+                singleRes = self._filterResults(results, 1, params, experimentConfiguration.singleWlID, bm, np)
+                
                 if singleRes == {}:
                     raise Exception("Single program mode results needed for metric '"+str(self.wlMetric)+"' but cannot be found")
                 
                 if self.aggregateSimpoints:
                     spAggregate = self._aggregateSimpoints(singleRes)
                 else:
-                    mpAggregate = self._createSimpointDict(filteredRes, spAggregate, bm) 
+                    spAggregate = self._createSimpointDict(singleRes, spAggregate, bm)
+                    
         
         return mpAggregate, spAggregate
         
@@ -152,8 +162,10 @@ class StatSearch():
     
     def _createSimpointDict(self, filteredRes, aggregate, subkey):
         for config in filteredRes:
+            
             if config.simpoint not in aggregate:
                 aggregate[config.simpoint] = {}
+                
             assert subkey not in aggregate[config.simpoint]
             aggregate[config.simpoint][subkey] = filteredRes[config]
         return aggregate
@@ -253,10 +265,10 @@ class StatSearch():
             print >> outfile, ""
  
  
-    def _filterResults(self, configRes, np, params, wl, bm):
+    def _filterResults(self, configRes, np, params, wl, bm, memsys):
         filteredConfigs = {}
         for c in configRes:
-            if np == c.np and params == c.parameters and wl == c.workload and bm == c.benchmark:
+            if np == c.np and params == c.parameters and wl == c.workload and bm == c.benchmark and memsys == c.memsys:
                 assert c not in filteredConfigs
                 filteredConfigs[c] = configRes[c]
                 
@@ -277,6 +289,8 @@ class StatSearch():
     
     def _findAllWorkloads(self):
         def getKey(config):
+            if config.workload == experimentConfiguration.singleWlID:
+                return None
             return config.workload
         return self._findAllFromConfig(getKey)
     
@@ -289,7 +303,7 @@ class StatSearch():
         allkeys = {}
         for config in self.matchingConfigs:
             thisKey = paramFunction(config) 
-            if thisKey not in allkeys:
+            if thisKey not in allkeys and thisKey != None:
                 allkeys[thisKey] = True
                 
         keys = allkeys.keys()

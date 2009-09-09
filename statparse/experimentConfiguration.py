@@ -14,7 +14,7 @@ def generateExpID():
     
 class ExperimentConfiguration:
     
-    def __init__(self, np, params, bm, wl=singleWlID, expID = -1, simpoint = NO_SIMPOINT_VAL):
+    def __init__(self, np, params, bm, wl=singleWlID, expID = -1, simpoint = NO_SIMPOINT_VAL, memsys = -1):
         
         self.np = np
         self.benchmark = bm
@@ -26,9 +26,18 @@ class ExperimentConfiguration:
         else:
             self.experimentID = expID
         
+        self.memsys = memsys
         self.parameters = {}
         for p in params:
-            self.parameters[p] = params[p]
+            if p == "MEMORY-ADDRESS-PARTS":
+                assert np == 1
+                self.memsys = int(params[p])
+            else:
+                self.parameters[p] = params[p]
+        
+        if self.memsys == -1:
+            assert np > 1 or np == -1
+            self.memsys = np
     
     def compareTo(self, otherConfig):
         
@@ -74,13 +83,18 @@ class ExperimentConfiguration:
         initstr += str(self.parameters)+","
         initstr += "'"+str(self.benchmark)+"',"
         initstr += "'"+str(self.workload)+"',"
-        initstr += str(self.experimentID)+")"
+        initstr += str(self.experimentID)+","
+        initstr += str(self.simpoint)+","
+        initstr += str(self.memsys)+")"
         return initstr
     
     def __str__(self):
         initstr = str(self.np)+"-"
         initstr += str(self.workload)+"-"
         initstr += str(self.benchmark)
+        if self.np == 1:
+            initstr += "-"+str(self.memsys)
+        
         if self.simpoint != NO_SIMPOINT_VAL:
             initstr += str(self.simpoint)
         
@@ -90,10 +104,13 @@ class ExperimentConfiguration:
         return initstr
     
     def getIDInWorkload(self):
+        if self.np == 1:
+            return 0
+        
         assert self.workload != "*"
         assert self.workload != singleWlID
         assert self.np != -1
-        bms = workloads.getBms(self.workload, self.np)
+        bms = workloads.getBms(self.workload, self.np, True)
         
         retindex = -1
         for i in range(len(bms)):

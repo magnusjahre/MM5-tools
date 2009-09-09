@@ -29,6 +29,9 @@ class ExperimentConfiguration:
                       "bmnum": 3,
                       "varargStart": 4}
     
+    varArgNames = {}
+    singleVarArgNames = {}
+    
     specnames = ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
     specBenchmarks = [] 
     
@@ -125,8 +128,21 @@ class ExperimentConfiguration:
         params[self.typeToParamPos["wl"]]    = wl
         params[self.typeToParamPos["bm"]]    = bm
         params[self.typeToParamPos["bmnum"]] = bmnum
+        
+        index = self.typeToParamPos["varargStart"]
         for arg, val in varargs:
             params.append(val)
+            if np == 1:
+                if index in self.singleVarArgNames:
+                    assert self.singleVarArgNames[index] == arg
+                else: 
+                    self.singleVarArgNames[index] = arg
+            else:
+                if index in self.varArgNames:
+                    assert self.varArgNames[index] == arg 
+                else:
+                    self.varArgNames[index] = arg
+            index += 1
         return params
         
     def getParam(self, params, type):
@@ -137,7 +153,20 @@ class ExperimentConfiguration:
         for p in params[self.typeToParamPos["varargStart"]:]:
             repr += "-"+str(p)
         return repr[1:]
+    
+    def getVariableParameters(self, params):
+        np = self.getParam(params, "np")
+        if np == 1:
+            nameStore = self.singleVarArgNames
+        else:
+            nameStore = self.varArgNames
         
+        varparams = {}
+        for i in range(self.typeToParamPos["varargStart"], len(params)):
+            varparams[nameStore[i]] = params[i]
+            
+        return varparams
+    
     def getUniqueIdentifier(self, params):
         filename = str(self.getParam(params, "np"))
         filename += "-"+str(self.getParam(params, "wl"))
@@ -216,7 +245,7 @@ class ExperimentConfiguration:
                             aloneParams = self.getParams(np, wl, bms[i], i, varArgs)
                             aloneKey = self.getUniqueIdentifier(aloneParams)
                             self.singleProgramModeNotIssued[aloneKey] = True
-                    
+        
         return commandlines
     
     def getCommand(self, np, wl, params, bm, bmid, insts, varargs):

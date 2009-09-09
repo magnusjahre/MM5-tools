@@ -75,9 +75,30 @@ def parseArgs():
     
     return opts, args, searchConfig, outfile
 
-def createSingleFileIndex(opts, args):
-    indexmodule = "index-"+os.path.basename(opts.searchFile).split(".")[0]
+def getIndexmodule(basename):
+    indexmodule = "index-"+basename
     indexmodulename = indexmodule+".py"
+    return indexmodule, indexmodulename
+
+def createFileIndex(opts, args):
+    
+    if opts.searchFile != "":
+        if opts.np == -1 or opts.workload == "*":
+            print "Options --np and --workload are required for single experiment parsing"
+            sys.exit(-1) 
+    
+        pbsconfig = None
+        indexmodule, indexmodulename = getIndexmodule(os.path.basename(opts.searchFile).split(".")[0])
+    else:
+        if not opts.quiet:
+            print "No filename provided, assuming experiment parse"
+        if not os.path.exists("pbsconfig.py"):
+            print "File not found: pbsconfig.py"
+            print "Use the --search-file option to search a specific file"
+            sys.exit(-1)
+        
+        pbsconfig = __import__("pbsconfig")
+        indexmodule, indexmodulename = getIndexmodule("all")
     
     if os.path.exists(indexmodulename):
         
@@ -91,15 +112,41 @@ def createSingleFileIndex(opts, args):
             print "Index load took %.2f s" % totTime
     else:
         index = StatfileIndex()
-        if opts.np == -1 or opts.workload == "*":
-            print "Options --np and --workload are required for single experiment parsing"
-            sys.exit(-1)
         
         starttime = 0.0
         if not opts.quiet:
             print "Index does not exist, generating it..."
             starttime = time()
-        index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
+            
+        if opts.searchFile != "":
+            index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
+        else:
+            assert pbsconfig != None
+            totalLines = float(len(pbsconfig.commandlines))
+            curConfigNum = 0
+            for cmd, params in pbsconfig.commandlines:
+                fileID = pbsconfig.get_unique_id(params)
+                filepath = fileID+"/"+fileID+".txt"
+                orderpath = fileID+"/statsDumpOrder.txt"
+                
+                np = pbsconfig.get_np(params)
+                if np > 1:
+                    wlOrBm = pbsconfig.get_workload(params)
+                else:
+                    wlOrBm = pbsconfig.get_benchmark(params)
+                
+                if os.path.exists(filepath):
+                    if not opts.quiet:
+                        percProgress = (float(curConfigNum) / totalLines) * 100
+                        print ("Adding file "+filepath).ljust(70),
+                        print ("%.2f" % percProgress)+" % complete"
+                    
+                    varparams = pbsconfig.get_variable_params(params)
+                    index.addFile(filepath, orderpath, np, wlOrBm, varparams)
+                else:
+                    if not opts.quiet:
+                        print "WARNING: file "+filepath+" does not exist"
+                curConfigNum += 1
         
         if not opts.quiet:
             totTime = time() - starttime
@@ -108,19 +155,7 @@ def createSingleFileIndex(opts, args):
         
         index.dumpIndex(indexmodule)
         
-    return index 
-
-def createMultifileIndex(opts, args):
-    
-    if not opts.quiet:
-        print "No filename provided, assuming experiment parse"
-    if not os.path.exists("pbsconfig.py"):
-        print "File not found: pbsconfig.py"
-        print "Use the --search-file option to search a specific file"
-        sys.exit(-1)
-        
-    pbsconfig = __import__("pbsconfig")
-    print "Not implemented "+str(pbsconfig)
+    return index
 
 def writeSearchResults(statSearch, opts, outfile):
     if opts.wlAggMetric != "" or opts.expAggMetric != "" or opts.aggSimpoints:
@@ -195,11 +230,8 @@ def main():
         print "M5 Statistics Search"
         print
     
-    index = None
-    if opts.searchFile != "":
-        index = createSingleFileIndex(opts, args)
-    else:
-        index = createMultifileIndex(opts, args)
+    
+    index = createFileIndex(opts, args)
         
     if not opts.quiet:
         if len(args) == 1:

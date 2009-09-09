@@ -66,6 +66,7 @@ class WorkloadMetric():
         else:
             
             for simpoint in multiprogramValues:
+                
                 if simpoint not in singleProgramValues:
                     raise Exception("Results contain no single program data for simpoint "+str(simpoint))
                 
@@ -76,8 +77,8 @@ class WorkloadMetric():
                 
                 assert simpointkey not in self.speedups
                 self.speedups[simpointkey] = []
-                for bm in multiprogramValues:
-                    if bm not in singleProgramValues:
+                for bm in multiprogramValues[simpoint]:
+                    if bm not in singleProgramValues[simpoint]:
                         raise Exception("Results contain no single program data for benchmark "+str(bm))
                     
                     self.speedups[simpointkey].append(float(multiprogramValues[simpoint][bm]) / float(singleProgramValues[simpoint][bm]))

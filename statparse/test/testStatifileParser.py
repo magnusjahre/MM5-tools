@@ -58,7 +58,7 @@ class TestStatfileParser(unittest.TestCase):
         
         currentCPUPatterns = []
         
-        bms = workloads.getBms(wl, np)
+        bms = workloads.getBms(wl, np, True)
         
         for line in statfile:
             if whitespacePat.search(line):

@@ -34,21 +34,21 @@ class StatfileIndex():
         assert configid not in self.resultstore[statkey]
         self.resultstore[statkey][configid] = value
 
-    def addFile(self, statsfilename, orderfilename, np, workload, params = {}):
+    def addFile(self, statsfilename, orderfilename, np, wlOrBm, params = {}):
         
         if np > 1:
-            wls = workloads.getBms(workload, np)
+            wls = workloads.getBms(wlOrBm, np, True)
             order = self._findParseOrder(orderfilename)
             configIDs = []
             for cpuid in order:
-                expConf = ExperimentConfiguration(np, params, wls[cpuid], workload)
+                expConf = ExperimentConfiguration(np, params, wls[cpuid], wlOrBm)
                 self.configurations.append(expConf)
                 configIDs.append(expConf.experimentID)
                 
             self._parseFile(statsfilename, configIDs)
         
         else:
-            expConf = ExperimentConfiguration(np, params, workload)
+            expConf = ExperimentConfiguration(np, params, wlOrBm)
             self.configurations.append(expConf)
             self._parseFile(statsfilename, [expConf.experimentID])
     

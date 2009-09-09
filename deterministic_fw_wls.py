@@ -83,6 +83,12 @@ workloads = {
 
 }
 
-def getBms(wl,np):
+def getBms(wl,np, appendZero = False):
     num = int(wl.replace("fair",""))
-    return workloads[np][num][0]
+    bms = workloads[np][num][0]
+    if appendZero:
+        newbms = []
+        for bm in bms:
+            newbms.append(bm+"0")    
+        bms = newbms
+    return bms
