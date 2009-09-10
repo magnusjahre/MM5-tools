@@ -8,7 +8,7 @@ from experimentConfiguration import ExperimentConfiguration
 
 __metaclass__ = type
 
-class StatSearch():
+class StatResults():
 
     def __init__(self, index, searchConfig):
         self.index = index
@@ -90,11 +90,96 @@ class StatSearch():
                                     
             if self.expMetric != None:
                 self._aggregateExperimentResults()
+        
+        
+        self._printAggregate(aggregate, allNPs, allWls, allParams, outfile, decimals) 
+        
+    def _printAggregate(self, aggregate, allNPs, allWls, allParams, outfile, decimals):
+        
+        sortedParams = self._createSortedParamList(allParams)
+        
+        outdata = []
+        titleLine = [""]
+        leftJust = [True]
+        for p in sortedParams:
+            titleLine.append(self._paramsToString(p))
+            leftJust.append(False)
+            
+        outdata.append(titleLine)
+        
+        allNPs.sort()
+        allWls.sort()
+
+        for np in allNPs:
+            if np == 1:
+                continue
+            
+            for wl in allWls:
+                line = [str(np)+"-"+str(wl)]
+                for params in sortedParams:
+                    
+                    found = False
+                    for config in aggregate:
+                        if config.np == np and config.workload == wl and config.parameters == params:
+                            assert not found
+                            found = True
+                            line.append(self._numberToString(aggregate[config][0], decimals))
+                outdata.append(line)
+                    
+        self._print(outdata, leftJust, outfile)
     
-        print >> outfile, "Temporary print for aggregate"
-        for config in aggregate:
-            print >> outfile, str(config), aggregate[config]
+    def _paramsToString(self, params):
+        sortedKeys = params.keys()
+        sortedKeys.sort()
+        
+        retstr = ""
+        isFirst = True
+        for k in sortedKeys:
+            if isFirst:
+                isFirst = False
+            else:
+                retstr += "-"
+            
+            retstr += str(k)[0:3]+"-"+str(params[k])
+            
+        
+        return retstr
     
+    def _createSortedParamList(self, allParams):
+        paramVals = {}
+        
+        for params in allParams:
+            for p in params:
+                if p not in paramVals:
+                    paramVals[p] = []
+                    
+                if params[p] not in paramVals[p]:
+                    paramVals[p].append(params[p])
+        
+        numCombs = 0
+        lengths = {}
+        for p in paramVals:
+            paramVals[p].sort()
+            numCombs += len(paramVals[p])
+            lengths[p] = len(paramVals[p])
+         
+        sortedKeys = paramVals.keys()
+        sortedKeys.sort()
+        
+        periods = [numCombs / lengths[sortedKeys[0]]]
+        for i in range(len(sortedKeys))[1:]:
+            periods.append(periods[i-1]/lengths[sortedKeys[i]])
+        
+        sortedParamVals = []
+        for i in range(numCombs):
+            params = {}
+            for j in range(len(sortedKeys)):
+                pos = i / periods[j] % lengths[sortedKeys[j]]
+                params[sortedKeys[j]] = paramVals[sortedKeys[j]][pos]
+            sortedParamVals.append(params)
+                
+        return sortedParamVals
+        
     def _aggregateWorkloadResults(self, np, params, wl):
         nomMpAggregate, nomSpAggregate = self._computeWorkloadAggregate(self.noPatResults, np, params, wl)
         
@@ -158,7 +243,7 @@ class StatSearch():
         return mpAggregate, spAggregate
         
     def _aggregateSimpoints(self, filteredRes):
-        raise Exception("Simpoint aggregation not implemented")   
+        raise Exception("Simpoint aggregation not implemented")
     
     def _createSimpointDict(self, filteredRes, aggregate, subkey):
         for config in filteredRes:
@@ -309,4 +394,5 @@ class StatSearch():
         keys = allkeys.keys()
         keys.sort()
         return keys
+
         

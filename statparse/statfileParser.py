@@ -39,9 +39,13 @@ class StatfileIndex():
         if np > 1:
             wls = workloads.getBms(wlOrBm, np, True)
             order = self._findParseOrder(orderfilename)
+            if len(order) != np:
+                raise Exception("Malformed statistics dump order file for workload "+str(wlOrBm))
+            
             configIDs = []
-            for cpuid in order:
+            for cpuid in order: 
                 expConf = ExperimentConfiguration(np, params, wls[cpuid], wlOrBm)
+                
                 self.configurations.append(expConf)
                 configIDs.append(expConf.experimentID)
                 

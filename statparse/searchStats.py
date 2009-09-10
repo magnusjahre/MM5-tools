@@ -12,7 +12,7 @@ from time import time
 
 from statfileParser import ExperimentConfiguration
 from statfileParser import StatfileIndex
-from statSearch import StatSearch
+from statResults import StatResults
 
 def parseArgs():
     parser = OptionParser(usage="parseStats.py [options] (STATKEY | NUMERATOR-KEY DENOMINATOR-KEY)")
@@ -62,7 +62,7 @@ def parseArgs():
             otherparams = opts.otherLimits.split(":")
             for pstr in otherparams:
                 key,value = pstr.split(",")
-                params[key] = value
+                params[key] = makeType(value)
         except:
             print "Could not parse parameter string "+opts.otherLimits
             sys.exit(-1)
@@ -74,6 +74,21 @@ def parseArgs():
         outfile = open(opts.outfile, "w")
     
     return opts, args, searchConfig, outfile
+
+def makeType(value):
+    
+    val = value
+    try:
+        val = int(value)
+    except:
+        pass
+    
+    try:
+        val = float(value)
+    except:
+        pass
+        
+    return val
 
 def getIndexmodule(basename):
     indexmodule = "index-"+basename
@@ -213,7 +228,7 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.close()
 
 def doSearch(index, searchConfig, args):
-    statSearch = StatSearch(index, searchConfig)
+    statSearch = StatResults(index, searchConfig)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:

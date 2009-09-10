@@ -1,6 +1,4 @@
 
-import experimentConfiguration
-
 __metaclass__ = type
 
 metrics = {"hmos": "Harmonic Mean of Speedups",

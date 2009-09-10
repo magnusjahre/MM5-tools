@@ -36,7 +36,6 @@ class ExperimentConfiguration:
                 self.parameters[p] = params[p]
         
         if self.memsys == -1:
-            assert np > 1 or np == -1
             self.memsys = np
     
     def compareTo(self, otherConfig):
