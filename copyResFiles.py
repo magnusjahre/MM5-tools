@@ -35,7 +35,7 @@ resultfiles = ["interconnect*.txt",
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
-def checkFile(filename):
+def checkFile(filename, resdir):
     try:
         tmpfile = open(filename)
     except:
@@ -97,12 +97,12 @@ def main():
         
         resfiles.append(resID+"/"+resID+".txt")
     
-        if pbsconfig.get_np(params) > 1:
-            wl = pbsconfig.get_workload(params)
-            for i in range(pbsconfig.get_np(params)):
-                aloneparams = pbsconfig.get_alone_params(wl,i,params)
-                aloneid = pbsconfig.get_unique_id(aloneparams)
-                alonefiles.append(aloneid+"/"+aloneid+".txt")
+#         if pbsconfig.get_np(params) > 1:
+#             wl = pbsconfig.get_workload(params)
+#             for i in range(pbsconfig.get_np(params)):
+#                 aloneparams = pbsconfig.get_alone_params(wl,i,params)
+#                 aloneid = pbsconfig.get_unique_id(aloneparams)
+#                 alonefiles.append(aloneid+"/"+aloneid+".txt")
     
     print "done!"
     
@@ -111,12 +111,12 @@ def main():
         print "Checking for finished experiments..."
         rfcopy = list(resfiles)
         for rf in rfcopy:
-            if checkFile(rf):
+            if checkFile(rf, resdir):
                 resfiles.remove(rf)
     
         alonecopy = list(alonefiles)
         for af in alonecopy:
-            if checkFile(af):
+            if checkFile(af, resdir):
                 alonefiles.remove(af)
     
     
