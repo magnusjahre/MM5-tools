@@ -120,13 +120,17 @@ def copyCheckpointFiles(destination, opts):
             print "Copying checkpoint..."
             shutil.copy(expdir+"/"+chkptDir+"/m5.cpt", destinationPath)
             for file in checkpointfiles:
+                filepath = expdir+"/"+file
                 if file != chkptDir:
-                    filepath = expdir+"/"+file
-                    print "Copying file "+filepath
-                    if os.path.isdir(filepath):
-                        shutil.copytree(filepath, destinationPath+"/"+file)
+                    if not os.path.islink(filepath):
+                        print "Copying file "+filepath
+                        if os.path.isdir(filepath):
+                            shutil.copytree(filepath, destinationPath+"/"+file)
+                        else:
+                            shutil.copy(filepath, destinationPath)
                     else:
-                        shutil.copy(filepath, destinationPath)
+                        print "Skipping symlink "+filepath
+                    
         
     return 0
 
