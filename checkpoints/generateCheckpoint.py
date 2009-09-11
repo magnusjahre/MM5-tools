@@ -110,7 +110,6 @@ def copyCheckpointFiles(destination, opts):
                 checkpointfiles.append(filename)
         
         assert chkptDir in checkpointfiles
-        print checkpointfiles
         
         destinationPath = destination+"/"+chkptDir 
         if os.path.exists(destinationPath):
@@ -128,12 +127,6 @@ def copyCheckpointFiles(destination, opts):
                         shutil.copytree(filepath, destinationPath)
                     else:
                         shutil.copy(filepath, destinationPath)
-                
-        
-        
-        
-        assert False
-        
         
     return 0
 
