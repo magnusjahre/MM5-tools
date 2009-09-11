@@ -69,61 +69,63 @@ def checkFile(filename):
 
     return False
     
+def main():
 
-
-try:
-    resdir = sys.argv[1]
-except:
-    print "Cannot parse commandline..."
-    print "Usage: python -c \"import getResFiles\" result_dir"
-    sys.exit()
-
-if not os.path.isdir(resdir):
-    print "Destination directory is not valid, quitting"
-    sys.exit()
-
-print
-print "Starting result copy..."
-print "Destination: "+resdir
-print
-
-resfiles = []
-alonefiles = []
-
-print "Retrieving result filenames.. ",
-
-for cmd, params in pbsconfig.commandlines:
-    resID = pbsconfig.get_unique_id(params)
+    try:
+        resdir = sys.argv[1]
+    except:
+        print "Cannot parse commandline..."
+        print "Usage: python -c \"import getResFiles\" result_dir"
+        sys.exit()
     
-    resfiles.append(resID+"/"+resID+".txt")
-
-    if pbsconfig.get_np(params) > 1:
-        wl = pbsconfig.get_workload(params)
-        for i in range(pbsconfig.get_np(params)):
-            aloneparams = pbsconfig.get_alone_params(wl,i,params)
-            aloneid = pbsconfig.get_unique_id(aloneparams)
-            alonefiles.append(aloneid+"/"+aloneid+".txt")
-
-print "done!"
-
-
-while resfiles != [] or alonefiles != []:
-    print "Checking for finished experiments..."
-    rfcopy = list(resfiles)
-    for rf in rfcopy:
-        if checkFile(rf):
-            resfiles.remove(rf)
-
-    alonecopy = list(alonefiles)
-    for af in alonecopy:
-        if checkFile(af):
-            alonefiles.remove(af)
-
-
-    print "Sleeping"
-    time.sleep(sleeptime)
-
-shutil.copy("pbsconfig.py", resdir)
-
-print "All results copied!"
+    if not os.path.isdir(resdir):
+        print "Destination directory is not valid, quitting"
+        sys.exit()
     
+    print
+    print "Starting result copy..."
+    print "Destination: "+resdir
+    print
+    
+    resfiles = []
+    alonefiles = []
+    
+    print "Retrieving result filenames.. ",
+    
+    for cmd, params in pbsconfig.commandlines:
+        resID = pbsconfig.get_unique_id(params)
+        
+        resfiles.append(resID+"/"+resID+".txt")
+    
+        if pbsconfig.get_np(params) > 1:
+            wl = pbsconfig.get_workload(params)
+            for i in range(pbsconfig.get_np(params)):
+                aloneparams = pbsconfig.get_alone_params(wl,i,params)
+                aloneid = pbsconfig.get_unique_id(aloneparams)
+                alonefiles.append(aloneid+"/"+aloneid+".txt")
+    
+    print "done!"
+    
+    
+    while resfiles != [] or alonefiles != []:
+        print "Checking for finished experiments..."
+        rfcopy = list(resfiles)
+        for rf in rfcopy:
+            if checkFile(rf):
+                resfiles.remove(rf)
+    
+        alonecopy = list(alonefiles)
+        for af in alonecopy:
+            if checkFile(af):
+                alonefiles.remove(af)
+    
+    
+        print "Sleeping"
+        time.sleep(sleeptime)
+    
+    shutil.copy("pbsconfig.py", resdir)
+    
+    print "All results copied!"
+        
+if __name__ == '__main__':
+    main()
