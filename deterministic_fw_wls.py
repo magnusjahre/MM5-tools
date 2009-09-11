@@ -83,6 +83,15 @@ workloads = {
 
 }
 
+def getWorkloads(np):
+    wls = []
+    for i in range(1, len(workloads[np])+1):
+        if i < 10:
+            wls.append("fair0"+str(i))
+        else:
+            wls.append("fair"+str(i))
+    return wls
+
 def getBms(wl,np, appendZero = False):
     num = int(wl.replace("fair",""))
     bms = workloads[np][num][0]

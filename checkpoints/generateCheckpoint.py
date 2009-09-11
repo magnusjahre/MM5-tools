@@ -1,7 +1,10 @@
 #!/usr/bin/python
-
+import sys
 from optparse import OptionParser
 import Checkpoint
+
+import simpoints3
+import deterministic_fw_wls as workloads
 
 def parseAargs():
     parser = OptionParser(usage="generateCheckpoint.py ")
@@ -18,7 +21,35 @@ def parseAargs():
     return opts, args
 
 def createCheckpointsFromExperiment():
-    print "createCheckpointsFromExperiment is not implemented, quitting"
+    
+    nps = [4, 8, 16]
+    memsys = ["CrossbarBased", "RingBased"]
+    fw = -1
+    
+    for np in nps:
+        for wl in workloads.getWorkloads(np):
+            for mem in memsys:
+                for simpoint in range(simpoints3.maxk):
+                    
+                    if Checkpoint.prerequisiteFilesExist(wl, np, mem, simpoint):
+                        printParameters(np, wl, mem, simpoint, fw)
+                        path = Checkpoint.generateCheckpoint(wl, np, fw, mem, simpoint)
+                        print "Generated checkpoint at "+path
+                    else:
+                        print "Files needed for np "+str(np)+", workload "+wl+", memsys "+mem+" and simpoint "+str(simpoint)+" not found"
+                        print "Skipping..."
+    return 0
+
+def printParameters(np, wl, memsys, simpoint, fw):
+    print "Generating checkpoint with parameters:"
+    print "NP:                           "+str(np)
+    print "Workload:                     "+str(wl)
+    print "Simulated memory system:      "+str(memsys)
+    if fw != -1:
+        print "Checkpoint instruction count: "+str(fw)
+    if simpoint != -1:
+        print "Simpoint number:              "+str(simpoint)
+    print
 
 def main():
     
@@ -29,17 +60,12 @@ def main():
     print
     
     if opts.fromExp:
-        createCheckpointsFromExperiment()
-        sys.exit(0)
-        
-    print "Parameters"
-    print "NP:                           "+str(opts.np)
-    print "Workload:                     "+str(opts.workload)
-    print "Checkpoint instruction count: "+str(opts.fwinsts)
-    print "Simulated memory system:      "+str(opts.memsys)
-    print
+        sys.exit(createCheckpointsFromExperiment())
     
-    chkptPath = Checkpoint.generateCheckpoint(opts.workload, opts.np, opts.fwinsts, opts.memsys)
+    simpoint = -1
+    printParameters(opts.np, opts.workload, opts.memsys, simpoint, opts.fwinsts)
+    
+    chkptPath = Checkpoint.generateCheckpoint(opts.workload, opts.np, opts.fwinsts, opts.memsys, simpoint)
     
     print
     print "Generated checkpoint at "+chkptPath

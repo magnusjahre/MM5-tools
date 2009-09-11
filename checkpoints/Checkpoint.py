@@ -33,19 +33,27 @@ def mergeSharedCache(checkpoints, outfilename):
     newCheckpoint.sharedCaches = newSharedCaches
     newCheckpoint.writeToFile(outfilename)
 
-def generateCheckpoint(workload, np, fwInsts, memsys, simpoint = -1):
+def prerequisiteFilesExist(workload, np, memsys, simpoint):
+    curWorkload = workloads.getBms(workload, np, True)
+    for bm in curWorkload:
+        checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm, simpoint)
+        checkFile = checkPath+"/m5.cpt"
+        if not os.path.exists(checkFile):
+            return False
+    return True
+
+def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
     
-    curWorkload = workloads.getBms(workload, np)
+    curWorkload = workloads.getBms(workload, np, True)
     
     if simpoint == -1:
-        for bm in workloads.getBms(workload, np):
-            bmname = bm+"0"            
-            chkPath = checkpoints.getCheckpointDirectory(np, memsys, bmname)
+        for bm in workloads.getBms(workload, np):        
+            chkPath = checkpoints.getCheckpointDirectory(np, memsys, bm)
             if os.path.exists(chkPath):
-                print "Checkpoint allready exists for "+bmname+", skipping..."
+                print "Checkpoint allready exists for "+bm+", skipping..."
                 continue
-            print "Generating checkpoint for "+bmname+" with "+str(fwInsts)+" instructions in checkpoint"
-            runCheckpointGeneration(bmname, fwInsts, memsys, np)
+            print "Generating checkpoint for "+bm+" with "+str(fwInsts)+" instructions in checkpoint"
+            runCheckpointGeneration(bm, fwInsts, memsys, np)
     else:
         print "Simpoint ID "+str(simpoint)+" provided, assuming that single core checkpoints are provided in the current directory"
         
@@ -59,8 +67,8 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint = -1):
     wlCheckpoints = []
     cpuID = 0
     for bm in curWorkload:
-        checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm+"0", simpoint)
-        checkFile = checkPath+"/m5.cpt" 
+        checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm, simpoint)
+        checkFile = checkPath+"/m5.cpt"
         print "Reading checkpoint from file "+checkFile
         newCheckpoint = Checkpoint()
         newCheckpoint.createFromFile(checkFile, outfilename, cpuID)
