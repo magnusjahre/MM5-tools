@@ -39,7 +39,7 @@ def getHeader(np):
     lines.append("#PBS -j oe")
 
     lines.append("#PBS -lnodes=1:ppn="+str(ppn[np]))
-    lines.append("#PBS -lpmem="+str(perProcMem[np])+"MB")
+    lines.append("#PBS -lpvmem="+str(perProcMem[np])+"MB")
     lines.append("#PBS -A "+str(PROJECT_NUM))
 
     header = ""
