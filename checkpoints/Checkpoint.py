@@ -1,6 +1,7 @@
 
 import sys
 import os
+import shutil
 
 import IniFile
 import checkpoints
@@ -69,6 +70,13 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
     for bm in curWorkload:
         checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm, simpoint)
         checkFile = checkPath+"/m5.cpt"
+        allfiles = os.listdir(checkPath)
+        for file in allfiles:
+            if file != "m5.cpt":
+                newFilePath = checkPath+"/"+file
+                print "Copying additional file "+newFilePath+" to checkpoint directory "+outdir
+                shutil.copy(newFilePath, outdir)
+
         print "Reading checkpoint from file "+checkFile
         newCheckpoint = Checkpoint()
         newCheckpoint.createFromFile(checkFile, outfilename, cpuID)

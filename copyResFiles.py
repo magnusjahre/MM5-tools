@@ -2,7 +2,6 @@
 
 import sys
 import os
-import pbsconfig
 import re
 import time
 import shutil
@@ -92,6 +91,7 @@ def main():
     
     print "Retrieving result filenames.. ",
     
+    pbsconfig = __import__("pbsconfig")
     for cmd, params in pbsconfig.commandlines:
         resID = pbsconfig.get_unique_id(params)
         
