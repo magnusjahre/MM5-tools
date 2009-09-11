@@ -124,7 +124,7 @@ def copyCheckpointFiles(destination, opts):
                     filepath = expdir+"/"+file
                     print "Copying file "+filepath
                     if os.path.isdir(filepath):
-                        shutil.copytree(filepath, destinationPath)
+                        shutil.copytree(filepath, destinationPath+"/"+file)
                     else:
                         shutil.copy(filepath, destinationPath)
         
