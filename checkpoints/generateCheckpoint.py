@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from checkpoints.checkpointConverter import CheckpointConverter
 import shutil
 import glob
 import sys
@@ -18,6 +19,8 @@ def parseAargs():
     parser.add_option("--from-experiment", action="store_true", dest="fromExp", default="", help="Use workload table and pbsconfig.py to generate checkpoints")
     
     parser.add_option("--copy-checkpoint-files", action="store", dest="checkpointDestination", default="", help="Copy checkpoints and simulator files to directory")
+    
+    parser.add_option("--convert-checkpoint", action="store", dest="convertCheckpointFile", default="", help="Convert the provided checkpoint file from the old format to the new storage efficient format")
     
     parser.add_option("--np", action="store", dest="np", type="int", default=4, help="The number of CPUs to use in checkpoint")
     parser.add_option("--workload", action="store", dest="workload", default="fair01", help="Workload")
@@ -134,6 +137,15 @@ def copyCheckpointFiles(destination, opts):
         
     return 0
 
+def convertCheckpointFile(filename):
+    if "/" in filename:
+        print "ERROR: This script must be run in the checkpoint directory for M5 to find the produced files"
+        return -1
+    
+    converter = CheckpointConverter(filename)
+    converter.convert()
+    return 0
+
 def main():
     
     opts,args = parseAargs()
@@ -147,6 +159,9 @@ def main():
     
     if opts.fromExp:
         sys.exit(createCheckpointsFromExperiment())
+        
+    if opts.convertCheckpointFile != "":
+        sys.exit(convertCheckpointFile(opts.convertCheckpointFile))
     
     simpoint = -1
     printParameters(opts.np, opts.workload, opts.memsys, simpoint, opts.fwinsts)
