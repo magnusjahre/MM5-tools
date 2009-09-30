@@ -1,11 +1,7 @@
 #!/usr/bin/python
 
 import unittest
-import os
-import deterministic_fw_wls as workloads
-import checkpoints
 import checkpoints.Checkpoint
-from checkpoints.Checkpoint import Checkpoint
 from m5test.M5Command import M5Command
 
 class CheckpointMergeTest(unittest.TestCase):
@@ -15,10 +11,11 @@ class CheckpointMergeTest(unittest.TestCase):
         wlName = "fair01"
         np = 4
         memsys = "RingBased"
-        fwInsts = 10000000
+        #fwInsts = 10000000
+        fwInsts = 1000000
         siminsts = 1000000
 
-        checkpoints.Checkpoint.generateCheckpoint(wlName, np, fwInsts, memsys)
+        checkpoints.Checkpoint.generateCheckpoint(wlName, np, fwInsts, memsys, -1)
 
         print "Running workload "+wlName+" for "+str(siminsts)+" instructions..."
         

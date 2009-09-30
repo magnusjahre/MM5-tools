@@ -16,6 +16,7 @@ detailedCPUPattern = re.compile("detailedCPU")
 blkPattern = re.compile("blk") 
 cacheCPUIDPattern = re.compile("cacheCpuID")
 workloadPattern = re.compile("workload")
+filenamePattern = re.compile("filename=")
     
 def read(filename, outfilename, newCoreID):
     inifile = open(filename)
@@ -42,18 +43,6 @@ def read(filename, outfilename, newCoreID):
             name = name.replace("]", "") 
             
             if sharedCachePattern.match(name) != None:
-            
-                if blkPattern.search(name) != None:
-                    cache, blk = name.split(".")
-                    assert cache in sharedCaches
-                    sharedCaches[cache].setCurrentBlock(name)
-                    
-                else:
-                    if name not in sharedCaches:
-                        thisSection = CacheState(name, newCoreID)
-                        sharedCaches[name] = thisSection
-                        curSec = thisSection
-                        
                 writeToFile = False
             
             else:
@@ -80,6 +69,8 @@ def read(filename, outfilename, newCoreID):
                 line = l.strip()
                 if cacheCPUIDPattern.match(line):
                     outfile.write("cacheCpuID="+str(newCoreID)+"\n")
+                if filenamePattern.match(line):
+                    outfile.write(line.strip().replace("0", str(newCoreID))+"\n")
                 else:
                     outfile.write(l.strip()+"\n")
             else:

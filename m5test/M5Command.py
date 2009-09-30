@@ -2,13 +2,19 @@ import subprocess
 import sys
 import re
 import m5test
+import os
 
 __metaclass__ = type
 
 class M5Command():
+
+    if "SIMROOT" in os.environ:
+        basedir = os.environ["SIMROOT"]+"/"
+    else:
+        basedir = "/home/jahre/workspace/m5sim-fairmha/"
     
-    binary = "/home/jahre/workspace/m5sim-fairmha/m5/build/ALPHA_SE/m5.opt"
-    configfile = "/home/jahre/workspace/m5sim-fairmha/m5/configs/CMP/run.py"
+    binary = basedir+"m5/build/ALPHA_SE/m5.opt"
+    configfile = basedir+"m5/configs/CMP/run.py"
     
     successStringSim = 'all CPUs have reached their instruction limit'
     successStringCheckpoint = 'Reached checkpoint instruction'
@@ -50,6 +56,9 @@ class M5Command():
         return commandstr
             
     def run(self, testnum, completedInstPat, doInstCheck = True):
+        
+        if not os.path.exists(self.binary):
+            raise Exception("m5 binary not found, provided path is "+self.binary)
         
         cmd = self.getCommandline()
         

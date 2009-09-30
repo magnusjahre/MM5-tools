@@ -2,6 +2,7 @@
 import sys
 import os
 import shutil
+import glob
 
 import IniFile
 import checkpoints
@@ -43,18 +44,24 @@ def prerequisiteFilesExist(workload, np, memsys, simpoint):
             return False
     return True
 
+def copyBinaryFiles(chkPath):
+    for filename in glob.glob("*.bin"):
+        print "Copying file "+filename+" to checkpoint directory "+chkPath
+        shutil.copy(filename, chkPath)
+
 def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
     
     curWorkload = workloads.getBms(workload, np, True)
     
     if simpoint == -1:
-        for bm in workloads.getBms(workload, np):        
+        for bm in workloads.getBms(workload, np, True):        
             chkPath = checkpoints.getCheckpointDirectory(np, memsys, bm)
             if os.path.exists(chkPath):
                 print "Checkpoint allready exists for "+bm+", skipping..."
                 continue
             print "Generating checkpoint for "+bm+" with "+str(fwInsts)+" instructions in checkpoint"
             runCheckpointGeneration(bm, fwInsts, memsys, np)
+            copyBinaryFiles(chkPath)
     else:
         print "Simpoint ID "+str(simpoint)+" provided, assuming that single core checkpoints are provided in the current directory"
         
@@ -74,9 +81,14 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
         for file in allfiles:
             if file != "m5.cpt":
                 newFilePath = checkPath+"/"+file
-                print "Copying additional file "+newFilePath+" to checkpoint directory "+outdir
-                shutil.copy(newFilePath, outdir)
-
+                if file.startswith("SharedCache"):
+                    newname = file+"."+str(cpuID)
+                else:
+                    newname = file.replace("0", str(cpuID))
+                outpath = outdir+"/"+newname
+                print "Copying additional file "+newFilePath+" to checkpoint directory "+outpath
+                shutil.copy(newFilePath, outpath)
+        
         print "Reading checkpoint from file "+checkFile
         newCheckpoint = Checkpoint()
         newCheckpoint.createFromFile(checkFile, outfilename, cpuID)
