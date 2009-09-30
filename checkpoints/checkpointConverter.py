@@ -35,7 +35,7 @@ class CheckpointConverter():
                 elif self.memPat.search(sectionName):
                     print "Generating page data for section "+sectionName
                     pages = self._parseMemory(cptfile)
-                    print "Writing data to pagefile"
+                    print "Writing pages to the pagefile"
                     self._writePagesToFile(pages)
                     pages = None
                     print sectionName+" done"
@@ -157,6 +157,8 @@ class CheckpointConverter():
                 assert index in pages
                 assert pos in pages[index]
                 pages[index][pos].addData(data)
+                
+        raise Exception("Unexpected end of file")
     
     def _writePagesToFile(self, pages):
         outfile = open("pages0.bin", "wb")
@@ -164,7 +166,15 @@ class CheckpointConverter():
         indexes = pages.keys()
         indexes.sort()
         
+        writeBinaryData(outfile, "i", len(indexes))
+        
+        indexnum = 0
         for i in indexes:
+            
+            if (indexnum % 500) == 0 and indexnum > 0:
+                print "Wrote "+str(indexnum)+" out of "+str(len(indexes))+" indexes"
+            indexnum += 1
+            
             positions = pages[i].keys()
             positions.sort()
             
