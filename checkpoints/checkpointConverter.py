@@ -6,8 +6,8 @@ import os
 __metaclass__ = type
 
 def writeBinaryData(file, typestr, data):
-        outstr = struct.pack(typestr, data)
-        file.write(outstr)
+    outstr = struct.pack(typestr, data)
+    file.write(outstr)
 
 class CheckpointConverter():
 

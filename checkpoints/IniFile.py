@@ -23,8 +23,6 @@ def read(filename, outfilename, newCoreID):
     
     outfile = open(outfilename, "a")
     
-    sharedCaches = {}
-    
     curSec = None
     writeToFile = False
     
@@ -86,8 +84,6 @@ def read(filename, outfilename, newCoreID):
     
     outfile.flush()
     outfile.close()
-    
-    return sharedCaches
 
 def translateHeader(name, newCPUID):
     split = name.split(".")

@@ -11,10 +11,9 @@ class CheckpointMergeTest(unittest.TestCase):
         wlName = "fair01"
         np = 4
         memsys = "RingBased"
-        #fwInsts = 10000000
-        fwInsts = 1000000
+        fwInsts = 50000000
         siminsts = 1000000
-
+        
         checkpoints.Checkpoint.generateCheckpoint(wlName, np, fwInsts, memsys, -1)
 
         print "Running workload "+wlName+" for "+str(siminsts)+" instructions..."
