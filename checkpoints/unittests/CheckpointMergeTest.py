@@ -11,7 +11,7 @@ class CheckpointMergeTest(unittest.TestCase):
         wlName = "fair01"
         np = 4
         memsys = "RingBased"
-        fwInsts = 50000000
+        fwInsts = 10000000
         siminsts = 1000000
         
         checkpoints.Checkpoint.generateCheckpoint(wlName, np, fwInsts, memsys, -1)

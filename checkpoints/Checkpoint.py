@@ -79,10 +79,13 @@ def prerequisiteFilesExist(workload, np, memsys, simpoint):
             return False
     return True
 
-def copyBinaryFiles(chkPath):
-    for filename in glob.glob("*.bin"):
-        print "Copying file "+filename+" to checkpoint directory "+chkPath
-        shutil.copy(filename, chkPath)
+def moveBinaryFiles(chkPath):
+    filenames = glob.glob("*0*.bin")
+    for f in glob.glob("SharedCache*.bin"):
+        if f not in filenames:
+            filenames.append(f)
+    for filename in filenames:
+        os.rename(filename, chkPath+"/"+filename)
 
 def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
     
@@ -96,7 +99,7 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
                 continue
             print "Generating checkpoint for "+bm+" with "+str(fwInsts)+" instructions in checkpoint"
             runCheckpointGeneration(bm, fwInsts, memsys, np)
-            copyBinaryFiles(chkPath)
+            moveBinaryFiles(chkPath)
     else:
         print "Simpoint ID "+str(simpoint)+" provided, assuming that single core checkpoints are provided in the current directory"
         
@@ -122,7 +125,6 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
                     newname = file.replace("0", str(cpuID))
                 outpath = outdir+"/"+newname
                 if not os.path.exists(outpath):
-                    print "Linking additional file "+newFilePath+" to checkpoint directory "+outpath
                     os.symlink(newFilePath, outpath)
                 else:
                     print "File "+outpath+" exists, skipping"

@@ -133,9 +133,9 @@ class CheckpointTestCase(unittest.TestCase):
     def runWorkload(self, wlname):
         self.assert_(True)
         
-        fwinst = 50000000
+        fwinst = 10000000    
         
-        checkpoints.Checkpoint.generateCheckpoint(wlname, 4, fwinst, "RingBased")
+        checkpoints.Checkpoint.generateCheckpoint(wlname, 4, fwinst, "RingBased", -1)
         
         print "Running workload "+wlname+"..."
         
