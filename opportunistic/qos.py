@@ -1,15 +1,16 @@
 #!/usr/bin/python
 
 import re
-import pbsconfig
 import sys
 
 reference_run = '/home/grannas/15-base/'
 
 patternIPC = 'detailedCPU..COM:IPC.*'
 
-prefetchers = sys.argv[2:]
+strategy = sys.argv[1]
 benchmarks = range(1,41)
+
+configs = ['16-seq','16-rpt','20-cdc','17-srp', '20-dcpt']
 
 patternIPC = re.compile(patternIPC)
 
@@ -32,43 +33,43 @@ for benchmark in benchmarks:
   except:
     print resID + ' is corrupt'
 
-for config in pbsconfig.configs:
-    num = 40.0
-    total = 0.0
-    print config[0],
+
+count = 1
+
+for config in configs:
+    print count,
     print '\t',
+    count = count + 1
+    min = 20.0
+    minbench = -1
 
     for benchmark in benchmarks:
-      resID = 'opp_' + str(benchmark) +'_' + config[0]
+      resID = config + '-' + strategy + '/opp_' + str(benchmark) +'_1'
 
       try:
         resultfile = open(resID+'.txt')
       except:
-        #print 'Missing: ' + resID
-        num = num - 1.0
+        print 'Missing: ' + resID
         continue
 
       if resultfile != None:
         foo = resultfile.read()
         res = patternIPC.findall(foo)
 
-        speedup = 0.0
 
         for cpu in range(0,4):
-          try:
-            cpuspeedup = float(res[cpu].split()[1]) / referenceIPC[str(benchmark)+'-'+str(cpu)]
-            speedup = speedup + cpuspeedup
-            if cpuspeedup > 10:
-              print 'strange! ',
-              print benchmark,
-              print ' ' + str(cpu)
-          except:
-            #print 'foul ' + str(cpu) + ':' + str(benchmark)
-            num = num - 0.25
-        #print speedup
+          cpuspeedup = float(res[cpu].split()[1]) / referenceIPC[str(benchmark)+'-'+str(cpu)]
+          if cpuspeedup > 10:
+            print 'strange! ',
+            print benchmark,
+            print ' ' + str(cpu)
+          if cpuspeedup < min:
+            min = cpuspeedup
+            minbench = benchmark
 
-        total = total + speedup
-    print total / num,
-    print '\t (',
-    print str(num) + ')'
+    print min,
+    print '\t',
+    print config,
+    print '\t',
+    print minbench
     
