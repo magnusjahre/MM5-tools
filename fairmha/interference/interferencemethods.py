@@ -989,6 +989,8 @@ def addBreakdownPatterns(data, patterns, text, cpu_num):
     for p in patterns:
         res = patterns[p].findall(text)
         
+        print p, res
+        
         if p not in data:
             data[p] = {}
         
