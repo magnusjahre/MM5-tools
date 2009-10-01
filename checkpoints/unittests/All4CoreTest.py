@@ -7,8 +7,6 @@ from m5test.M5Command import M5Command
 
 class CheckpointTestCase(unittest.TestCase):
     
-    testID = 1
-    
     def testFair01(self):
         self.runWorkload('fair01')
         
@@ -131,13 +129,13 @@ class CheckpointTestCase(unittest.TestCase):
 
 
     def runWorkload(self, wlname):
-        self.assert_(True)
+
+        testID = int(wlname.replace("fair", ""))
         
         fwinst = 10000000    
-        
+
+        print "Running workload "+wlname+", test ID "+str(testID)
         checkpoints.Checkpoint.generateCheckpoint(wlname, 4, fwinst, "RingBased", -1)
-        
-        print "Running workload "+wlname+"..."
         
         siminsts = 1000000
         
@@ -149,10 +147,9 @@ class CheckpointTestCase(unittest.TestCase):
         m5cmd.setExpectedComInsts(siminsts)
         
         #TODO: insert committed inst check when stats parsing has been implemented
-        success = m5cmd.run(self.testID, "detailedCPU.*COM:count.*", False)
+        success = m5cmd.run(testID, "detailedCPU.*COM:count.*", False)
         self.assert_(success)
-        
-        self.testID += 1
+
 
 if __name__ == "__main__":
     unittest.main()
