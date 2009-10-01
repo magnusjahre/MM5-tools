@@ -56,6 +56,12 @@ class StatfileIndex():
             self.configurations.append(expConf)
             self._parseFile(statsfilename, [expConf.experimentID])
     
+    def _retrieveValue(self, searchRes):
+        assert len(searchRes.keys()) == 1
+        tmp = searchRes[searchRes.keys()[0]]
+        assert len(tmp.keys()) == 1
+        return tmp[tmp.keys()[0]]
+    
     def _findParseOrder(self, orderfilename):
         order = []
         orderfile = open(orderfilename)

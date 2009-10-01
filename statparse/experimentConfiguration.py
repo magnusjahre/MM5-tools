@@ -95,7 +95,7 @@ class ExperimentConfiguration:
             initstr += "-"+str(self.memsys)
         
         if self.simpoint != NO_SIMPOINT_VAL:
-            initstr += str(self.simpoint)
+            initstr += "-"+str(self.simpoint)
         
         for p in self.parameters:
             initstr += "-"+str(self.parameters[p])

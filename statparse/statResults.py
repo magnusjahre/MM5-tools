@@ -10,6 +10,25 @@ __metaclass__ = type
 
 class StatResults():
 
+    intpatterns = {"IC Entry":       ".*sum_ic_entry_interference.*",
+                   "IC Transfer":    ".*sum_ic_transfer_interference.*",
+                   "IC Delivery":    ".*sum_ic_delivery_interference.*",
+                   "Bus Entry":      ".*sum_bus_entry_interference.*",
+                   "Bus Queue":      ".*sum_bus_queue_interference.*",
+                   "Bus Service":    ".*sum_bus_service_interference.*",
+                   "Cache Capacity": ".*sum_cache_capacity_interference.*",
+                   "Total":          ".*sum_roundtrip_interference.*",
+                   "Requests":       ".*num_roundtrip_responses.*"}
+
+    latpatterns = {"IC Entry":     ".*sum_ic_entry_latency.*",
+                   "IC Transfer":  ".*sum_ic_transfer_latency.*",
+                   "IC Delivery":  ".*sum_ic_delivery_latency.*",
+                   "Bus Entry":    ".*sum_bus_entry_latency.*",
+                   "Bus Queue":    ".*sum_bus_queue_latency.*",
+                   "Bus Service":  ".*sum_bus_service_latency.*",
+                   "Total":        ".*sum_roundtrip_latency.*",
+                   "Requests":     ".*num_roundtrip_responses.*"}
+
     def __init__(self, index, searchConfig):
         self.index = index
         self.searchConfig = searchConfig
@@ -42,7 +61,104 @@ class StatResults():
         if self.denominatorResults != {}:
             print >> outfile, ""
             self._simplePrint(self.denominatorResults, decimalPlaces, outfile)
+    
+    def evaluateFairnessEstimateAccuracy(self, np, wlname, memsys):
+
+        if memsys == "RingBased":
+            prefix = "PrivateL2Cache"
+        elif memsys == "CrossbarBased":
+            prefix = "L1[di]caches"
+        else:
+            raise Exception("unknown memory system")
+
+        results = {}
+
+        cpuID = 0
+        for bm in workloads.getBms(wlname, np, True):
+            sSearchConf = ExperimentConfiguration(np, {}, bm, wlname)
+            aloneSearchConf = ExperimentConfiguration(1, {}, bm)
+            
+            sconfs = self.index.findConfiguration(sSearchConf)
+            aconfs = self.index.findConfiguration(aloneSearchConf)
+            assert len(sconfs) == 1 and len(aconfs) == 1
+            
+            for latpatname in self.latpatterns:
+                spattern = prefix+str(cpuID)+self.latpatterns[latpatname]
+                apattern = prefix+"0"+self.latpatterns[latpatname]
+                sres = self.index.searchForValues(spattern, sconfs)
+                ares = self.index.searchForValues(apattern, aconfs)
+                
+                if sconfs[0] not in results:
+                    results[sconfs[0]] = {}
+                
+                if latpatname not in results[sconfs[0]]:
+                    results[sconfs[0]][latpatname] = {}
+                    
+                results[sconfs[0]][latpatname]["slat"] = self.index._retrieveValue(sres)
+                results[sconfs[0]][latpatname]["alat"] = self.index._retrieveValue(ares)
+            
+            for ipatname in self.intpatterns:
+                
+                pattern = prefix+str(cpuID)+self.intpatterns[ipatname]
+                sint = self.index.searchForValues(pattern, sconfs)
+                
+                if sconfs[0] not in results:
+                    assert ipatname == "Cache Capacity"
+                    results[sconfs[0]] = {}
+                
+                if ipatname not in results[sconfs[0]]:
+                    assert ipatname == "Cache Capacity"
+                    results[sconfs[0]][ipatname] = {}
+                
+                assert sconfs[0] in results
+                assert ipatname in results[sconfs[0]]
+                
+                results[sconfs[0]][ipatname]["sint"] = self.index._retrieveValue(sint) 
+            
+            cpuID += 1
         
+        for conf in results:
+            print
+            print "Interference results for configuration "+str(conf)
+            print
+            
+            outtext = [["Interference Type",
+                        "Shared Latency",
+                        "Shared Interference",
+                        "Estimate", 
+                        "Alone Latency",
+                        "Absolute Error (cc)",
+                        "Relative Error (%)"]]
+            leftJustify = [True, False, False, False, False, False, False] 
+            
+            latnames = results[conf].keys()
+            latnames.sort()
+            
+            for latname in latnames:
+                estimate = "N/A"
+                error = "N/A"
+                slat = "N/A"
+                alat = "N/A"
+                relErr = "N/A"
+                
+                if latname != "Cache Capacity":
+                    slat = results[conf][latname]["slat"]
+                    alat = results[conf][latname]["alat"]
+                    estimate = slat - results[conf][latname]["sint"]
+                    error =  alat - estimate
+                    if slat > 0:
+                        relErr = (float(error) / float(slat))*100
+                    
+                outtext.append([latname,
+                                str(slat),
+                                str(results[conf][latname]["sint"]),
+                                str(estimate),
+                                str(alat),
+                                str(error),
+                                self._numberToString(relErr, 2)])
+            self._print(outtext, leftJustify, sys.stdout)
+        
+       
     def _simplePrint(self, results, decimalPlaces, outfile):
         statkeys = results.keys()
         statkeys.sort()
