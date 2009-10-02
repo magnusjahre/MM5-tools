@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import sys
-import pbsconfig
 import os
 import re
 import interferencemethods as intmethods
@@ -11,6 +10,8 @@ from math import sqrt
 
 noSamplesErrStr = "NoSamples"
 rmsAllResults = {}
+
+pbsconfig = None
 
 def writeOutput(errordict, filename, samplesizes):
     outfile = open(filename, "w")
@@ -524,6 +525,13 @@ def writeKeybasedData(filename, keystorage, rowkeys, colkeys, data, printkey, sw
     
 
 def main():
+    
+    if not os.path.exists("pbsconfig.py"):
+        print "FATAL: config file pbsconfig.py required in current directory"
+        return -1
+    
+    pbsconfig = __import__("pbsconfig")
+    
     parser = OptionParser(usage="evaluateSampleSizeAccuracy.py [options] command")
     parser.add_option("-k", "--search-key", action="store", dest="searchkey", default=".*", help="Only include results that matches this key")
     parser.add_option("-r", "--row-key-pos", type="int", action="store", dest="rowkeyid", default=0, help="Position to key to use in table rows")

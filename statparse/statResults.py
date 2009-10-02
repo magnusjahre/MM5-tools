@@ -158,6 +158,31 @@ class StatResults():
                                 self._numberToString(relErr, 2)])
             self._print(outtext, leftJustify, sys.stdout)
         
+    
+    def printSampleSizeResults(self, resulttuple, decimalPlaces):
+        errorAvg, errorStdDev, errorRMS, relErrorAvg, relErrorStdDev, relErrorRMS = resulttuple
+        
+        outtext = [["Type", "Avg Error", "Std Dev", "RMS", "Relative Avg Error", "Relative Std Dev", "Relative RMS"]]
+        leftJustify = [True, False, False, False, False, False, False]
+        
+        assert len(errorAvg.keys()) == 1
+        assert 1 in errorAvg
+        
+        keys = errorAvg[1].keys()
+        keys.sort()
+        
+        for k in keys:
+            line = [k]
+            line.append(self._numberToString(errorAvg[1][k], decimalPlaces))
+            line.append(self._numberToString(errorStdDev[1][k], decimalPlaces))
+            line.append(self._numberToString(errorRMS[1][k], decimalPlaces))
+            line.append(self._numberToString(relErrorAvg[1][k], decimalPlaces))
+            line.append(self._numberToString(relErrorStdDev[1][k], decimalPlaces))
+            line.append(self._numberToString(relErrorRMS[1][k], decimalPlaces))
+            
+            outtext.append(line)
+        
+        self._print(outtext, leftJustify, sys.stdout)
        
     def _simplePrint(self, results, decimalPlaces, outfile):
         statkeys = results.keys()
