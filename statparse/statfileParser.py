@@ -1,6 +1,7 @@
 
 import re
 import deterministic_fw_wls as workloads
+import cPickle
 
 from statparse.experimentConfiguration import ExperimentConfiguration
 
@@ -14,6 +15,8 @@ privateStatNames = ["detailedCPU",
                     "PointToPointLink",
                     "PrivateL2Cache"] 
 
+PICKLERPROT = 2
+
 class StatfileIndex():
 
     def __init__(self, modulename = ""):
@@ -21,9 +24,14 @@ class StatfileIndex():
         self.configurations = []
         
         if modulename != "":
-            storemod = __import__(modulename)
-            self.resultstore = storemod.resultstore
-            self.configurations = storemod.configurations
+            infile = open(modulename+".pkl", "rb")
+            self.resultstore = cPickle.load(infile)
+            self.configurations = cPickle.load(infile)
+            infile.close()
+            
+#            storemod = __import__(modulename)
+#            self.resultstore = storemod.resultstore
+#            self.configurations = storemod.configurations
             
         self.privateStatPatterns = [re.compile(stat) for stat in privateStatNames]
         
@@ -231,21 +239,27 @@ class StatfileIndex():
     
     def dumpIndex(self, modulename):
         
-        filename = modulename+".py"
+#        filename = modulename+".py"
+#        
+#        outfile = open(filename, "w")
+#        
+#        print >> outfile, "from statparse.statfileParser import ExperimentConfiguration"
+#        
+#        print >> outfile, "resultstore = "+str(self.resultstore)
+#        
+#        if self.configurations == []:
+#            print >> outfile, "configurations = []"
+#        else:
+#            print >> outfile, "configurations = ["+self.configurations[0].getInitCall(),
+#            for c in self.configurations[1:]:
+#                print >> outfile, ", "+c.getInitCall(),
+#            print >> outfile, "]" 
         
-        outfile = open(filename, "w")
+        filename = modulename+".pkl"
+        outfile = open(filename, "wb")
         
-        print >> outfile, "from statparse.statfileParser import ExperimentConfiguration"
-        
-        print >> outfile, "resultstore = "+str(self.resultstore)
-        
-        if self.configurations == []:
-            print >> outfile, "configurations = []"
-        else:
-            print >> outfile, "configurations = ["+self.configurations[0].getInitCall(),
-            for c in self.configurations[1:]:
-                print >> outfile, ", "+c.getInitCall(),
-            print >> outfile, "]" 
+        cPickle.dump(self.resultstore, outfile, PICKLERPROT)
+        cPickle.dump(self.configurations, outfile, PICKLERPROT)
         
         outfile.flush()
         outfile.close()

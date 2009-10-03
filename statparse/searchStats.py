@@ -1,4 +1,6 @@
 #!/usr/bin/python
+from statparse import statResults
+import statparse
 
 import sys
 import os
@@ -92,7 +94,7 @@ def makeType(value):
 
 def getIndexmodule(basename):
     indexmodule = "index-"+basename
-    indexmodulename = indexmodule+".py"
+    indexmodulename = indexmodule+".pkl"
     return indexmodule, indexmodulename
 
 def createFileIndex(opts, args):
@@ -119,7 +121,7 @@ def createFileIndex(opts, args):
         
         starttime = 0.0
         if not opts.quiet:
-            print "Index exists, loading for file "+indexmodulename
+            print "Index exists, loading file "+indexmodulename
             starttime = time()
         index = StatfileIndex(indexmodule)
         if not opts.quiet:
@@ -157,7 +159,11 @@ def createFileIndex(opts, args):
                         print ("%.2f" % percProgress)+" % complete"
                     
                     varparams = pbsconfig.get_variable_params(params)
-                    index.addFile(filepath, orderpath, np, wlOrBm, varparams)
+                    try:
+                        index.addFile(filepath, orderpath, np, wlOrBm, varparams)
+                    except Exception as e:
+                        print "Parsing failed for experment "+str(np)+", "+wlOrBm
+                        print "Message: "+str(e)
                 else:
                     if not opts.quiet:
                         print "WARNING: file "+filepath+" does not exist"
@@ -254,8 +260,12 @@ def main():
         else:
             print "Searching for nominator pattern "+args[0]+" and denominator pattern "+args[1]
         print
-        
-    statSearch = doSearch(index, searchConfig, args)
+
+    try:
+        statSearch = doSearch(index, searchConfig, args)
+    except Exception as e:
+        print str(e)
+        return -1
     
     if not opts.quiet:
         print "Printing search results..."

@@ -349,6 +349,8 @@ class StatResults():
     
     def _removePatternsFromResult(self, results):
         configRes = {}
+        if len(results.keys()) > 1:
+            raise MultiplePatternError(results.keys())
         for p in results:
             for c in results[p]:
                 assert c not in configRes
@@ -536,4 +538,14 @@ class StatResults():
         keys.sort()
         return keys
 
+class MultiplePatternError(Exception):
+    
+    def __init__(self, patterns): 
+        self.patterns = patterns
         
+    def __str__(self):
+        retstr = "Multiple statistics returned from search but result printing can only handle one statistic\n\n"
+        retstr += "Your query matched the following statistics:\n"
+        for p in self.patterns:
+            retstr += "- "+str(p)+"\n"
+        return retstr
