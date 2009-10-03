@@ -32,6 +32,8 @@ class ExperimentConfiguration:
             if p == "MEMORY-ADDRESS-PARTS":
                 assert np == 1
                 self.memsys = int(params[p])
+            elif p == "USE-SIMPOINT":
+                self.simpoint = int(params[p]) 
             else:
                 self.parameters[p] = params[p]
         

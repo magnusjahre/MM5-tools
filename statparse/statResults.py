@@ -227,8 +227,9 @@ class StatResults():
                 for params in allParams:
                     for wl in allWls:
                         wlConfig = ExperimentConfiguration(np, params, "*", wl)
+                        assert wlConfig not in aggregate
                         aggregate[wlConfig] = self._aggregateWorkloadResults(np, params, wl)
-                                    
+
             if self.expMetric != None:
                 self._aggregateExperimentResults()
         
@@ -256,19 +257,31 @@ class StatResults():
                 continue
             
             for wl in allWls:
-                line = [str(np)+"-"+str(wl)]
-                for params in sortedParams:
-                    
-                    found = False
-                    for config in aggregate:
-                        if config.np == np and config.workload == wl and config.parameters == params:
-                            assert not found
-                            found = True
-                            line.append(self._numberToString(aggregate[config][0], decimals))
-                outdata.append(line)
-                    
+                outdata = self._addAggregatePrintElement(outdata, np, wl, sortedParams, aggregate, decimals)
+                                    
         self._print(outdata, leftJust, outfile)
     
+    def _addAggregatePrintElement(self, outdata, np, wl, sortedParams, aggregate, decimals):
+        simpoints = [i for i in range(simpoints3.maxk)]
+        if self.aggregateSimpoints:
+            simpoints = [experimentConfiguration.NO_SIMPOINT_VAL]
+
+        for simpoint in simpoints:
+            if simpoint == experimentConfiguration.NO_SIMPOINT_VAL:
+                line = [str(np)+"-"+str(wl)]
+            else:
+                line = [str(np)+"-"+str(wl)+"-"+str(simpoint)]
+            for params in sortedParams:
+                    
+                found = False
+                for config in aggregate:
+                    if config.np == np and config.workload == wl and config.parameters == params:
+                        assert not found
+                        found = True
+                        line.append(self._numberToString(aggregate[config][simpoint], decimals))
+            outdata.append(line)
+        return outdata
+
     def _paramsToString(self, params):
         sortedKeys = params.keys()
         sortedKeys.sort()
@@ -330,7 +343,6 @@ class StatResults():
             spAgg = self._computeRatio(nomSpAggregate, denomSpAggregate)
         else:
             mpAgg, spAgg = nomMpAggregate, nomSpAggregate
-
         
         self.wlMetric.setValues(mpAgg, spAgg)
         return self.wlMetric.computeMetricValue() 
@@ -349,11 +361,12 @@ class StatResults():
     
     def _removePatternsFromResult(self, results):
         configRes = {}
-        if len(results.keys()) > 1:
-            raise MultiplePatternError(results.keys())
+        
         for p in results:
             for c in results[p]:
-                assert c not in configRes
+                if c in configRes:
+                    raise MultiplePatternError(results.keys(), results[p].keys())
+                    
                 configRes[c] = results[p][c]
         return configRes
         
@@ -381,7 +394,6 @@ class StatResults():
                     spAggregate = self._aggregateSimpoints(singleRes)
                 else:
                     spAggregate = self._createSimpointDict(singleRes, spAggregate, bm)
-                    
         
         return mpAggregate, spAggregate
         
@@ -540,12 +552,16 @@ class StatResults():
 
 class MultiplePatternError(Exception):
     
-    def __init__(self, patterns): 
+    def __init__(self, patterns, expkeys): 
         self.patterns = patterns
+        self.expkeys = expkeys
         
     def __str__(self):
-        retstr = "Multiple statistics returned from search but result printing can only handle one statistic\n\n"
+        retstr = "The same experiment key was found in multiple patterns, unifying will lose information\n\n"
         retstr += "Your query matched the following statistics:\n"
         for p in self.patterns:
+            retstr += "- "+str(p)+"\n"
+        retstr += "\nThe following keys matched:\n"
+        for p in self.expkeys:
             retstr += "- "+str(p)+"\n"
         return retstr

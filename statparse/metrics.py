@@ -1,3 +1,4 @@
+import simpoints3
 
 __metaclass__ = type
 
@@ -38,11 +39,16 @@ class WorkloadMetric():
         self.n = 0
         self.speedups = []
         self.spmNeeded = False
+        self.error = False
+        self.errStr = "N/A"
 
     def setValues(self, multiprogramValues, singleProgramValues):
+
+        if multiprogramValues == {}:
+            self.error = True
+            return
         
-        self.numSimpoints = len(multiprogramValues)
-        assert self.numSimpoints > 0
+        self.numSimpoints = simpoints3.maxk
         self.n = len(multiprogramValues[multiprogramValues.keys()[0]])
         self.speedups = [[] for i in range(self.numSimpoints)]
         
@@ -102,6 +108,9 @@ class WorkloadMetric():
             
             res.append(self.n / invSum)
         return res
+
+    def returnErrorString(self):
+        return [self.errStr for i in range(simpoints3.maxk)]
     
 class SystemThroughput(WorkloadMetric):
     
@@ -112,6 +121,8 @@ class SystemThroughput(WorkloadMetric):
         return "System Throughput"
     
     def computeMetricValue(self):
+        if self.error:
+            return self.returnErrorString()
         return self.computeSum()
     
 class HarmonicMeanOfSpeedups(WorkloadMetric):
@@ -123,6 +134,8 @@ class HarmonicMeanOfSpeedups(WorkloadMetric):
         return "Harmonic Mean of Speedups"
     
     def computeMetricValue(self):
+        if self.error:
+            return self.returnErrorString()
         return self.computeHmean()
     
 class Fairness(WorkloadMetric):
@@ -134,6 +147,8 @@ class Fairness(WorkloadMetric):
         return "Fairness"
     
     def computeMetricValue(self):
+        if self.error:
+            return self.returnErrorString()
         res = []
         for simpointVals in self.speedups:
             largestSpeedup = max(simpointVals)
@@ -151,6 +166,8 @@ class Sum(WorkloadMetric):
         return "Sum"
     
     def computeMetricValue(self):
+        if self.error:
+            return self.returnErrorString()
         return self.computeSum()
 
 class HarmonicMean(WorkloadMetric):
@@ -162,6 +179,8 @@ class HarmonicMean(WorkloadMetric):
         return "Harmonic Mean"
     
     def computeMetricValue(self):
+        if self.error:
+            return self.returnErrorString()
         return self.computeHmean()
 
 class ArithmeticMean(WorkloadMetric):
@@ -173,6 +192,8 @@ class ArithmeticMean(WorkloadMetric):
         return "Arithmetic Mean"
     
     def computeMetricValue(self):
+        if self.error:
+            return self.returnErrorString()
         res = []
         for sum in self.computeSum():
             res.append(sum / float(self.n))

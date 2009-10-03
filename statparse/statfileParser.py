@@ -29,10 +29,6 @@ class StatfileIndex():
             self.configurations = cPickle.load(infile)
             infile.close()
             
-#            storemod = __import__(modulename)
-#            self.resultstore = storemod.resultstore
-#            self.configurations = storemod.configurations
-            
         self.privateStatPatterns = [re.compile(stat) for stat in privateStatNames]
         
     def addstat(self, statkey, configid, value):
@@ -238,22 +234,6 @@ class StatfileIndex():
         return result
     
     def dumpIndex(self, modulename):
-        
-#        filename = modulename+".py"
-#        
-#        outfile = open(filename, "w")
-#        
-#        print >> outfile, "from statparse.statfileParser import ExperimentConfiguration"
-#        
-#        print >> outfile, "resultstore = "+str(self.resultstore)
-#        
-#        if self.configurations == []:
-#            print >> outfile, "configurations = []"
-#        else:
-#            print >> outfile, "configurations = ["+self.configurations[0].getInitCall(),
-#            for c in self.configurations[1:]:
-#                print >> outfile, ", "+c.getInitCall(),
-#            print >> outfile, "]" 
         
         filename = modulename+".pkl"
         outfile = open(filename, "wb")
