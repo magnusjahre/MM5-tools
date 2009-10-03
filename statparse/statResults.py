@@ -344,7 +344,7 @@ class StatResults():
         else:
             mpAgg, spAgg = nomMpAggregate, nomSpAggregate
         
-        self.wlMetric.setValues(mpAgg, spAgg)
+        self.wlMetric.setValues(mpAgg, spAgg, np)
         return self.wlMetric.computeMetricValue() 
     
     def _computeRatio(self, nominator, denominator):

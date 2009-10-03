@@ -1,4 +1,5 @@
 import simpoints3
+import experimentConfiguration
 
 __metaclass__ = type
 
@@ -39,27 +40,22 @@ class WorkloadMetric():
         self.n = 0
         self.speedups = []
         self.spmNeeded = False
-        self.error = False
         self.errStr = "N/A"
 
-    def setValues(self, multiprogramValues, singleProgramValues):
-
-        if multiprogramValues == {}:
-            self.error = True
-            return
+    def setValues(self, multiprogramValues, singleProgramValues, np):
         
         self.numSimpoints = simpoints3.maxk
-        self.n = len(multiprogramValues[multiprogramValues.keys()[0]])
+        self.n = np
         self.speedups = [[] for i in range(self.numSimpoints)]
         
         if singleProgramValues == {}:
-            if self.spmNeeded:
+            if multiprogramValues != {} and self.spmNeeded:
                 raise Exception("Single program mode results needed by metric but not provided")
             
             for simpoint in multiprogramValues:
                 
                 if self.numSimpoints == 1:
-                    simpointkey = 0
+                    simpointkey = experimentConfiguration.NO_SIMPOINT_VAL
                 else:
                     simpointkey = simpoint
                 
@@ -71,11 +67,8 @@ class WorkloadMetric():
             
             for simpoint in multiprogramValues:
                 
-                if simpoint not in singleProgramValues:
-                    raise Exception("Results contain no single program data for simpoint "+str(simpoint))
-                
                 if self.numSimpoints == 1:
-                    simpointkey = 0
+                    simpointkey = experimentConfiguration.NO_SIMPOINT_VAL 
                 else:
                     simpointkey = simpoint
                 
@@ -93,20 +86,26 @@ class WorkloadMetric():
     def computeSum(self):
         res = []
         for simpointVals in self.speedups:
-            tmp = 0.0
-            for v in simpointVals:
-                tmp += v
-            res.append(tmp)
+            if simpointVals == []:
+                res.append(self.errStr)
+            else:
+                tmp = 0.0
+                for v in simpointVals:
+                    tmp += v
+                res.append(tmp)
         return res
     
     def computeHmean(self):
         res = []
         for simpointVals in self.speedups:
-            invSum = 0.0
-            for sp in simpointVals:
-                invSum += 1 / sp
-            
-            res.append(self.n / invSum)
+            if simpointVals == []:
+                res.append(self.errStr)
+            else:
+                invSum = 0.0
+                for sp in simpointVals:
+                    invSum += 1 / sp
+                
+                res.append(self.n / invSum)
         return res
 
     def returnErrorString(self):
@@ -115,45 +114,45 @@ class WorkloadMetric():
 class SystemThroughput(WorkloadMetric):
     
     def __init__(self):
+        super(SystemThroughput, self).__init__()
         self.spmNeeded = True
     
     def __str__(self):
         return "System Throughput"
     
     def computeMetricValue(self):
-        if self.error:
-            return self.returnErrorString()
         return self.computeSum()
     
 class HarmonicMeanOfSpeedups(WorkloadMetric):
     
     def __init__(self):
+        super(HarmonicMeanOfSpeedups, self).__init__()
         self.spmNeeded = True
     
     def __str__(self):
         return "Harmonic Mean of Speedups"
     
     def computeMetricValue(self):
-        if self.error:
-            return self.returnErrorString()
         return self.computeHmean()
     
 class Fairness(WorkloadMetric):
     
     def __init__(self):
+        super(Fairness, self).__init__()
         self.spmNeeded = True
     
     def __str__(self):
         return "Fairness"
     
     def computeMetricValue(self):
-        if self.error:
-            return self.returnErrorString()
         res = []
         for simpointVals in self.speedups:
-            largestSpeedup = max(simpointVals)
-            smallestSpeedup = min(simpointVals)
-            res.append(smallestSpeedup / largestSpeedup)
+            if simpointVals == []:
+                res.append(self.errStr)
+            else:
+                largestSpeedup = max(simpointVals)
+                smallestSpeedup = min(simpointVals)
+                res.append(smallestSpeedup / largestSpeedup)    
         return res
 
 class Sum(WorkloadMetric):
@@ -166,35 +165,34 @@ class Sum(WorkloadMetric):
         return "Sum"
     
     def computeMetricValue(self):
-        if self.error:
-            return self.returnErrorString()
         return self.computeSum()
 
 class HarmonicMean(WorkloadMetric):
     
     def __init__(self):
+        super(HarmonicMean, self).__init__()
         self.spmNeeded = False
         
     def __str__(self):
         return "Harmonic Mean"
     
     def computeMetricValue(self):
-        if self.error:
-            return self.returnErrorString()
         return self.computeHmean()
 
 class ArithmeticMean(WorkloadMetric):
     
     def __init__(self):
+        super(ArithmeticMean, self).__init__()
         self.spmNeeded = False
     
     def __str__(self):
         return "Arithmetic Mean"
     
     def computeMetricValue(self):
-        if self.error:
-            return self.returnErrorString()
         res = []
         for sum in self.computeSum():
-            res.append(sum / float(self.n))
+            if sum == self.errStr:
+                res.append(self.errStr)
+            else:
+                res.append(sum / float(self.n))
         return res
