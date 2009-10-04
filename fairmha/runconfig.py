@@ -15,6 +15,7 @@ SLEEP_TIME = 1*60
 PROJECT_NUM = "nn4650k"
 PBS_DIR_NAME = "pbsfiles"
 
+#TODO: retrieve walltime settings from pbsconfig
 ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
 walltime = {1:4, 4:48, 8:10, 16:12}             # in hours
 perProcMem = {1:1792, 4:1792, 8:1792, 16:3584} # in MB
@@ -112,7 +113,7 @@ def flush_commands(fcnt):
     print >> output, ""
 
     for fileID, command in latest_commands:
-        print >> output, 'cp -R '+fileID+'/* '+ pbsconfig.experimentpath + '/'+fileID+'\n'
+        print >> output, 'cp '+fileID+'/*.txt '+fileID+'/*.bb '+pbsconfig.experimentpath+'/'+fileID+'\n'
 
     print >> output, "cd .."
     print >> output, "rm -Rf jahre"
