@@ -232,11 +232,10 @@ class StatResults():
 
             if self.expMetric != None:
                 self._aggregateExperimentResults()
-        
-        
-        self._printAggregate(aggregate, allNPs, allWls, allParams, outfile, decimals) 
-        
-    def _printAggregate(self, aggregate, allNPs, allWls, allParams, outfile, decimals):
+            
+        self._printAggregate(aggregate, allNPs, allWls, allParams, outfile, decimals, wlMetric.doTablePrint)
+            
+    def _printAggregate(self, aggregate, allNPs, allWls, allParams, outfile, decimals, printAllCPUs):
         
         sortedParams = self._createSortedParamList(allParams)
         
@@ -257,20 +256,38 @@ class StatResults():
                 continue
             
             for wl in allWls:
-                outdata = self._addAggregatePrintElement(outdata, np, wl, sortedParams, aggregate, decimals)
+                outdata = self._addAggregatePrintElement(outdata, np, wl, sortedParams, aggregate, decimals, printAllCPUs)
                                     
         self._print(outdata, leftJust, outfile)
     
-    def _addAggregatePrintElement(self, outdata, np, wl, sortedParams, aggregate, decimals):
-        simpoints = [i for i in range(simpoints3.maxk)]
+    def _addAggregatePrintElement(self, outdata, np, wl, sortedParams, aggregate, decimals, printAllCPUs):
+        
         if self.aggregateSimpoints:
             simpoints = [experimentConfiguration.NO_SIMPOINT_VAL]
+        else:
+            simpoints = [i for i in range(simpoints3.maxk)]
+            
+        if printAllCPUs:
+            cpus = [i for i in range(np)]
+        else:
+            cpus = [np]
+            
+        iterspace = []
+        for s in simpoints:
+            for c in cpus:
+                iterspace.append( (s,c) )
 
-        for simpoint in simpoints:
-            if simpoint == experimentConfiguration.NO_SIMPOINT_VAL:
-                line = [str(np)+"-"+str(wl)]
-            else:
-                line = [str(np)+"-"+str(wl)+"-"+str(simpoint)]
+        for simpoint, cpuID in iterspace:
+            
+            title = str(np)+"-"+str(wl)
+            
+            if simpoint != experimentConfiguration.NO_SIMPOINT_VAL:
+                title += "-"+str(simpoint)
+            if cpuID != np:
+                tmpWl = workloads.getBms(wl, np, False)
+                title += "-"+tmpWl[cpuID]
+
+            line = [title]
             for params in sortedParams:
                     
                 found = False
@@ -278,7 +295,11 @@ class StatResults():
                     if config.np == np and config.workload == wl and config.parameters == params:
                         assert not found
                         found = True
-                        line.append(self._numberToString(aggregate[config][simpoint], decimals))
+                        
+                        if cpuID != np:
+                            line.append(self._numberToString(aggregate[config][simpoint][cpuID], decimals))
+                        else:
+                            line.append(self._numberToString(aggregate[config][simpoint], decimals))
             outdata.append(line)
         return outdata
 

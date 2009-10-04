@@ -1,6 +1,4 @@
 #!/usr/bin/python
-from statparse import statResults
-import statparse
 
 import sys
 import os
@@ -40,6 +38,8 @@ def parseArgs():
     resultOptions.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to print for float results")
     resultOptions.add_option("--print-agg-distribution", action="store_true", dest="printAggDistribution", default=False, help="Use distribution mode when printing results")
     resultOptions.add_option("--print-distribution-file", action="store_true", dest="printDistFile", default=False, help="Create one python file with all matching distributions")
+    resultOptions.add_option("--print-all-cores", action="store_true", dest="printAllCores", default=False, help="Print separate statistics for each core")
+    resultOptions.add_option("--print-speedups", action="store_true", dest="printSpeedups", default=False, help="Divide per core statistics by single program performance")
     parser.add_option_group(resultOptions)
     
     otherOptions = OptionGroup(parser, "Other options")
@@ -179,7 +179,7 @@ def createFileIndex(opts, args):
     return index
 
 def writeSearchResults(statSearch, opts, outfile):
-    if opts.wlAggMetric != "" or opts.expAggMetric != "" or opts.aggSimpoints:
+    if opts.wlAggMetric != "" or opts.expAggMetric != "" or opts.aggSimpoints or opts.printAllCores:
         
         wlMetric = None
         if opts.wlAggMetric != "":
@@ -189,6 +189,15 @@ def writeSearchResults(statSearch, opts, outfile):
                 print e
                 metrics.printPossibleMetrics()
                 sys.exit(-1)
+        
+        if opts.printAllCores:
+            if wlMetric != None:
+                print "ERROR: --print-table and --workload-agg-metric are mutually exclusive"
+                return -1 
+            wlMetric = metrics.NoAggregation(opts.printSpeedups)
+        else:
+            if opts.printSpeedups:
+                print "WARNING: --print-speedups only makes sense with --print-all-cores"
         
         expMetric = None    
         if opts.expAggMetric != "":

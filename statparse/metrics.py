@@ -41,6 +41,7 @@ class WorkloadMetric():
         self.speedups = []
         self.spmNeeded = False
         self.errStr = "N/A"
+        self.doTablePrint = False
 
     def setValues(self, multiprogramValues, singleProgramValues, np):
         
@@ -196,3 +197,22 @@ class ArithmeticMean(WorkloadMetric):
             else:
                 res.append(sum / float(self.n))
         return res
+
+class NoAggregation(WorkloadMetric):
+    def __init__(self, computeSpeedups):
+        super(NoAggregation, self).__init__()
+        self.spmNeeded = computeSpeedups
+        self.doTablePrint = True
+    
+    def __str__(self):
+        return "No Aggregation Metric"
+    
+    def computeMetricValue(self):
+        retarr = []
+        for simpointVals in self.speedups:
+            if simpointVals == []:
+                retarr.append([self.errStr for i in range(self.n)])
+            else:
+                retarr.append(simpointVals)
+            
+        return retarr
