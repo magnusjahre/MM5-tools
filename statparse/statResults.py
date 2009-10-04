@@ -378,6 +378,7 @@ class StatResults():
             for bm in nominator[simpoint]:
                 assert bm in denominator[simpoint]
                 ratio[simpoint][bm] = float(nominator[simpoint][bm]) / float(denominator[simpoint][bm])
+                 
         return ratio
     
     def _removePatternsFromResult(self, results):
@@ -401,7 +402,7 @@ class StatResults():
             filteredRes = self._filterResults(results, np, params, wl, bm, np)
             
             if self.aggregateSimpoints:
-                mpAggregate = self._aggregateSimpoints(filteredRes)
+                mpAggregate = self._aggregateSimpoints(filteredRes, mpAggregate, bm)
             else:
                 mpAggregate = self._createSimpointDict(filteredRes, mpAggregate, bm)
             
@@ -412,14 +413,40 @@ class StatResults():
                     raise Exception("Single program mode results needed for metric '"+str(self.wlMetric)+"' but cannot be found")
                 
                 if self.aggregateSimpoints:
-                    spAggregate = self._aggregateSimpoints(singleRes)
+                    spAggregate = self._aggregateSimpoints(singleRes, spAggregate, bm)
                 else:
                     spAggregate = self._createSimpointDict(singleRes, spAggregate, bm)
         
         return mpAggregate, spAggregate
         
-    def _aggregateSimpoints(self, filteredRes):
-        raise Exception("Simpoint aggregation not implemented")
+    def _aggregateSimpoints(self, filteredRes, aggregate, bm):
+        
+        simpointdata = simpoints3.simpoints[bm]
+        
+        foundSimpoints = [False for i in range(simpoints3.maxk)]
+        tmpAggregate = 0
+        for i in range(simpoints3.maxk):
+            for c in filteredRes:
+                if c.simpoint == experimentConfiguration.NO_SIMPOINT_VAL:
+                    raise Exception("Results must have simpoints when aggregate simpoints is used")
+                if c.simpoint == i:
+                    assert not foundSimpoints[i]
+                    tmpAggregate += filteredRes[c] * simpointdata[i][simpoints3.PROBKEY]
+                    foundSimpoints[i] = True
+                    
+        success = True
+        for found in foundSimpoints:
+            if not found:
+                success = False
+        
+        if success:
+            if experimentConfiguration.NO_SIMPOINT_VAL not in aggregate:
+                aggregate[experimentConfiguration.NO_SIMPOINT_VAL] = {}
+                
+            assert bm not in aggregate[experimentConfiguration.NO_SIMPOINT_VAL]
+            aggregate[experimentConfiguration.NO_SIMPOINT_VAL][bm] = tmpAggregate
+        
+        return aggregate
     
     def _createSimpointDict(self, filteredRes, aggregate, subkey):
         for config in filteredRes:
