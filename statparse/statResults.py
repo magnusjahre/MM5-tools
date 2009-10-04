@@ -1,4 +1,5 @@
 from statparse import experimentConfiguration
+from statparse.metrics import metrics
 
 import sys
 import simpoints3
@@ -231,7 +232,7 @@ class StatResults():
                         aggregate[wlConfig] = self._aggregateWorkloadResults(np, params, wl)
 
             if self.expMetric != None:
-                self._aggregateExperimentResults()
+                aggregate = self._aggregateExperimentResults(aggregate, allNPs, allWls, allParams)
             
         self._printAggregate(aggregate, allNPs, allWls, allParams, outfile, decimals, wlMetric.doTablePrint)
             
@@ -254,9 +255,18 @@ class StatResults():
         for np in allNPs:
             if np == 1:
                 continue
-            
-            for wl in allWls:
-                outdata = self._addAggregatePrintElement(outdata, np, wl, sortedParams, aggregate, decimals, printAllCPUs)
+        
+            if self.expMetric == None:
+                for wl in allWls:
+                    outdata = self._addAggregatePrintElement(outdata, np, wl, sortedParams, aggregate, decimals, printAllCPUs)
+            else:
+                line = ["Aggregate"]
+                for p in sortedParams:
+                    for c in aggregate:
+                        if p == c.parameters:
+                            assert len(aggregate[c]) == 1
+                            line.append(self._numberToString(aggregate[c][0], decimals))
+                outdata.append(line)
                                     
         self._print(outdata, leftJust, outfile)
     
@@ -282,14 +292,14 @@ class StatResults():
             title = str(np)+"-"+str(wl)
             
             if simpoint != experimentConfiguration.NO_SIMPOINT_VAL:
-                title += "-"+str(simpoint)
+                title += "-sp"+str(simpoint)
             if cpuID != np:
                 tmpWl = workloads.getBms(wl, np, False)
                 title += "-"+tmpWl[cpuID]
 
             line = [title]
             for params in sortedParams:
-                    
+                
                 found = False
                 for config in aggregate:
                     if config.np == np and config.workload == wl and config.parameters == params:
@@ -366,7 +376,8 @@ class StatResults():
             mpAgg, spAgg = nomMpAggregate, nomSpAggregate
         
         self.wlMetric.setValues(mpAgg, spAgg, np)
-        return self.wlMetric.computeMetricValue() 
+        metval = self.wlMetric.computeMetricValue()
+        return metval
     
     def _computeRatio(self, nominator, denominator):
         ratio = {}
@@ -458,8 +469,28 @@ class StatResults():
             aggregate[config.simpoint][subkey] = filteredRes[config]
         return aggregate
     
-    def _aggregateExperimentResults(self):
-        raise Exception("Experiment aggregation not implemented")
+    def _aggregateExperimentResults(self, aggregate, allNPs, allWls, allParams):
+        newAggregate = {}
+        
+        for np in allNPs:
+            
+            if np == 1 and allNPs != [1]:
+                continue
+            
+            for params in allParams:
+                self.expMetric.clearValues()
+                for wl in allWls:
+                    wlConfig = ExperimentConfiguration(np, params, "*", wl)
+                    for c in aggregate:
+                        if c.compareTo(wlConfig):
+                            if len(aggregate[c]) > 1 and aggregate[c][0] != self.expMetric.errStr:
+                                raise Exception("Experiment aggregation does only make sense with both workload aggregation and simpoint aggregation")
+                            self.expMetric.addValue(aggregate[c][0], np)
+                
+                aggConfig = ExperimentConfiguration(np, params, "*")            
+                newAggregate[aggConfig] = self.expMetric.computeMetricValue()
+        
+        return newAggregate
     
     def printAggregateDistribution(self, decimalPlaces, outfile):
         

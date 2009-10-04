@@ -42,12 +42,20 @@ class WorkloadMetric():
         self.spmNeeded = False
         self.errStr = "N/A"
         self.doTablePrint = False
+        self.speedups = [[]]
 
     def setValues(self, multiprogramValues, singleProgramValues, np):
         
-        self.numSimpoints = simpoints3.maxk
         self.n = np
-        self.speedups = [[] for i in range(self.numSimpoints)]
+        
+        if experimentConfiguration.NO_SIMPOINT_VAL in multiprogramValues:
+            # Simpoints have been removed by aggregation
+            self.numSimpoints = 1
+            self.speedups = [[]]
+        else:
+            # Simpoints are still present
+            self.numSimpoints = simpoints3.maxk
+            self.speedups = [[] for i in range(self.numSimpoints)]
         
         if singleProgramValues == {}:
             if multiprogramValues != {} and self.spmNeeded:
@@ -80,6 +88,16 @@ class WorkloadMetric():
                         raise Exception("Results contain no single program data for benchmark "+str(bm))
                     
                     self.speedups[simpointkey].append(float(multiprogramValues[simpoint][bm]) / float(singleProgramValues[simpoint][bm]))
+    
+    def addValue(self, value, np):
+        if value == self.errStr:
+            return
+        self.speedups[0].append(value)
+        self.n += 1
+    
+    def clearValues(self):
+        self.speedups = [[]]
+        self.n = 0
     
     def computeMetricValue(self):
         raise Exception("compute metric should only be called on subclasses")
