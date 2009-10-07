@@ -1,5 +1,4 @@
 from statparse import experimentConfiguration
-from statparse.metrics import metrics
 
 import sys
 import simpoints3
@@ -299,7 +298,6 @@ class StatResults():
 
             line = [title]
             for params in sortedParams:
-                
                 found = False
                 for config in aggregate:
                     if config.np == np and config.workload == wl and config.parameters == params:
@@ -331,6 +329,10 @@ class StatResults():
         return retstr
     
     def _createSortedParamList(self, allParams):
+        
+        if allParams == [{}]:
+            return allParams
+        
         paramVals = {}
         
         for params in allParams:
