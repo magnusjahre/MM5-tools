@@ -377,7 +377,7 @@ class StatResults():
         else:
             mpAgg, spAgg = nomMpAggregate, nomSpAggregate
         
-        self.wlMetric.setValues(mpAgg, spAgg, np)
+        self.wlMetric.setValues(mpAgg, spAgg, np, wl)
         metval = self.wlMetric.computeMetricValue()
         return metval
     

@@ -1,5 +1,6 @@
 import simpoints3
 import experimentConfiguration
+import deterministic_fw_wls as workloads
 
 __metaclass__ = type
 
@@ -44,7 +45,7 @@ class WorkloadMetric():
         self.doTablePrint = False
         self.speedups = [[]]
 
-    def setValues(self, multiprogramValues, singleProgramValues, np):
+    def setValues(self, multiprogramValues, singleProgramValues, np, wl):
         
         self.n = np
         
@@ -68,10 +69,8 @@ class WorkloadMetric():
                 else:
                     simpointkey = simpoint
                 
-                assert simpointkey not in self.speedups
-                self.speedups[simpointkey] = []
-                for bm in multiprogramValues[simpoint]:
-                    self.speedups[simpointkey].append(float(multiprogramValues[simpoint][bm]))
+                self._addSimpointValue(simpointkey, simpoint, multiprogramValues, singleProgramValues, wl)
+                
         else:
             
             for simpoint in multiprogramValues:
@@ -81,13 +80,28 @@ class WorkloadMetric():
                 else:
                     simpointkey = simpoint
                 
-                assert simpointkey not in self.speedups
-                self.speedups[simpointkey] = []
-                for bm in multiprogramValues[simpoint]:
-                    if bm not in singleProgramValues[simpoint]:
-                        raise Exception("Results contain no single program data for benchmark "+str(bm))
+                self._addSimpointValue(simpointkey, simpoint, multiprogramValues, singleProgramValues, wl)
+                
                     
-                    self.speedups[simpointkey].append(float(multiprogramValues[simpoint][bm]) / float(singleProgramValues[simpoint][bm]))
+    def _addSimpointValue(self, simpointkey, simpoint, mpb, spb, wl):
+        
+        benchmarks = workloads.getBms(wl, self.n, True)
+        
+        assert simpointkey not in self.speedups
+        self.speedups[simpointkey] = []
+        for bm in benchmarks:
+            if bm not in mpb[simpointkey]:
+                self.speedups[simpoint] = []
+                return
+                
+            if spb != {}:
+                if bm not in spb[simpoint]:
+                    self.speedups[simpoint] = []
+                    return
+                
+                self.speedups[simpointkey].append(float(mpb[simpoint][bm]) / float(spb[simpoint][bm]))
+            else:
+                self.speedups[simpointkey].append(float(mpb[simpoint][bm]))
     
     def addValue(self, value, np):
         if value == self.errStr:
