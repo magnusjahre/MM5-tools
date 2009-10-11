@@ -1,4 +1,4 @@
-import simpoints3
+import simpoints.simpoints as simpoints
 import experimentConfiguration
 import deterministic_fw_wls as workloads
 
@@ -55,7 +55,7 @@ class WorkloadMetric():
             self.speedups = [[]]
         else:
             # Simpoints are still present
-            self.numSimpoints = simpoints3.maxk
+            self.numSimpoints = simpoints.maxk
             self.speedups = [[] for i in range(self.numSimpoints)]
         
         if singleProgramValues == {}:
@@ -142,7 +142,7 @@ class WorkloadMetric():
         return res
 
     def returnErrorString(self):
-        return [self.errStr for i in range(simpoints3.maxk)]
+        return [self.errStr for i in range(simpoints.maxk)]
     
 class SystemThroughput(WorkloadMetric):
     

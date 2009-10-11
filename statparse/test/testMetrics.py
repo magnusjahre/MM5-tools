@@ -3,7 +3,7 @@ from statparse import experimentConfiguration
 
 import unittest
 import random
-import simpoints3 as simpoints
+import simpoints.simpoints as simpoints
 import deterministic_fw_wls as workloads
 
 

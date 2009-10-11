@@ -107,7 +107,7 @@ def analyzeKValue(maxk):
     
     for cmd,args in pbsconfig.commandlines:
         dirID = pbsconfig.get_unique_id(args)
-        bm = pbsconfig.get_workload(args)
+        bm = pbsconfig.get_benchmark(args)
         
         try:
             os.chdir(dirID)
@@ -203,7 +203,7 @@ def generateSimulatorConfig(results, maxk, intervalsize):
             if i < len(fwinsts):
                 finalRes[i] = {FWKEY: fwinsts[i], PROBKEY: tmpweights[fwinsts[i]] }
             else:
-                finalRes[i] = {FWKEY: fwinsts[i-1], PROBKEY: 0  }
+                finalRes[i] = {FWKEY: fwinsts[i % len(fwinsts)], PROBKEY: 0  }
         
         assert bm not in simpoints
         simpoints[bm] = finalRes 

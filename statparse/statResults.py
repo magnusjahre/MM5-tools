@@ -1,7 +1,7 @@
 from statparse import experimentConfiguration
 
 import sys
-import simpoints3
+import simpoints.simpoints as simpoints
 import deterministic_fw_wls as workloads
 
 from experimentConfiguration import ExperimentConfiguration
@@ -33,7 +33,7 @@ class StatResults():
         self.index = index
         self.searchConfig = searchConfig
         
-        self.numSimpoints = simpoints3.maxk
+        self.numSimpoints = simpoints.maxk
         
         # search members
         self.results = {}
@@ -274,7 +274,7 @@ class StatResults():
         if self.aggregateSimpoints:
             simpoints = [experimentConfiguration.NO_SIMPOINT_VAL]
         else:
-            simpoints = [i for i in range(simpoints3.maxk)]
+            simpoints = [i for i in range(simpoints.maxk)]
             
         if printAllCPUs:
             cpus = [i for i in range(np)]
@@ -434,17 +434,17 @@ class StatResults():
         
     def _aggregateSimpoints(self, filteredRes, aggregate, bm):
         
-        simpointdata = simpoints3.simpoints[bm]
+        simpointdata = simpoints.simpoints[bm]
         
-        foundSimpoints = [False for i in range(simpoints3.maxk)]
+        foundSimpoints = [False for i in range(simpoints.maxk)]
         tmpAggregate = 0
-        for i in range(simpoints3.maxk):
+        for i in range(simpoints.maxk):
             for c in filteredRes:
                 if c.simpoint == experimentConfiguration.NO_SIMPOINT_VAL:
                     raise Exception("Results must have simpoints when aggregate simpoints is used")
                 if c.simpoint == i:
                     assert not foundSimpoints[i]
-                    tmpAggregate += filteredRes[c] * simpointdata[i][simpoints3.PROBKEY]
+                    tmpAggregate += filteredRes[c] * simpointdata[i][simpoints.PROBKEY]
                     foundSimpoints[i] = True
                     
         success = True

@@ -10,7 +10,7 @@ import Checkpoint
 import copyResFiles
 import checkpoints
 
-import simpoints3
+import simpoints.simpoints as simpoints
 import deterministic_fw_wls as workloads
 
 def parseAargs():
@@ -53,7 +53,7 @@ def buildPossibleParams():
     for np in nps:
         for wl in workloads.getWorkloads(np):
             for mem in memsys:
-                for simpoint in range(simpoints3.maxk):
+                for simpoint in range(simpoints.maxk):
                     params.append([np, wl, mem, simpoint, fw])
     return params
 
