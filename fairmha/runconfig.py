@@ -113,7 +113,7 @@ def flush_commands(fcnt):
     print >> output, ""
 
     for fileID, command in latest_commands:
-        print >> output, 'cp '+fileID+'/*.txt '+fileID+'/*.bb '+pbsconfig.experimentpath+'/'+fileID+'\n'
+        print >> output, 'cp -r '+fileID+'/* '+pbsconfig.experimentpath+'/'+fileID+'\n'
 
     print >> output, "cd .."
     print >> output, "rm -Rf jahre"
