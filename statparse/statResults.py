@@ -29,7 +29,7 @@ class StatResults():
                    "Total":        ".*sum_roundtrip_latency.*",
                    "Requests":     ".*num_roundtrip_responses.*"}
 
-    def __init__(self, index, searchConfig):
+    def __init__(self, index, searchConfig, aggregatePatterns, quiet):
         self.index = index
         self.searchConfig = searchConfig
         
@@ -47,6 +47,11 @@ class StatResults():
         self.expMetric = None
         self.useSimpoints = False
         self.relToColumn = -1
+
+        self.aggregatePatterns = aggregatePatterns
+        self.aggregatePatternsWarnIssued = False
+        
+        self.quiet = quiet
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
@@ -272,9 +277,9 @@ class StatResults():
     def _addAggregatePrintElement(self, outdata, np, wl, sortedParams, aggregate, decimals, printAllCPUs):
         
         if self.aggregateSimpoints:
-            simpoints = [experimentConfiguration.NO_SIMPOINT_VAL]
+            simpointrange = [experimentConfiguration.NO_SIMPOINT_VAL]
         else:
-            simpoints = [i for i in range(simpoints.maxk)]
+            simpointrange = [i for i in range(simpoints.maxk)]
             
         if printAllCPUs:
             cpus = [i for i in range(np)]
@@ -282,7 +287,7 @@ class StatResults():
             cpus = [np]
             
         iterspace = []
-        for s in simpoints:
+        for s in simpointrange:
             for c in cpus:
                 iterspace.append( (s,c) )
 
@@ -394,15 +399,94 @@ class StatResults():
                  
         return ratio
     
+    def _issueMultipatWarning(self, patterns, configs):
+        
+        if not self.quiet:
+            patterns.sort()
+            print "Warning: Aggregating results for statistics:"
+            for p in patterns:
+                print "- "+str(p)
+            print
+            
+            nps = []
+            usedSimpoints = []
+            usedParams = {}
+            for c in configs:
+                if c.np not in nps:
+                    nps.append(c.np)
+                if c.simpoint not in usedSimpoints:
+                    usedSimpoints.append(c.simpoint)
+                    
+                for p in c.parameters:
+                    if p not in usedParams:
+                        usedParams[p] = [c.parameters[p]]
+                    else:
+                        if c.parameters[p] not in usedParams[p]:
+                            usedParams[p].append(c.parameters[p])
+            
+            nps.sort()
+            usedSimpoints.sort()
+            
+            print "Aggregating configurations:"
+            print "NP:         "+str(nps)
+            print "Simpoints:  "+str(usedSimpoints)
+            print "Parameters: "+str(usedParams)
+            print
+            
+                            
+        
+        self.aggregatePatternsWarnIssued = True
+    
+    def _accumulate(self, original, new):
+        
+        if type(new) is dict:
+            assert type(original) == dict
+            for k in new:
+                
+                if k == "min_value":
+                    if k in original:
+                        original[k] = min(original[k], new[k])
+                    else:
+                        original[k] = new[k]
+                    continue
+                
+                if k == "max_value":
+                    if k in original: 
+                        original[k] = max(original[k], new[k])
+                    else:
+                        original[k] = new[k]
+                    continue
+                
+                if k not in original:
+                    original[k] = 0
+                original[k] += new[k]
+        else:
+            # assume scalar
+            original += new
+        
+        return original
+        
+    
     def _removePatternsFromResult(self, results):
         configRes = {}
         
         for p in results:
             for c in results[p]:
-                if c in configRes:
-                    raise MultiplePatternError(results.keys(), results[p].keys())
+                
+                if self.aggregatePatterns:
+                    if not self.aggregatePatternsWarnIssued:
+                        self._issueMultipatWarning(results.keys(), results[p].keys())
                     
-                configRes[c] = results[p][c]
+                    
+                    if c not in configRes:
+                        configRes[c] = results[p][c]
+                    else:
+                        configRes[c] = self._accumulate(configRes[c], results[p][c])
+                else:
+                    if c in configRes:
+                        raise MultiplePatternError(results.keys(), results[p].keys())
+                        
+                    configRes[c] = results[p][c]
         return configRes
         
     def _computeWorkloadAggregate(self, results, np, params, wl):
@@ -496,34 +580,45 @@ class StatResults():
     
     def printAggregateDistribution(self, decimalPlaces, outfile):
         
-        for statkey in self.results:
-        
-            print >> outfile, ""
-            print >> outfile, "Aggregate distribution for pattern "+statkey
-        
-            aggDistrib = {}
-            for config in self.results[statkey]:
-                curDistrib = self.results[statkey][config]
+        if self.aggregatePatterns:
+            aggDistrib = self._aggregateDistributions(self.noPatResults)
+            self._printDistribution(aggDistrib, decimalPlaces, outfile)
+            
+        else:
+            for statkey in self.results:
+            
+                print >> outfile, ""
+                print >> outfile, "Aggregate distribution for pattern "+statkey
+            
+                aggDistrib = self._aggregateDistributions(self.results[statkey])
+                self._printDistribution(aggDistrib, decimalPlaces, outfile)
+                                
                 
-                for key in curDistrib:
-                    if key not in aggDistrib:
-                        aggDistrib[key] = curDistrib[key]
-                    else:
-                        aggDistrib[key] += curDistrib[key]
-                            
-            outtext = [["Key", "Value"]]
-            leftJustify = [True, False]
+    
+    def _aggregateDistributions(self, data):
+        aggDistrib = {}                
+        for config in data:
+            curDistrib = data[config]
             
-            
-            
-            distKeys = aggDistrib.keys()
-            distKeys.sort()
-            for d in distKeys:
-                line = [self._numberToString(d, decimalPlaces)]
-                line.append(self._numberToString(aggDistrib[d], decimalPlaces))
-                outtext.append(line)
-            
-            self._print(outtext, leftJustify, outfile)
+            for key in curDistrib:
+                if key not in aggDistrib:
+                    aggDistrib[key] = curDistrib[key]
+                else:
+                    aggDistrib[key] += curDistrib[key]
+        return aggDistrib
+                    
+    def _printDistribution(self, aggDistrib, decimalPlaces, outfile):
+        outtext = [["Key", "Value"]]
+        leftJustify = [True, False]
+        
+        distKeys = aggDistrib.keys()
+        distKeys.sort()
+        for d in distKeys:
+            line = [self._numberToString(d, decimalPlaces)]
+            line.append(self._numberToString(aggDistrib[d], decimalPlaces))
+            outtext.append(line)
+        
+        self._print(outtext, leftJustify, outfile)    
     
     def printDistributionsToFile(self, outfile):
         if outfile == sys.stdout:

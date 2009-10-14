@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from statparse import statResults
 
 import sys
 import os
@@ -31,6 +32,7 @@ def parseArgs():
     aggregationOptions.add_option("--experiment-agg-metric", action="store", dest="expAggMetric", default="", help="Metric to use when aggregating workloads")
     aggregationOptions.add_option("--agg-simpoints", action="store_true", dest="aggSimpoints", default=False, help="Aggregate simpoint results into one value representative for the whole execution")
     aggregationOptions.add_option("--relative-to-column", action="store", dest="relToColumn", type="int", default=-1, help="An integer pointing to the data column to use as the baseline (starts with 0, not counting text columns)")
+    aggregationOptions.add_option("--aggregate-patterns", action="store_true", dest="aggPatterns", default=False, help="Aggregate values for multiple statistics into one result")
     parser.add_option_group(aggregationOptions)
     
     resultOptions = OptionGroup(parser, "Result Presentation Options")
@@ -179,6 +181,7 @@ def createFileIndex(opts, args):
     return index
 
 def writeSearchResults(statSearch, opts, outfile):
+    
     if opts.wlAggMetric != "" or opts.expAggMetric != "" or opts.aggSimpoints or opts.printAllCores:
         
         wlMetric = None
@@ -242,8 +245,8 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.flush()
         outfile.close()
 
-def doSearch(index, searchConfig, args):
-    statSearch = StatResults(index, searchConfig)
+def doSearch(index, searchConfig, args, options):
+    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:
@@ -271,7 +274,7 @@ def main():
         print
 
     try:
-        statSearch = doSearch(index, searchConfig, args)
+        statSearch = doSearch(index, searchConfig, args, opts)
     except Exception as e:
         print str(e)
         return -1
