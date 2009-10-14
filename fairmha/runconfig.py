@@ -7,17 +7,13 @@ import re
 import time
 import pbsconfig
 
-
-print "imports finished"
-
 SLEEP_TIME = 1*60
 
 PROJECT_NUM = "nn4650k"
 PBS_DIR_NAME = "pbsfiles"
 
-#TODO: retrieve walltime settings from pbsconfig
 ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
-walltime = {1:4, 4:48, 8:10, 16:12}             # in hours
+walltime = {1:2, 4:48, 8:10, 16:12}             # in hours
 perProcMem = {1:1792, 4:1792, 8:1792, 16:3584} # in MB
 
 finPattern = re.compile("End Simulation Statistics")
