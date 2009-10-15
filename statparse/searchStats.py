@@ -58,7 +58,7 @@ def parseArgs():
         sys.exit(-1)
     
     params = {}
-    if opts.architecture == "":
+    if opts.architecture != "*":
         params["MEMORY-SYSTEM"] = opts.architecture
         
     if opts.otherLimits != "":

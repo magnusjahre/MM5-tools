@@ -79,7 +79,7 @@ def createSortedParamList(allParams):
             
     return sortedParamVals
 
-def simplePrint(self, results, decimalPlaces, outfile):
+def simplePrint(results, decimalPlaces, outfile):
     statkeys = results.keys()
     statkeys.sort()
 
