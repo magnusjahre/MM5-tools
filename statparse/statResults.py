@@ -1,4 +1,8 @@
 from statparse import experimentConfiguration
+from statparse.metrics import NoAggregation
+
+import processResults
+import printResults
 
 import sys
 import simpoints.simpoints as simpoints
@@ -62,10 +66,10 @@ class StatResults():
             self.noPatDenominatorResults = self._removePatternsFromResult(self.denominatorResults)
 
     def printAllResults(self, decimalPlaces, outfile):
-        self._simplePrint(self.results, decimalPlaces, outfile)
+        printResults.simplePrint(self.results, decimalPlaces, outfile)
         if self.denominatorResults != {}:
             print >> outfile, ""
-            self._simplePrint(self.denominatorResults, decimalPlaces, outfile)
+            printResults.simplePrint(self.denominatorResults, decimalPlaces, outfile)
     
     def evaluateFairnessEstimateAccuracy(self, np, wlname, memsys):
 
@@ -160,8 +164,8 @@ class StatResults():
                                 str(estimate),
                                 str(alat),
                                 str(error),
-                                self._numberToString(relErr, 2)])
-            self._print(outtext, leftJustify, sys.stdout)
+                                printResults.numberToString(relErr, 2)])
+            printResults.printData(outtext, leftJustify, sys.stdout)
         
     
     def printSampleSizeResults(self, resulttuple, decimalPlaces):
@@ -178,33 +182,16 @@ class StatResults():
         
         for k in keys:
             line = [k]
-            line.append(self._numberToString(errorAvg[1][k], decimalPlaces))
-            line.append(self._numberToString(errorStdDev[1][k], decimalPlaces))
-            line.append(self._numberToString(errorRMS[1][k], decimalPlaces))
-            line.append(self._numberToString(relErrorAvg[1][k], decimalPlaces))
-            line.append(self._numberToString(relErrorStdDev[1][k], decimalPlaces))
-            line.append(self._numberToString(relErrorRMS[1][k], decimalPlaces))
+            line.append(printResults.numberToString(errorAvg[1][k], decimalPlaces))
+            line.append(printResults.numberToString(errorStdDev[1][k], decimalPlaces))
+            line.append(printResults.numberToString(errorRMS[1][k], decimalPlaces))
+            line.append(printResults.numberToString(relErrorAvg[1][k], decimalPlaces))
+            line.append(printResults.numberToString(relErrorStdDev[1][k], decimalPlaces))
+            line.append(printResults.numberToString(relErrorRMS[1][k], decimalPlaces))
             
             outtext.append(line)
         
-        self._print(outtext, leftJustify, sys.stdout)
-       
-    def _simplePrint(self, results, decimalPlaces, outfile):
-        statkeys = results.keys()
-        statkeys.sort()
-    
-        outtext = [["Stats key", "Configuration", "Value"]]
-        leftJustify = [True, True, False]
-    
-        for statkey in statkeys:
-            for config in results[statkey]:
-                line = []
-                line.append(statkey)
-                line.append(str(config))
-                line.append(self._numberToString(results[statkey][config], decimalPlaces))
-                outtext.append(line) 
-                
-        self._print(outtext, leftJustify, outfile)
+        printResults.printData(outtext, leftJustify, sys.stdout)
     
     def printAggregateResults(self, decimals, outfile, wlMetric, expMetric, aggregateSimpoints, relToColumn):
         
@@ -213,16 +200,24 @@ class StatResults():
         self.aggregateSimpoints = aggregateSimpoints
         self.relToColumn = relToColumn
         
-        allNPs = self._findAllNPs()
-        allParams = self._findAllParams()
-        allWls = self._findAllWorkloads()
+        allNPs = processResults.findAllNPs(self.matchingConfigs)
+        allParams = processResults.findAllParams(self.matchingConfigs)
+        allWls = processResults.findAllWorkloads(self.matchingConfigs)
+        allBms = []
         
         assert(len(allNPs) > 0)
         
         aggregate = {}
         if allNPs == [1]:
             assert allWls == []
-            raise Exception("Single CPU experiment aggregation not implemented")
+            allBms = processResults.findAllBenchmarks(self.matchingConfigs)
+            allMemsysNPs = processResults.findAllMemsysNPs(self.matchingConfigs)
+            for params in allParams:
+                for bm in allBms:
+                    for memsysNp in allMemsysNPs:
+                        bmconfig = ExperimentConfiguration(1, params, bm, experimentConfiguration.singleWlID)
+                        aggregate[bmconfig] = self._processSingleResults(bm, params, memsysNp)
+                        
         else:
             for np in allNPs:
                 if np == 1:
@@ -235,14 +230,14 @@ class StatResults():
                         assert wlConfig not in aggregate
                         aggregate[wlConfig] = self._aggregateWorkloadResults(np, params, wl)
 
-            if self.expMetric != None:
-                aggregate = self._aggregateExperimentResults(aggregate, allNPs, allWls, allParams)
+        if self.expMetric != None:
+            aggregate = self._aggregateExperimentResults(aggregate, allNPs, allWls, allParams)
             
-        self._printAggregate(aggregate, allNPs, allWls, allParams, outfile, decimals, wlMetric.doTablePrint)
+        self._printAggregate(aggregate, allNPs, allWls, allParams, outfile, decimals, wlMetric.doTablePrint, allBms)
             
-    def _printAggregate(self, aggregate, allNPs, allWls, allParams, outfile, decimals, printAllCPUs):
+    def _printAggregate(self, aggregate, allNPs, allWls, allParams, outfile, decimals, printAllCPUs, allBms):
         
-        sortedParams = self._createSortedParamList(allParams)
+        sortedParams = printResults.createSortedParamList(allParams)
         
         outdata = []
         titleLine = [""]
@@ -255,9 +250,14 @@ class StatResults():
         
         allNPs.sort()
         allWls.sort()
+        allBms.sort()
 
         for np in allNPs:
             if np == 1:
+                if allWls == []:
+                    for bm in allBms:
+                        outdata = self._addAggregatePrintElement(outdata, np, bm, sortedParams, aggregate, decimals, printAllCPUs)
+                    
                 continue
         
             if self.expMetric == None:
@@ -269,15 +269,15 @@ class StatResults():
                     for c in aggregate:
                         if p == c.parameters:
                             assert len(aggregate[c]) == 1
-                            line.append(self._numberToString(aggregate[c][0], decimals))
+                            line.append(printResults.numberToString(aggregate[c][0], decimals))
                 outdata.append(line)
                                     
-        self._print(outdata, leftJust, outfile)
+        printResults.printData(outdata, leftJust, outfile)
     
-    def _addAggregatePrintElement(self, outdata, np, wl, sortedParams, aggregate, decimals, printAllCPUs):
+    def _addAggregatePrintElement(self, outdata, np, wlOrBm, sortedParams, aggregate, decimals, printAllCPUs):
         
         if self.aggregateSimpoints:
-            simpointrange = [experimentConfiguration.NO_SIMPOINT_VAL]
+            simpointrange = [0]
         else:
             simpointrange = [i for i in range(simpoints.maxk)]
             
@@ -293,27 +293,37 @@ class StatResults():
 
         for simpoint, cpuID in iterspace:
             
-            title = str(np)+"-"+str(wl)
+            title = str(np)+"-"+str(wlOrBm)
             
             if simpoint != experimentConfiguration.NO_SIMPOINT_VAL:
                 title += "-sp"+str(simpoint)
-            if cpuID != np:
-                tmpWl = workloads.getBms(wl, np, False)
+            if cpuID != np and np != 1:
+                tmpWl = workloads.getBms(wlOrBm, np, False)
                 title += "-"+tmpWl[cpuID]
 
             line = [title]
+            valuePresent = False
             for params in sortedParams:
                 found = False
                 for config in aggregate:
-                    if config.np == np and config.workload == wl and config.parameters == params:
+                    correctBM = False
+                    if np > 1 and config.workload == wlOrBm:
+                        correctBM = True
+                    if np == 1 and config.benchmark == wlOrBm:
+                        correctBM = True
+                    
+                    if config.np == np and correctBM and config.parameters == params:
                         assert not found
                         found = True
                         
-                        if cpuID != np:
-                            line.append(self._numberToString(aggregate[config][simpoint][cpuID], decimals))
-                        else:
-                            line.append(self._numberToString(aggregate[config][simpoint], decimals))
-            outdata.append(line)
+                        if len(aggregate[config]) > simpoint:
+                            valuePresent = True 
+                            if cpuID != np:
+                                line.append(printResults.numberToString(aggregate[config][simpoint][cpuID], decimals))
+                            else:
+                                line.append(printResults.numberToString(aggregate[config][simpoint], decimals))
+            if valuePresent:
+                outdata.append(line)
         return outdata
 
     def _paramsToString(self, params):
@@ -332,45 +342,30 @@ class StatResults():
             
         
         return retstr
-    
-    def _createSortedParamList(self, allParams):
         
-        if allParams == [{}]:
-            return allParams
+    def _processSingleResults(self, bm, params, memsysNp):
+        nominatorRes = processResults.filterResults(self.noPatResults, 1, params, experimentConfiguration.singleWlID, bm, memsysNp)
+        nominator = {}
+        if self.aggregateSimpoints:
+            nominator  = self._aggregateSimpoints(nominatorRes, nominator, bm)
+        else:
+            nominator = self._createSimpointDict(nominatorRes, nominator, bm)
         
-        paramVals = {}
+        if self.denominatorResults != {}:
+            denominatorRes = processResults.filterResults(self.noPatDenominatorResults, 1, params, experimentConfiguration.singleWlID, bm, memsysNp)
+            denominator = {}
+            if self.aggregateSimpoints:
+                denominator  = self._aggregateSimpoints(denominatorRes, denominator, bm)
+            else:
+                denominator = self._createSimpointDict(denominatorRes, denominator, bm)
+            
+            value = self._computeRatio(nominator, denominator)
+        else:
+            value = nominator
         
-        for params in allParams:
-            for p in params:
-                if p not in paramVals:
-                    paramVals[p] = []
-                    
-                if params[p] not in paramVals[p]:
-                    paramVals[p].append(params[p])
-        
-        numCombs = 0
-        lengths = {}
-        for p in paramVals:
-            paramVals[p].sort()
-            numCombs += len(paramVals[p])
-            lengths[p] = len(paramVals[p])
-         
-        sortedKeys = paramVals.keys()
-        sortedKeys.sort()
-        
-        periods = [numCombs / lengths[sortedKeys[0]]]
-        for i in range(len(sortedKeys))[1:]:
-            periods.append(periods[i-1]/lengths[sortedKeys[i]])
-        
-        sortedParamVals = []
-        for i in range(numCombs):
-            params = {}
-            for j in range(len(sortedKeys)):
-                pos = i / periods[j] % lengths[sortedKeys[j]]
-                params[sortedKeys[j]] = paramVals[sortedKeys[j]][pos]
-            sortedParamVals.append(params)
-                
-        return sortedParamVals
+        metric = NoAggregation(False)
+        metric.setValues(value, {}, 1, bm)
+        return metric.computeMetricValue()
         
     def _aggregateWorkloadResults(self, np, params, wl):
         nomMpAggregate, nomSpAggregate = self._computeWorkloadAggregate(self.noPatResults, np, params, wl)
@@ -496,7 +491,7 @@ class StatResults():
         mpAggregate = {}
         spAggregate = {}
         for bm in bms:
-            filteredRes = self._filterResults(results, np, params, wl, bm, np)
+            filteredRes = processResults.filterResults(results, np, params, wl, bm, np)
             
             if self.aggregateSimpoints:
                 mpAggregate = self._aggregateSimpoints(filteredRes, mpAggregate, bm)
@@ -504,7 +499,7 @@ class StatResults():
                 mpAggregate = self._createSimpointDict(filteredRes, mpAggregate, bm)
             
             if self.wlMetric.spmNeeded:
-                singleRes = self._filterResults(results, 1, params, experimentConfiguration.singleWlID, bm, np)
+                singleRes = processResults.filterResults(results, 1, params, experimentConfiguration.singleWlID, bm, np)
                 
                 if singleRes == {}:
                     raise Exception("Single program mode results needed for metric '"+str(self.wlMetric)+"' but cannot be found")
@@ -550,7 +545,7 @@ class StatResults():
             
             if config.simpoint not in aggregate:
                 aggregate[config.simpoint] = {}
-                
+            
             assert subkey not in aggregate[config.simpoint]
             aggregate[config.simpoint][subkey] = filteredRes[config]
         return aggregate
@@ -614,11 +609,11 @@ class StatResults():
         distKeys = aggDistrib.keys()
         distKeys.sort()
         for d in distKeys:
-            line = [self._numberToString(d, decimalPlaces)]
-            line.append(self._numberToString(aggDistrib[d], decimalPlaces))
+            line = [printResults.numberToString(d, decimalPlaces)]
+            line.append(printResults.numberToString(aggDistrib[d], decimalPlaces))
             outtext.append(line)
         
-        self._print(outtext, leftJustify, outfile)    
+        printResults.printData(outtext, leftJustify, outfile)    
     
     def printDistributionsToFile(self, outfile):
         if outfile == sys.stdout:
@@ -637,94 +632,7 @@ class StatResults():
         print >> outfile, "distributions = "+str(outdict)
         
         outfile.flush()
-        outfile.close()
-    
-    def _numberToString(self, number, decimalPlaces):
-        if type(number) == type(int()):
-            return str(number)
-        elif type(number) == type(float()):
-            return ("%."+str(decimalPlaces)+"f") % number
-        elif type(number) == type(dict()):
-            return "Distribution"
-        elif type(number) == type(str()):
-            return number
-        
-        raise TypeError("number is not int or float")
-    
-    def _print(self, textarray, leftJust, outfile):
-        if textarray == []:
-            raise ValueError("array cannot be empty")
-        if textarray[0] == []:
-            raise ValueError("array cannot be empty")
-        if len(textarray[0]) != len(leftJust):
-            raise ValueError("justification array must be the same with as the rows")
-        
-        padding = 2
-        
-        colwidths = [0 for i in range(len(textarray[0]))]
-        
-        for i in range(len(textarray)):
-            for j in range(len(textarray[i])):
-                if type(textarray[i][j]) != type(str()):
-                    raise TypeError("all printed elements must be strings")
-                
-                if len(textarray[i][j]) + padding > colwidths[j]:
-                    colwidths[j] = len(textarray[i][j]) + padding
-        
-        
-        for i in range(len(textarray)):
-            for j in range(len(textarray[i])):
-                if leftJust[j]:
-                    print >> outfile, textarray[i][j].ljust(colwidths[j]),
-                else:
-                    print >> outfile, textarray[i][j].rjust(colwidths[j]),
-            print >> outfile, ""
- 
- 
-    def _filterResults(self, configRes, np, params, wl, bm, memsys):
-        filteredConfigs = {}
-        for c in configRes:
-            if np == c.np and params == c.parameters and wl == c.workload and bm == c.benchmark and memsys == c.memsys:
-                assert c not in filteredConfigs
-                filteredConfigs[c] = configRes[c]
-                
-        return filteredConfigs
- 
-    def _findAllParams(self):
-        allparams = []
-        for config in self.matchingConfigs:
-            inList = False
-            for p in allparams:
-                if config.paramsAreEqual(p):
-                    inList = True
-            if not inList:
-                allparams.append(config.parameters)
-            
-        return allparams
-                        
-    
-    def _findAllWorkloads(self):
-        def getKey(config):
-            if config.workload == experimentConfiguration.singleWlID:
-                return None
-            return config.workload
-        return self._findAllFromConfig(getKey)
-    
-    def _findAllNPs(self):
-        def getKey(config):
-            return config.np
-        return self._findAllFromConfig(getKey)
-        
-    def _findAllFromConfig(self, paramFunction):
-        allkeys = {}
-        for config in self.matchingConfigs:
-            thisKey = paramFunction(config) 
-            if thisKey not in allkeys and thisKey != None:
-                allkeys[thisKey] = True
-                
-        keys = allkeys.keys()
-        keys.sort()
-        return keys
+        outfile.close()    
 
 class MultiplePatternError(Exception):
     

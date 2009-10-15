@@ -45,7 +45,7 @@ class WorkloadMetric():
         self.doTablePrint = False
         self.speedups = [[]]
 
-    def setValues(self, multiprogramValues, singleProgramValues, np, wl):
+    def setValues(self, multiprogramValues, singleProgramValues, np, wlOrBm):
         
         self.n = np
         
@@ -69,7 +69,7 @@ class WorkloadMetric():
                 else:
                     simpointkey = simpoint
                 
-                self._addSimpointValue(simpointkey, simpoint, multiprogramValues, singleProgramValues, wl)
+                self._addSimpointValue(simpointkey, simpoint, multiprogramValues, singleProgramValues, wlOrBm)
                 
         else:
             
@@ -80,12 +80,15 @@ class WorkloadMetric():
                 else:
                     simpointkey = simpoint
                 
-                self._addSimpointValue(simpointkey, simpoint, multiprogramValues, singleProgramValues, wl)
+                self._addSimpointValue(simpointkey, simpoint, multiprogramValues, singleProgramValues, wlOrBm)
                 
                     
-    def _addSimpointValue(self, simpointkey, simpoint, mpb, spb, wl):
+    def _addSimpointValue(self, simpointkey, simpoint, mpb, spb, wlOrBm):
         
-        benchmarks = workloads.getBms(wl, self.n, True)
+        if self.n == 1:
+            benchmarks = [wlOrBm]
+        else:
+            benchmarks = workloads.getBms(wlOrBm, self.n, True)
         
         assert simpointkey not in self.speedups
         self.speedups[simpointkey] = []
@@ -102,6 +105,7 @@ class WorkloadMetric():
                 self.speedups[simpointkey].append(float(mpb[simpoint][bm]) / float(spb[simpoint][bm]))
             else:
                 self.speedups[simpointkey].append(float(mpb[simpoint][bm]))
+        
     
     def addValue(self, value, np):
         if value == self.errStr:
