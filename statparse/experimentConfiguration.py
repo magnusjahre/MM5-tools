@@ -11,7 +11,11 @@ def generateExpID():
         generateExpID.static = 0
     generateExpID.static += 1
     return generateExpID.static
-    
+
+def buildMatchAllConfig():
+    return ExperimentConfiguration(-1, {}, "*", "*")
+
+
 class ExperimentConfiguration:
     
     def __init__(self, np, params, bm, wl=singleWlID, expID = -1, simpoint = NO_SIMPOINT_VAL, memsys = -1):
