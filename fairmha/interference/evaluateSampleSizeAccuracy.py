@@ -11,8 +11,6 @@ from math import sqrt
 noSamplesErrStr = "NoSamples"
 rmsAllResults = {}
 
-pbsconfig = None
-
 def writeOutput(errordict, filename, samplesizes):
     outfile = open(filename, "w")
     
@@ -375,15 +373,15 @@ def generateFilenames(searchkey, onlyIncludeNP):
         if onlyIncludeNP != -1 and np != onlyIncludeNP:
             continue
         
-        if searchPattern.findall(key) != []:
+        if searchPattern.findall(key) != [] and np > 1:
             shareddir = pbsconfig.get_unique_id(config)
             wl = pbsconfig.get_workload(config)
-            benchmarks = workloads.getBms(wl, np) 
+            benchmarks = workloads.getBms(wl, np)
             
             for i in range(np):
                 aparams = pbsconfig.get_alone_params(wl, i, config)
                 alonedir = pbsconfig.get_unique_id(aparams)
- 
+
                 sharedlatfn = shareddir+"/CPU"+str(i)+"LatencyTrace.txt"
                 sharedestfn = shareddir+"/CPU"+str(i)+"InterferenceTrace.txt"
                 alonelatfn = alonedir+"/CPU0LatencyTrace.txt"
@@ -393,7 +391,7 @@ def generateFilenames(searchkey, onlyIncludeNP):
                           "alone": "../"+alonelatfn,
                           "basename":key+"-"+wl+"-"+benchmarks[i],
                           "key":key}
-
+        
                 filenames.append(fndict)
 
     return filenames
@@ -530,6 +528,7 @@ def main():
         print "FATAL: config file pbsconfig.py required in current directory"
         return -1
     
+    global pbsconfig 
     pbsconfig = __import__("pbsconfig")
     
     parser = OptionParser(usage="evaluateSampleSizeAccuracy.py [options] command")

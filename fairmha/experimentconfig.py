@@ -21,6 +21,8 @@ class ExperimentConfiguration:
     singleProgramModeNotIssued = {}
     singleProgramModeIssuedSharedIDs = {}
     
+    singleCoreVarArgs = {}
+    
     workloads = {}
     
     typeToParamPos = {"np": 0,
@@ -229,10 +231,15 @@ class ExperimentConfiguration:
                         for singleVarArgs in allSingleCombs:
                             for arg in varArgs:
                                 singleVarArgs.append(arg)
-                                
+                            
                             singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, singleVarArgs)
                             singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, singleVarArgs)
                             commandlines.append( (singleCommand, singleParams) )
+                            
+                            bmname = self.getParam(singleParams, "bm")
+                            if bmname not in self.singleCoreVarArgs:
+                                self.singleCoreVarArgs[bmname] = []
+                            self.singleCoreVarArgs[bmname].append(singleVarArgs)    
                     
                     if doSingleProgramMode:
                         bms = workloads.getBms(wl,np)
@@ -292,12 +299,34 @@ class ExperimentConfiguration:
     def getSPMParameters(self, sharedParams, wl, bmID):
         
         sharedNp = self.getParam(sharedParams, "np")
-        bmname = workloads.getBms(wl,sharedNp)[bmID]
-        spmSharedKey = self.getUniqueIdentifier(sharedParams)
         
-        aloneVarArgs = self.singleProgramModeParams[spmSharedKey][bmID]
+        if self.singleProgramModeParams == {}:
+            bmname = workloads.getBms(wl,sharedNp,True)[bmID]
+            sharedVarargs = self.getVariableParameters(sharedParams)
+            
+            aloneVarargList = None
+            for varargList in self.singleCoreVarArgs[bmname]:
+                isEqual = True
+                for argname, argval in varargList:
+                    if argname == "MEMORY-ADDRESS-PARTS":
+                        continue
+                    assert argname in sharedVarargs
+                    if sharedVarargs[argname] != argval:
+                        isEqual = False
+                        
+                if isEqual:
+                    assert aloneVarargList == None
+                    aloneVarargList = varargList
+                        
+            outparams = self.getParams(1, self.noWlIdentifier, bmname, self.noBMIndentifier, aloneVarargList)
+            
+        else:
+            bmname = workloads.getBms(wl,sharedNp)[bmID]
+            spmSharedKey = self.getUniqueIdentifier(sharedParams)
+            aloneVarArgs = self.singleProgramModeParams[spmSharedKey][bmID]
+            outparams = self.getParams(sharedNp, wl, bmname, bmID, aloneVarArgs)
         
-        return self.getParams(sharedNp, wl, bmname, bmID, aloneVarArgs)
+        return outparams
         
     
     def allSPMCommandsIssued(self):
