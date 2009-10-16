@@ -25,13 +25,14 @@ os.mkdir("figures")
 for cmd, params in pbsconfig.commandlines:
     
     wl = pbsconfig.get_workload(params)
+    np = pbsconfig.get_np(params)
     
-    if workload == "" or wl == workload:
+    if (workload == "" or wl == workload) and np > 1:
     
         resID = pbsconfig.get_unique_id(params)
         sharedFiles = []
         interferenceFiles = []
-        np = pbsconfig.get_np(params)
+        
         for i in range(np):
             sharedFiles.append("../"+resID+'/CPU'+str(i)+'LatencyTrace.txt')
             interferenceFiles.append("../"+resID+'/CPU'+str(i)+'InterferenceTrace.txt')
