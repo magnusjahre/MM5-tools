@@ -65,6 +65,35 @@ class StatResults():
             self.denominatorResults = self.index.searchForValues(denomPat, self.matchingConfigs)
             self.noPatDenominatorResults = self._removePatternsFromResult(self.denominatorResults)
 
+
+    def searchForPatterns(self, patterns):
+        """ Searches for patters given in a list and returns a dictionary with the results
+            If the the statistic names returned by two patterns overlap, an exception will be
+            thrown.  
+        
+            Arguments:
+            patterns, list: reg-exp patterns
+        
+            Returns:
+            dictionary: statistic name -> configuration -> statistic value
+        """
+        results = {}
+        
+        allConfigs = self.index.findConfiguration(self.searchConfig)
+        for p in patterns:
+            if not self.quiet:
+                print "Searching for pattern "+p
+            tmpres = self.index.searchForValues(p, allConfigs)
+
+            for statname in tmpres:
+                
+                
+                if statname in results:
+                    raise Exception("Statistic name "+str(statname)+" returned by multiple patterns")
+                results[statname] = tmpres[statname]
+        
+        return results
+
     def printAllResults(self, decimalPlaces, outfile):
         printResults.simplePrint(self.results, decimalPlaces, outfile)
         if self.denominatorResults != {}:

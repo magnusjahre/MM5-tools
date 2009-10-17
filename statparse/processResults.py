@@ -10,6 +10,16 @@ def filterResults(configRes, np, params, wl, bm, memsys):
             
     return filteredConfigs
 
+def filterConfigurations(allConfigs, filterConfig):
+    """ Returns the list of configurations in allConfigs that matches the filterConfig"""
+    retconfigs = []
+    for c in allConfigs:
+        if c.compareTo(filterConfig):
+            assert c not in retconfigs
+            retconfigs.append(c)
+    return retconfigs
+            
+
 def findAllParams(matchingConfigs):
     allparams = []
     for config in matchingConfigs:
@@ -55,3 +65,58 @@ def _findAllFromConfig(paramFunction, matchingConfigs):
     keys = allkeys.keys()
     keys.sort()
     return keys
+
+def matchSPBsToMPB(patternResults, quiet, np):
+    """ Matches Multiprogram mode results with their Single Program Mode 
+        counterparts. Only MPB results with np processors will be included 
+    
+    Arguments:
+        patternResults, dictionary: statistic name -> configuration -> statistic value
+    
+    Returns:
+        dictionary: MPB configuration -> statistic name -> "MPB" or "SPB" -> value
+    """
+    
+    oneCoreFilterConfig = experimentConfiguration.buildMatchAllConfig()
+    oneCoreFilterConfig.np = 1
+    
+    if not quiet:
+        print "Matching Multiprogram Mode results with Single Program Mode results" 
+    
+    results = {}
+    for statname in patternResults:
+    
+        if not quiet:
+            print "Matching for statistic name "+statname
+        
+        oneCPUConfigs = filterConfigurations(patternResults[statname].keys(), oneCoreFilterConfig)
+        
+        for config in patternResults[statname]:
+            if config.np != np:
+                continue
+            
+            found = False
+            for oneCPUConfig in oneCPUConfigs:
+                if experimentConfiguration.isSPB(oneCPUConfig, config):
+                    assert not found
+                    results = _addConfigToMPBResults(results, config, statname, patternResults, oneCPUConfig)
+                    found = True
+            
+            if not found:
+                results = _addConfigToMPBResults(results, config, statname, patternResults)
+
+    return results
+
+def _addConfigToMPBResults(results, config, statname, patternResults, aloneConfig = None):
+    if config not in results:
+        results[config] = {}
+    if statname not in results[config]:
+        results[config][statname] = {}
+    
+    results[config][statname]["MPB"] = patternResults[statname][config]
+    if aloneConfig != None:
+        results[config][statname]["SPB"] = patternResults[statname][aloneConfig]
+    else:
+        results[config][statname]["SPB"] = {}
+    
+    return results

@@ -15,6 +15,25 @@ def generateExpID():
 def buildMatchAllConfig():
     return ExperimentConfiguration(-1, {}, "*", "*")
 
+def isSPB(suspectedSPBConfig, MPBConfig):
+    """ Returns true if suspectedSPBConfig is the SPB config for the MPBConfig"""
+    
+    matchConfig = buildMatchAllConfig()
+    matchConfig.copy(MPBConfig)
+    matchConfig.np = 1
+    matchConfig.workload = singleWlID
+    
+    return suspectedSPBConfig.compareTo(matchConfig)
+    
+def findCPUID(wl, bmname, np):
+    tmpbms = workloads.getBms(wl, np, True)
+    id = 0
+    for tmpbm in tmpbms:
+        if tmpbm == bmname:
+            return id
+        id += 1
+    raise Exception("Benchmark not "+str(bmname)+" found in provided workload "+str(wl)+" ("+str(tmpbms)+")")
+    return -1
 
 class ExperimentConfiguration:
     
@@ -43,6 +62,15 @@ class ExperimentConfiguration:
         
         if self.memsys == -1:
             self.memsys = np
+    
+    def copy(self, oldconfig):
+        self.np = oldconfig.np
+        self.benchmark = oldconfig.benchmark
+        self.workload = oldconfig.workload
+        self.simpoint = oldconfig.simpoint
+        self.experimentID = oldconfig.experimentID
+        self.memsys = oldconfig.memsys
+        self.parameters = oldconfig.parameters
     
     def compareTo(self, otherConfig):
         

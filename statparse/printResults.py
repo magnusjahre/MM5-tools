@@ -95,3 +95,36 @@ def simplePrint(results, decimalPlaces, outfile):
             outtext.append(line) 
             
     printData(outtext, leftJustify, outfile)
+    
+def printResultDictionary(resultdict, decimals, outfile):
+    """ Prints the dictionary provided
+    
+        Arguments:
+            resultdict, dictionary: configuration -> result header string -> value
+    """
+    
+    configNameDict = {}
+    for config in resultdict:
+        configNameDict[str(config)] = resultdict[config]
+        
+    confignames = configNameDict.keys()
+    confignames.sort()
+    
+    headers = configNameDict[confignames[0]].keys()
+    headers.sort()
+
+    outdata = []
+    leftjust = [True]
+    headrow = [""]
+    for h in headers:
+        headrow.append(h)
+        leftjust.append(False)
+    outdata.append(headrow)
+    
+    for config in confignames:
+        line = [config]
+        for h in headers:
+            line.append(numberToString(configNameDict[config][h], decimals))
+        outdata.append(line)
+    
+    printData(outdata, leftjust, outfile)
