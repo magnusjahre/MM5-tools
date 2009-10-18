@@ -89,6 +89,11 @@ class ExperimentConfiguration:
         self.registerBenchmarksByName(self.specBenchmarks, memAddrParts)
     
     def registerBenchmarksByName(self, bmnames, memAddrParts):
+        """ Argumets:
+                bmnames, list: names of spec benchmarks with 0 suffix, e.g ['ammp0', 'mesa0']
+                memAddrParts, list: a list of the memory system to use, e.g. [4, 8]
+        """
+        
         assert 1 not in self.workloads
         self.workloads[1] = []
         for bm in bmnames:
