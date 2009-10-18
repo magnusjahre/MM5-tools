@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/usr/bin/env python
 from checkpoints.checkpointConverter import CheckpointConverter
 import shutil
 import glob
