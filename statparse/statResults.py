@@ -33,7 +33,7 @@ class StatResults():
                    "Total":        ".*sum_roundtrip_latency.*",
                    "Requests":     ".*num_roundtrip_responses.*"}
 
-    def __init__(self, index, searchConfig, aggregatePatterns, quiet):
+    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None):
         self.index = index
         self.searchConfig = searchConfig
         
@@ -50,12 +50,12 @@ class StatResults():
         self.wlMetric = None
         self.expMetric = None
         self.useSimpoints = False
-        self.relToColumn = -1
 
         self.aggregatePatterns = aggregatePatterns
         self.aggregatePatternsWarnIssued = False
         
         self.quiet = quiet
+        self.baseconfig = baseconfig
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
@@ -64,7 +64,6 @@ class StatResults():
         if denomPat != "":
             self.denominatorResults = self.index.searchForValues(denomPat, self.matchingConfigs)
             self.noPatDenominatorResults = self._removePatternsFromResult(self.denominatorResults)
-
 
     def searchForPatterns(self, patterns):
         """ Searches for patters given in a list and returns a dictionary with the results
@@ -222,12 +221,11 @@ class StatResults():
         
         printResults.printData(outtext, leftJustify, sys.stdout)
     
-    def printAggregateResults(self, decimals, outfile, wlMetric, expMetric, aggregateSimpoints, relToColumn):
+    def printAggregateResults(self, decimals, outfile, wlMetric, expMetric, aggregateSimpoints):
         
         self.wlMetric = wlMetric
         self.expMetric = expMetric
         self.aggregateSimpoints = aggregateSimpoints
-        self.relToColumn = relToColumn
         
         allNPs = processResults.findAllNPs(self.matchingConfigs)
         allParams = processResults.findAllParams(self.matchingConfigs)
@@ -238,6 +236,9 @@ class StatResults():
         
         aggregate = {}
         if allNPs == [1]:
+            if not self.quiet:
+                print "Entering single-core print mode"
+            
             assert allWls == []
             allBms = processResults.findAllBenchmarks(self.matchingConfigs)
             allMemsysNPs = processResults.findAllMemsysNPs(self.matchingConfigs)
@@ -248,6 +249,9 @@ class StatResults():
                         aggregate[bmconfig] = self._processSingleResults(bm, params, memsysNp)
                         
         else:
+            if not self.quiet:
+                print "Entering multi-core print mode"
+            
             for np in allNPs:
                 if np == 1:
                     # 1 CPU experiments are interference-free baseline
@@ -528,7 +532,13 @@ class StatResults():
                 mpAggregate = self._createSimpointDict(filteredRes, mpAggregate, bm)
             
             if self.wlMetric.spmNeeded:
-                singleRes = processResults.filterResults(results, 1, params, experimentConfiguration.singleWlID, bm, np)
+                if self.baseconfig == None:
+                    singleRes = processResults.filterResults(results, 1, params, experimentConfiguration.singleWlID, bm, np)
+                else:
+                    tmpconfig = experimentConfiguration.buildMatchAllConfig()
+                    tmpconfig.copy(self.baseconfig)
+                    tmpconfig.benchmark = bm
+                    singleRes = processResults.filterResultsWithConfig(results, tmpconfig)
                 
                 if singleRes == {}:
                     raise Exception("Single program mode results needed for metric '"+str(self.wlMetric)+"' but cannot be found")

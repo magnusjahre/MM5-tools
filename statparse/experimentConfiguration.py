@@ -1,10 +1,14 @@
 
 import deterministic_fw_wls as workloads
+from statparse import stringToType
 
 __metaclass__ = type
 
 singleWlID = "single"
 NO_SIMPOINT_VAL = -1
+NO_NP_VAL = -1
+NO_BM = "*"
+NO_WL = "*"
 
 def generateExpID():
     if not "static" in dir(generateExpID):
@@ -14,6 +18,49 @@ def generateExpID():
 
 def buildMatchAllConfig():
     return ExperimentConfiguration(-1, {}, "*", "*")
+
+def parseParameterString(paramString, params = None):
+    """ Turns a colon and comma divided string into a valid params dictionary
+    
+        Note: Simpoint values are passed with parameter USE-SIMPOINT and memsys
+        with MEMORY-ADDRESS-PARTS 
+    
+        Arguments:
+            paramString, string: key1,val1:key2,val2:...
+            params, dictionary: optional dictionary to add paramters to
+                        format: simulator option name -> value 
+        Returns:
+            dictionary: simulator option name -> value
+            tuple: (np, benchmark, workload)
+    """
+    
+    if params == None:
+        params = {}
+    
+    np = NO_NP_VAL
+    bm = NO_BM
+    wl = NO_WL
+    
+    try:
+        paramlist = paramString.split(":")
+        for pstr in paramlist:
+            key,value = pstr.split(",")
+            if key == "NP":
+                np = stringToType(value)
+                if np == 1:
+                    wl = singleWlID
+            elif key == "BENCHMARK":
+                if value.startswith("fair"):
+                    wl = value
+                else:
+                    wl = singleWlID
+                    bm = bm
+            else:
+                params[key] = stringToType(value)
+    except:
+        raise Exception("Could not parse parameter string "+paramString)
+    
+    return params, (np, bm, wl)
 
 def isSPB(suspectedSPBConfig, MPBConfig):
     """ Returns true if suspectedSPBConfig is the SPB config for the MPBConfig"""
@@ -76,15 +123,15 @@ class ExperimentConfiguration:
         
         isWl = True
         
-        if otherConfig.np != -1:
+        if otherConfig.np != NO_NP_VAL:
             if otherConfig.np != self.np:
                 isWl = False
         
-        if otherConfig.benchmark != "*":
+        if otherConfig.benchmark != NO_BM:
             if otherConfig.benchmark != self.benchmark:
                 isWl = False
         
-        if otherConfig.workload != "*":
+        if otherConfig.workload != NO_WL:
             if otherConfig.workload != self.workload:
                 isWl = False
         

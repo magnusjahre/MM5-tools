@@ -10,6 +10,25 @@ def filterResults(configRes, np, params, wl, bm, memsys):
             
     return filteredConfigs
 
+def filterResultsWithConfig(configRes, filterConfig):
+    """ Removes the configuration that do not match filterConfig from configRes
+    
+        Arguments:
+            configRes, dictionary: experiment configuration -> value
+            filterConfig, ExperimentConfiguration object
+            
+        Returns:
+            dictionary, ExperimentConfiguration -> value
+    """
+    filteredConfigs = {}
+    for c in configRes:
+        if c.compareTo(filterConfig):
+            assert c not in filteredConfigs
+            filteredConfigs[c] = configRes[c]
+            
+    return filteredConfigs
+    
+
 def filterConfigurations(allConfigs, filterConfig):
     """ Returns the list of configurations in allConfigs that matches the filterConfig"""
     retconfigs = []
