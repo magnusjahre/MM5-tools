@@ -85,6 +85,58 @@ def _findAllFromConfig(paramFunction, matchingConfigs):
     keys.sort()
     return keys
 
+def addAllUnitNames(patternResults, quiet, np):
+    """ Copies SPB patterns such that they are guarranteed to match their corresponding 
+    MPM pattern names   
+    
+    Arguments:
+        patternResults, dictionary: statistic name -> configuration -> statistic value
+        quiet, bool: do not print output
+        np, int: the number of processors
+    
+    Returns:
+        dictionary: statistic name -> configuration -> statistic value
+    """
+    
+    newPatterns = {}
+    for pattern in patternResults:
+        for config in patternResults[pattern]:
+            if config.np == 1:
+                
+                splitted = pattern.split(".")
+                curName = splitted[0]
+                suffix = splitted[1:]
+                if "0" in curName:
+                    
+                    newNames = []
+                    for i in range(np):
+                        newNames.append(curName.replace("0", str(i)))
+                    
+                    for newName in newNames:
+                        newpat = newName
+                        for s in suffix:
+                            newpat += "."+s
+                            
+                        if newpat not in newPatterns:
+                            newPatterns[newpat] = {}
+                        
+                        assert config not in newPatterns[newpat]
+                        newPatterns[newpat][config] = patternResults[pattern][config]
+                        
+                    
+    
+    for p in newPatterns:
+        if p not in patternResults:
+            raise Exception("created new pattern that was not present in the original results")
+        
+        for c in newPatterns[p]:
+            if c not in patternResults[p]:
+                patternResults[p][c] = newPatterns[p][c]
+                
+    return patternResults
+    
+
+
 def matchSPBsToMPB(patternResults, quiet, np):
     """ Matches Multiprogram mode results with their Single Program Mode 
         counterparts. Only MPB results with np processors will be included 
@@ -95,6 +147,9 @@ def matchSPBsToMPB(patternResults, quiet, np):
     Returns:
         dictionary: MPB configuration -> statistic name -> "MPB" or "SPB" -> value
     """
+    
+    if not isinstance(np, int):
+        raise Exception("Provided processor count np must be an integer")
     
     oneCoreFilterConfig = experimentConfiguration.buildMatchAllConfig()
     oneCoreFilterConfig.np = 1

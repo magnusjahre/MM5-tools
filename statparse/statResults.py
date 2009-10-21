@@ -83,9 +83,8 @@ class StatResults():
             if not self.quiet:
                 print "Searching for pattern "+p
             tmpres = self.index.searchForValues(p, allConfigs)
-
+            
             for statname in tmpres:
-                
                 
                 if statname in results:
                     raise Exception("Statistic name "+str(statname)+" returned by multiple patterns")

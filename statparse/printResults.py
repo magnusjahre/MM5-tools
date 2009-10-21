@@ -96,12 +96,19 @@ def simplePrint(results, decimalPlaces, outfile):
             
     printData(outtext, leftJustify, outfile)
     
-def printResultDictionary(resultdict, decimals, outfile):
-    """ Prints the dictionary provided
+def printResultDictionary(resultdict, decimals, outfile, titles = None):
+    """ Prints the dictionary provided. If titles are provided, they are used 
+        instead of the header in resultdict
     
         Arguments:
-            resultdict, dictionary: configuration -> result header string -> value
+            resultdict, dictionary: configuration -> result header -> value
+            decimals, int: number of decimal points
+            outfile, file: an open file to use for printing
+            titles, dictionary: result header -> title (result header MUST match a key in resultdict)
     """
+    
+    if resultdict == {}:
+        raise Exception("Result dicionary cannot be empty")
     
     configNameDict = {}
     for config in resultdict:
@@ -117,7 +124,14 @@ def printResultDictionary(resultdict, decimals, outfile):
     leftjust = [True]
     headrow = [""]
     for h in headers:
-        headrow.append(h)
+        if titles != None:
+            if h not in titles:
+                raise Exception("result header key "+str(h)+" does not match any key in titles")
+            
+            title = str(titles[h])
+        else:
+            title = str(h) 
+        headrow.append(title)
         leftjust.append(False)
     outdata.append(headrow)
     
