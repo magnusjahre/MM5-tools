@@ -14,9 +14,12 @@ import sys
 
 indexmodulename = "index-all"
 
+models = ["mlp", "opacu"]
+
 def parseArgs():
     parser = OptionParser(usage="performanceModelAccuracy.py [options] NP")
 
+    parser.add_option("--model", action="store", dest="model", default="opacu", help="The model to use for estimations ("+str(models)+")")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
 
@@ -27,6 +30,11 @@ def parseArgs():
         print "Usage : "+parser.usage
         sys.exit(-1)
     
+    if opts.model not in models:
+        print "Unknown estimation model"
+        print "Alternatives: "+str(models)
+        sys.exit(-1)
+    
     return opts,args
 
 def fatal(message):
@@ -34,13 +42,13 @@ def fatal(message):
     sys.exit(-1)
 
 def retrievePatterns(results, opts, np):
-    patterns = ["Private.*average_mlp", "Private.*avg_roundtrip_latency", "COM:count", "sim_ticks", "COM:IPC", "Private.*num_roundtrip_responses"]
+    patterns = ["Private.*average_mlp", "Private.*avg_roundtrip_latency", "COM:count", "sim_ticks", "COM:IPC", "Private.*num_roundtrip_responses", "Private.*serial_misses", "Private.*serial_percentage"]
     searchRes = results.searchForPatterns(patterns)
     searchRes = processResults.addAllUnitNames(searchRes, opts.quiet, np)
     matchedRes = processResults.matchSPBsToMPB(searchRes, opts.quiet, np)
     return matchedRes
 
-def estimateIntFreeIPC(committed, ticks, mlp, sharedRoundtrip, aloneRoundtrip, responses, configname, tracefile):
+def l2MLPAloneIPC(committed, ticks, mlp, sharedRoundtrip, aloneRoundtrip, responses, configname, tracefile):
     
     interference = sharedRoundtrip - aloneRoundtrip
     sharedIntTicks = interference * responses
@@ -62,6 +70,27 @@ def estimateIntFreeIPC(committed, ticks, mlp, sharedRoundtrip, aloneRoundtrip, r
     
     return aloneEstimatedIPC
 
+def commitCounterAloneIPC(committed, ticks, serialMisses, sharedRoundtrip, aloneRoundtrip, responses, configname, tracefile):
+    interference = sharedRoundtrip - aloneRoundtrip
+    interferencePenalty = interference * serialMisses
+    
+    aloneTickEstimate = ticks - interferencePenalty
+    aloneIPCEstimate = float(committed) / float(aloneTickEstimate)
+    sharedIPC = float(committed) / float(ticks)
+    
+    print >> tracefile, configname
+    print >> tracefile, "Interference: ", sharedRoundtrip, aloneRoundtrip, interference
+    print >> tracefile, "Ticks:        ", ticks
+    print >> tracefile, "Committed     ", committed
+    print >> tracefile, "Serial misses ", serialMisses
+    print >> tracefile, "Total resps   ", responses
+    print >> tracefile, "Int penalty   ", interferencePenalty
+    print >> tracefile, "Alone est IPC ", aloneIPCEstimate
+    print >> tracefile, "Shared IPC    ", sharedIPC
+    print >> tracefile, ""
+    
+    return aloneIPCEstimate
+
 def computeModelAccuracy(data, opts, np, compTrace):
     
     accuracy = {}
@@ -72,9 +101,8 @@ def computeModelAccuracy(data, opts, np, compTrace):
     titles[2] = "Estimated Alone IPC"
     titles[3] = "Abs Error (IPC)"
     titles[4] = "Relative Error (%)"
-    titles[5] = "MPM MLP"
-    titles[6] = "SPM MLP"
-    titles[7] = "Rel error (%)"
+    titles[5] = "Shared MLP"
+    titles[6] = "Shared Serial Percentage"
     
     for mpbconfig in data:
         
@@ -85,10 +113,10 @@ def computeModelAccuracy(data, opts, np, compTrace):
         responsesname = "PrivateL2Cache"+str(cpuID)+".num_roundtrip_responses"
         committedname = "detailedCPU"+str(cpuID)+".COM:count"
         ipcname = "detailedCPU"+str(cpuID)+".COM:IPC"
+        serialmissname = "PrivateL2Cache"+str(cpuID)+".serial_misses" 
         ticksname = "sim_ticks"
         
         mpbmlp = data[mpbconfig][mlpname]["MPB"]
-        spbmlp = data[mpbconfig][mlpname]["SPB"]
         mpbRoundtrip = data[mpbconfig][roundtripname]["MPB"]
         spbRoundtrip = data[mpbconfig][roundtripname]["SPB"]
         responses = data[mpbconfig][responsesname]["MPB"]
@@ -96,8 +124,14 @@ def computeModelAccuracy(data, opts, np, compTrace):
         spmIPC = data[mpbconfig][ipcname]["SPB"]
         mpbIPC = data[mpbconfig][ipcname]["MPB"]
         ticks = data[mpbconfig][ticksname]["MPB"]
+        serialMisses = data[mpbconfig][serialmissname]["MPB"]
         
-        estAloneIPC = estimateIntFreeIPC(committed, ticks, mpbmlp, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
+        if opts.model == "mlp":
+            estAloneIPC = l2MLPAloneIPC(committed, ticks, mpbmlp, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
+        elif opts.model == "opacu":
+            estAloneIPC = commitCounterAloneIPC(committed, ticks, serialMisses, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
+        else:
+            fatal("unknown model")
     
         assert mpbconfig not in accuracy
         accuracy[mpbconfig] = {}
@@ -107,8 +141,7 @@ def computeModelAccuracy(data, opts, np, compTrace):
         accuracy[mpbconfig][3] = estAloneIPC - spmIPC
         accuracy[mpbconfig][4] = ((estAloneIPC - spmIPC) / spmIPC) * 100
         accuracy[mpbconfig][5] = mpbmlp
-        accuracy[mpbconfig][6] = spbmlp
-        accuracy[mpbconfig][7] = ((mpbmlp - spbmlp) / mpbmlp) * 100
+        accuracy[mpbconfig][6] = data[mpbconfig]["PrivateL2Cache"+str(cpuID)+".serial_percentage"]["MPB"]
     
     printResults.printResultDictionary(accuracy, opts.decimals, sys.stdout, titles)
 
