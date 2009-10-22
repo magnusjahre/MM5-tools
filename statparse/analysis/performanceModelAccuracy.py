@@ -15,11 +15,13 @@ import sys
 indexmodulename = "index-all"
 
 models = ["mlp", "opacu"]
+availMemsys = ["RingBased", "CrossbarBased"]
 
 def parseArgs():
     parser = OptionParser(usage="performanceModelAccuracy.py [options] NP")
 
     parser.add_option("--model", action="store", dest="model", default="opacu", help="The model to use for estimations ("+str(models)+")")
+    parser.add_option("--memsys", action="store", dest="memsys", default="RingBased", help="The memory system to use for estimations ("+str(availMemsys)+")")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
 
@@ -42,7 +44,17 @@ def fatal(message):
     sys.exit(-1)
 
 def retrievePatterns(results, opts, np):
-    patterns = ["Private.*average_mlp", "Private.*avg_roundtrip_latency", "COM:count", "sim_ticks", "COM:IPC", "Private.*num_roundtrip_responses", "Private.*serial_misses", "Private.*serial_percentage"]
+    patterns = ["COM:count", 
+                "sim_ticks", 
+                "COM:IPC"]
+    
+    cachenames = ["Private", "L1dcaches"]
+    for cachename in cachenames:
+        patterns.append(cachename+".*average_mlp") 
+        patterns.append(cachename+".*avg_roundtrip_latency")
+        patterns.append(cachename+".*num_roundtrip_responses") 
+        patterns.append(cachename+".*serial_misses")
+        patterns.append(cachename+".*serial_percentage")
     searchRes = results.searchForPatterns(patterns)
     searchRes = processResults.addAllUnitNames(searchRes, opts.quiet, np)
     matchedRes = processResults.matchSPBsToMPB(searchRes, opts.quiet, np)
@@ -108,13 +120,24 @@ def computeModelAccuracy(data, opts, np, compTrace):
         
         cpuID = expconfig.findCPUID(mpbconfig.workload, mpbconfig.benchmark, np)
         
-        mlpname = "PrivateL2Cache"+str(cpuID)+".average_mlp"
-        roundtripname = "PrivateL2Cache"+str(cpuID)+".avg_roundtrip_latency"
-        responsesname = "PrivateL2Cache"+str(cpuID)+".num_roundtrip_responses"
+        if opts.memsys == "RingBased":
+            cachename = "PrivateL2Cache"+str(cpuID)
+        elif opts.memsys == "CrossbarBased":
+            cachename = "L1dcaches"+str(cpuID)
+        else:
+            fatal("Unknown memory system")
+        
+        mlpname = cachename+".average_mlp"
+        roundtripname = cachename+".avg_roundtrip_latency"
+        responsesname = cachename+".num_roundtrip_responses"
         committedname = "detailedCPU"+str(cpuID)+".COM:count"
+        serialmissname = cachename+".serial_misses"
+        
         ipcname = "detailedCPU"+str(cpuID)+".COM:IPC"
-        serialmissname = "PrivateL2Cache"+str(cpuID)+".serial_misses" 
         ticksname = "sim_ticks"
+        
+        if mlpname not in data[mpbconfig]:
+            fatal("Pattern missing from results. Have you specified the correct memory system?")
         
         mpbmlp = data[mpbconfig][mlpname]["MPB"]
         mpbRoundtrip = data[mpbconfig][roundtripname]["MPB"]
@@ -141,7 +164,7 @@ def computeModelAccuracy(data, opts, np, compTrace):
         accuracy[mpbconfig][3] = estAloneIPC - spmIPC
         accuracy[mpbconfig][4] = ((estAloneIPC - spmIPC) / spmIPC) * 100
         accuracy[mpbconfig][5] = mpbmlp
-        accuracy[mpbconfig][6] = data[mpbconfig]["PrivateL2Cache"+str(cpuID)+".serial_percentage"]["MPB"]
+        accuracy[mpbconfig][6] = data[mpbconfig][cachename+".serial_percentage"]["MPB"]
     
     printResults.printResultDictionary(accuracy, opts.decimals, sys.stdout, titles)
 
@@ -150,9 +173,6 @@ def main():
     
     if not os.path.exists(indexmodulename+".pkl"):
         fatal("index "+indexmodulename+" does not exist, create with searchStats.py")
-        
-    if not os.path.exists("pbsconfig.py"):
-        fatal("pbsconfig.py not found")
 
     np = int(args[0])
 
