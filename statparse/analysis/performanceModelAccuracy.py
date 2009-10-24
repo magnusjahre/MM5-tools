@@ -113,8 +113,6 @@ def computeModelAccuracy(data, opts, np, compTrace):
     titles[2] = "Estimated Alone IPC"
     titles[3] = "Abs Error (IPC)"
     titles[4] = "Relative Error (%)"
-    titles[5] = "Shared MLP"
-    titles[6] = "Shared Serial Percentage"
     
     for mpbconfig in data:
         
@@ -163,8 +161,6 @@ def computeModelAccuracy(data, opts, np, compTrace):
         accuracy[mpbconfig][2] = estAloneIPC
         accuracy[mpbconfig][3] = estAloneIPC - spmIPC
         accuracy[mpbconfig][4] = ((estAloneIPC - spmIPC) / spmIPC) * 100
-        accuracy[mpbconfig][5] = mpbmlp
-        accuracy[mpbconfig][6] = data[mpbconfig][cachename+".serial_percentage"]["MPB"]
     
     printResults.printResultDictionary(accuracy, opts.decimals, sys.stdout, titles)
 
