@@ -16,7 +16,7 @@ import sys
 
 indexmodulename = "index-all"
 
-models = ["mlp", "opacu", "mshrcnt"]
+models = ["mlp", "opacu", "mshrcnt", "mshrcnt-mlpcor"]
 availMemsys = ["RingBased", "CrossbarBased"]
 
 def parseArgs():
@@ -26,9 +26,9 @@ def parseArgs():
     parser.add_option("--memsys", action="store", dest="memsys", default="RingBased", help="The memory system to use for estimations ("+str(availMemsys)+")")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
-    parser.add_option("--use-spm-mlp", action="store_true", dest="useSpmMLP", default=False, help="Use mlp numbers from single program mode")
     parser.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1,val1:key2,val2:...")
     parser.add_option("--no-stats", action="store_true", dest="noStats", default=False, help="Don't print statistics")
+    parser.add_option("--no-mlp-correction", action="store_true", dest="noMLPCor", default=False, help="Don't correct for variation in MLP between MPM and SPM")
 
     opts, args = parser.parse_args()
     
@@ -119,6 +119,36 @@ def commitCounterAloneIPC(committed, ticks, serialMisses, sharedRoundtrip, alone
     
     return aloneIPCEstimate
 
+def commitCounterWithMLPCorrectionAloneIPC(committed, ticks, serialMisses, spbSerialMisses, sharedRoundtrip, aloneRoundtrip, responses, configname, tracefile, doNotMLPCor):
+    interference = sharedRoundtrip - aloneRoundtrip
+    interferencePenalty = interference * serialMisses
+
+    if doNotMLPCor:
+        mlpDiff = 0
+        mlpPenalty = 0
+    else:
+        mlpDiff = serialMisses - spbSerialMisses
+        mlpPenalty = mlpDiff * sharedRoundtrip 
+    
+    aloneTickEstimate = ticks - (interferencePenalty + mlpPenalty)
+    aloneIPCEstimate = float(committed) / float(aloneTickEstimate)
+    sharedIPC = float(committed) / float(ticks)
+    
+    print >> tracefile, configname
+    print >> tracefile, "Interference: ", sharedRoundtrip, aloneRoundtrip, interference
+    print >> tracefile, "Ticks:        ", ticks
+    print >> tracefile, "Committed     ", committed
+    print >> tracefile, "Serial misses ", serialMisses
+    print >> tracefile, "Total resps   ", responses
+    print >> tracefile, "Int penalty   ", interferencePenalty
+    print >> tracefile, "MLP diff      ", mlpDiff
+    print >> tracefile, "MLP penalty   ", mlpPenalty
+    print >> tracefile, "Alone est IPC ", aloneIPCEstimate
+    print >> tracefile, "Shared IPC    ", sharedIPC
+    print >> tracefile, ""
+    
+    return aloneIPCEstimate
+
 def computeModelAccuracy(data, opts, np, compTrace):
     
     accuracy = {}
@@ -166,21 +196,23 @@ def computeModelAccuracy(data, opts, np, compTrace):
         spmIPC = data[mpbconfig][ipcname]["SPB"]
         mpbIPC = data[mpbconfig][ipcname]["MPB"]
         ticks = data[mpbconfig][ticksname]["MPB"]
-        if opts.useSpmMLP:
-            mpbmlp = data[mpbconfig][mlpname]["SPB"]
-            opacuSerialMisses = data[mpbconfig][opacuserialmissname]["SPB"]
-            mshrcntSerialMisses = data[mpbconfig][mshrcntserialmissname]["SPB"]
-        else:
-            mpbmlp = data[mpbconfig][mlpname]["MPB"]
-            opacuSerialMisses = data[mpbconfig][opacuserialmissname]["MPB"]
-            mshrcntSerialMisses = data[mpbconfig][mshrcntserialmissname]["MPB"]
         
+        mpbmlpSPB = data[mpbconfig][mlpname]["SPB"]
+        opacuSerialMissesSPB = data[mpbconfig][opacuserialmissname]["SPB"]
+        mshrcntSerialMissesSPB = data[mpbconfig][mshrcntserialmissname]["SPB"]
+    
+        mpbmlp = data[mpbconfig][mlpname]["MPB"]
+        opacuSerialMisses = data[mpbconfig][opacuserialmissname]["MPB"]
+        mshrcntSerialMisses = data[mpbconfig][mshrcntserialmissname]["MPB"]
+    
         if opts.model == "mlp":
             estAloneIPC = l2MLPAloneIPC(committed, ticks, mpbmlp, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
         elif opts.model == "opacu":
             estAloneIPC = commitCounterAloneIPC(committed, ticks, opacuSerialMisses, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
         elif opts.model == "mshrcnt":
             estAloneIPC = commitCounterAloneIPC(committed, ticks, mshrcntSerialMisses, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
+        elif opts.model == "mshrcnt-mlpcor":
+            estAloneIPC = commitCounterWithMLPCorrectionAloneIPC(committed, ticks, mshrcntSerialMisses, mshrcntSerialMissesSPB, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace, opts.noMLPCor)
         else:
             fatal("unknown model")
     
