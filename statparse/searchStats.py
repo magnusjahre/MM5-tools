@@ -62,7 +62,7 @@ def parseArgs():
         
     if opts.parameters != "":
         try:
-            params = experimentConfiguration.parseParameterString(opts.parameters, params)
+            params, spec = experimentConfiguration.parseParameterString(opts.parameters, params)
         except Exception as e:
             print "Parameter parse error: "+str(e.args[0])
             if opts.showStackTrace:

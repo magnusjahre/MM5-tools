@@ -8,6 +8,8 @@ from statparse.statResults import StatResults
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as processResults
 import statparse.printResults as printResults
+import statparse.experimentConfiguration as experimentConfiguration
+from statparse.analysis import computeMean,computeRMS,computeStddev
 
 import os
 import sys
@@ -25,6 +27,8 @@ def parseArgs():
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--use-spm-mlp", action="store_true", dest="useSpmMLP", default=False, help="Use mlp numbers from single program mode")
+    parser.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1,val1:key2,val2:...")
+    parser.add_option("--no-stats", action="store_true", dest="noStats", default=False, help="Don't print statistics")
 
     opts, args = parser.parse_args()
     
@@ -38,7 +42,15 @@ def parseArgs():
         print "Alternatives: "+str(models)
         sys.exit(-1)
     
-    return opts,args
+    params = {}
+    if opts.parameters != "":
+        try:
+            params, spec = experimentConfiguration.parseParameterString(opts.parameters)
+        except Exception as e:
+            print "Parameter parse error: "+str(e.args[0])
+            sys.exit(-1)
+    
+    return opts,args,params
 
 def fatal(message):
     print >> sys.stderr, "Fatal: "+message
@@ -118,6 +130,10 @@ def computeModelAccuracy(data, opts, np, compTrace):
     titles[3] = "Abs Error (IPC)"
     titles[4] = "Relative Error (%)"
     
+    errsum = 0
+    errsqsum = 0
+    n = 0
+    
     for mpbconfig in data:
         
         cpuID = expconfig.findCPUID(mpbconfig.workload, mpbconfig.benchmark, np)
@@ -168,18 +184,34 @@ def computeModelAccuracy(data, opts, np, compTrace):
         else:
             fatal("unknown model")
     
+        relErrPerc = ((estAloneIPC - spmIPC) / spmIPC) * 100
+        errsum += relErrPerc
+        errsqsum += relErrPerc*relErrPerc
+        n += 1
+    
         assert mpbconfig not in accuracy
         accuracy[mpbconfig] = {}
         accuracy[mpbconfig][0] = mpbIPC
         accuracy[mpbconfig][1] = spmIPC
         accuracy[mpbconfig][2] = estAloneIPC
         accuracy[mpbconfig][3] = estAloneIPC - spmIPC
-        accuracy[mpbconfig][4] = ((estAloneIPC - spmIPC) / spmIPC) * 100
+        accuracy[mpbconfig][4] = relErrPerc        
     
     printResults.printResultDictionary(accuracy, opts.decimals, sys.stdout, titles)
 
+    if not opts.noStats:
+        avg = computeMean(n, errsum)
+        rms = computeRMS(n, errsqsum)
+        stddev = computeStddev(n, errsum, errsqsum)
+        
+        print 
+        print "Relative Error Statistics:"
+        print "Mean:               "+printResults.numberToString(avg, opts.decimals).rjust(10)+" %"
+        print "RMS Error:          "+printResults.numberToString(rms, opts.decimals).rjust(10)+" %"
+        print "Standard deviation: "+printResults.numberToString(stddev, opts.decimals).rjust(10)+" %"
+
 def main():
-    opts,args = parseArgs()
+    opts,args,params = parseArgs()
     
     if not os.path.exists(indexmodulename+".pkl"):
         fatal("index "+indexmodulename+" does not exist, create with searchStats.py")
@@ -194,6 +226,7 @@ def main():
         print >> sys.stdout, "done!"
     
     searchConfig = expconfig.buildMatchAllConfig()
+    searchConfig.parameters = params
     results = StatResults(index, searchConfig, False, opts.quiet)
     
     data = retrievePatterns(results, opts, np)
