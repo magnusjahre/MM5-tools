@@ -14,16 +14,17 @@ import sys
 
 indexmodulename = "index-all"
 
-models = ["mlp", "opacu"]
+models = ["mlp", "opacu", "mshrcnt"]
 availMemsys = ["RingBased", "CrossbarBased"]
 
 def parseArgs():
     parser = OptionParser(usage="performanceModelAccuracy.py [options] NP")
 
-    parser.add_option("--model", action="store", dest="model", default="opacu", help="The model to use for estimations ("+str(models)+")")
+    parser.add_option("--model", action="store", dest="model", default="mshrcnt", help="The model to use for estimations ("+str(models)+")")
     parser.add_option("--memsys", action="store", dest="memsys", default="RingBased", help="The memory system to use for estimations ("+str(availMemsys)+")")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
+    parser.add_option("--use-spm-mlp", action="store_true", dest="useSpmMLP", default=False, help="Use mlp numbers from single program mode")
 
     opts, args = parser.parse_args()
     
@@ -53,8 +54,11 @@ def retrievePatterns(results, opts, np):
         patterns.append(cachename+".*average_mlp") 
         patterns.append(cachename+".*avg_roundtrip_latency")
         patterns.append(cachename+".*num_roundtrip_responses") 
-        patterns.append(cachename+".*serial_misses")
-        patterns.append(cachename+".*serial_percentage")
+        patterns.append(cachename+".*opacu_serial_misses")
+        patterns.append(cachename+".*opacu_serial_percentage")
+        patterns.append(cachename+".*mshrcnt_serial_misses")
+        patterns.append(cachename+".*mshrcnt_serial_percentage")
+        
     searchRes = results.searchForPatterns(patterns)
     searchRes = processResults.addAllUnitNames(searchRes, opts.quiet, np)
     matchedRes = processResults.matchSPBsToMPB(searchRes, opts.quiet, np)
@@ -129,7 +133,8 @@ def computeModelAccuracy(data, opts, np, compTrace):
         roundtripname = cachename+".avg_roundtrip_latency"
         responsesname = cachename+".num_roundtrip_responses"
         committedname = "detailedCPU"+str(cpuID)+".COM:count"
-        serialmissname = cachename+".serial_misses"
+        opacuserialmissname = cachename+".opacu_serial_misses"
+        mshrcntserialmissname = cachename+".mshrcnt_serial_misses"
         
         ipcname = "detailedCPU"+str(cpuID)+".COM:IPC"
         ticksname = "sim_ticks"
@@ -137,7 +142,7 @@ def computeModelAccuracy(data, opts, np, compTrace):
         if mlpname not in data[mpbconfig]:
             fatal("Pattern missing from results. Have you specified the correct memory system?")
         
-        mpbmlp = data[mpbconfig][mlpname]["MPB"]
+        
         mpbRoundtrip = data[mpbconfig][roundtripname]["MPB"]
         spbRoundtrip = data[mpbconfig][roundtripname]["SPB"]
         responses = data[mpbconfig][responsesname]["MPB"]
@@ -145,12 +150,21 @@ def computeModelAccuracy(data, opts, np, compTrace):
         spmIPC = data[mpbconfig][ipcname]["SPB"]
         mpbIPC = data[mpbconfig][ipcname]["MPB"]
         ticks = data[mpbconfig][ticksname]["MPB"]
-        serialMisses = data[mpbconfig][serialmissname]["MPB"]
+        if opts.useSpmMLP:
+            mpbmlp = data[mpbconfig][mlpname]["SPB"]
+            opacuSerialMisses = data[mpbconfig][opacuserialmissname]["SPB"]
+            mshrcntSerialMisses = data[mpbconfig][mshrcntserialmissname]["SPB"]
+        else:
+            mpbmlp = data[mpbconfig][mlpname]["MPB"]
+            opacuSerialMisses = data[mpbconfig][opacuserialmissname]["MPB"]
+            mshrcntSerialMisses = data[mpbconfig][mshrcntserialmissname]["MPB"]
         
         if opts.model == "mlp":
             estAloneIPC = l2MLPAloneIPC(committed, ticks, mpbmlp, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
         elif opts.model == "opacu":
-            estAloneIPC = commitCounterAloneIPC(committed, ticks, serialMisses, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
+            estAloneIPC = commitCounterAloneIPC(committed, ticks, opacuSerialMisses, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
+        elif opts.model == "mshrcnt":
+            estAloneIPC = commitCounterAloneIPC(committed, ticks, mshrcntSerialMisses, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
         else:
             fatal("unknown model")
     
