@@ -117,7 +117,10 @@ class StatfileIndex():
                         distribDict[int(vals[0])] = int(vals[1])
                     else:
                         if self._isKey(vals[0]):
-                            distribDict[self._findLastKeyPart(l)] = int(vals[1])
+                            if self._isFloat(vals[1]):
+                                distribDict[self._findLastKeyPart(l)] = float(vals[1])
+                            else:
+                                distribDict[self._findLastKeyPart(l)] = int(vals[1])
                         else:
                             name = vals[0]
                             for i in range(len(vals))[1:]:
