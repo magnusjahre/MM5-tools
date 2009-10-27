@@ -33,7 +33,7 @@ class StatResults():
                    "Total":        ".*sum_roundtrip_latency.*",
                    "Requests":     ".*num_roundtrip_responses.*"}
 
-    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None):
+    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True):
         self.index = index
         self.searchConfig = searchConfig
         
@@ -56,14 +56,18 @@ class StatResults():
         
         self.quiet = quiet
         self.baseconfig = baseconfig
+        
+        self.createNoPatResults = createNoPatResults
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
         self.results = self.index.searchForValues(nomPat, self.matchingConfigs)
-        self.noPatResults = self._removePatternsFromResult(self.results)
+        if self.createNoPatResults:
+            self.noPatResults = self._removePatternsFromResult(self.results)
         if denomPat != "":
             self.denominatorResults = self.index.searchForValues(denomPat, self.matchingConfigs)
-            self.noPatDenominatorResults = self._removePatternsFromResult(self.denominatorResults)
+            if self.createNoPatResults:
+                self.noPatDenominatorResults = self._removePatternsFromResult(self.denominatorResults)
 
     def searchForPatterns(self, patterns):
         """ Searches for patters given in a list and returns a dictionary with the results

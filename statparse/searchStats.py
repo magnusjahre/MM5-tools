@@ -41,6 +41,7 @@ def parseArgs():
     resultOptions.add_option("--print-distribution-file", action="store_true", dest="printDistFile", default=False, help="Create one python file with all matching distributions")
     resultOptions.add_option("--print-all-cores", action="store_true", dest="printAllCores", default=False, help="Print separate statistics for each core in table format")
     resultOptions.add_option("--print-speedups", action="store_true", dest="printSpeedups", default=False, help="Divide per core statistics by single program performance")
+    resultOptions.add_option("--print-all-patterns", action="store_true", dest="printAllPatterns", default=False, help="Print all matching patterns")
     parser.add_option_group(resultOptions)
     
     otherOptions = OptionGroup(parser, "Other options")
@@ -250,7 +251,7 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.close()
 
 def doSearch(index, searchConfig, args, options, baseconfig):
-    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet, baseconfig)
+    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet, baseconfig, not options.printAllPatterns)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:
