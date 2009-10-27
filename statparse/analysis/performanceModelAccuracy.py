@@ -16,19 +16,20 @@ import sys
 
 indexmodulename = "index-all"
 
-models = ["mlp", "opacu", "mshrcnt", "mshrcnt-mlpcor"]
+models = ["mlpcost", "opacu", "mshrcnt", "mshrcnt-mlpcor"]
 availMemsys = ["RingBased", "CrossbarBased"]
 
 def parseArgs():
     parser = OptionParser(usage="performanceModelAccuracy.py [options] NP")
 
-    parser.add_option("--model", action="store", dest="model", default="mshrcnt", help="The model to use for estimations ("+str(models)+")")
+    parser.add_option("--model", action="store", dest="model", default="mlpcost", help="The model to use for estimations ("+str(models)+")")
     parser.add_option("--memsys", action="store", dest="memsys", default="RingBased", help="The memory system to use for estimations ("+str(availMemsys)+")")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1,val1:key2,val2:...")
     parser.add_option("--no-stats", action="store_true", dest="noStats", default=False, help="Don't print statistics")
     parser.add_option("--no-mlp-correction", action="store_true", dest="noMLPCor", default=False, help="Don't correct for variation in MLP between MPM and SPM")
+    parser.add_option("--correct-ring", action="store_true", dest="doRingCorrection", default=False, help="Correct for the transfer latency difference between SPM and MPM")
 
     opts, args = parser.parse_args()
     
@@ -63,37 +64,40 @@ def retrievePatterns(results, opts, np):
     
     cachenames = ["Private", "L1dcaches"]
     for cachename in cachenames:
-        patterns.append(cachename+".*average_mlp") 
+        patterns.append(cachename+".*mq.avg_mlp_cost_per_miss") 
         patterns.append(cachename+".*avg_roundtrip_latency")
         patterns.append(cachename+".*num_roundtrip_responses") 
-        patterns.append(cachename+".*opacu_serial_misses")
-        patterns.append(cachename+".*opacu_serial_percentage")
-        patterns.append(cachename+".*mshrcnt_serial_misses")
-        patterns.append(cachename+".*mshrcnt_serial_percentage")
+        patterns.append(cachename+".*mq.opacu_serial_misses")
+        patterns.append(cachename+".*mq.opacu_serial_percentage")
+        patterns.append(cachename+".*mq.mshrcnt_serial_misses")
+        patterns.append(cachename+".*mq.mshrcnt_serial_percentage")
+        
+        patterns.append(cachename+".*sum_ic_transfer_latency")
         
     searchRes = results.searchForPatterns(patterns)
     searchRes = processResults.addAllUnitNames(searchRes, opts.quiet, np)
     matchedRes = processResults.matchSPBsToMPB(searchRes, opts.quiet, np)
     return matchedRes
 
-def l2MLPAloneIPC(committed, ticks, mlp, sharedRoundtrip, aloneRoundtrip, responses, configname, tracefile):
+def l2MLPAloneIPC(committed, ticks, avgMLPCostMPB, avgMLPCostSPB, sharedRoundtrip, aloneRoundtrip, responses, configname, tracefile, ringCorrection):
     
     interference = sharedRoundtrip - aloneRoundtrip
-    sharedIntTicks = interference * responses
-    sharedExposedIntTicks = sharedIntTicks * mlp
-    aloneEstimateTicks = ticks - sharedExposedIntTicks
+    mlpVisiblePerc = float(avgMLPCostMPB) / float(sharedRoundtrip)
+    
+    sharedIntTicks = (mlpVisiblePerc *interference) * responses
+    aloneEstimateTicks = ticks - sharedIntTicks
+    aloneEstimateTicks -= mlpVisiblePerc*ringCorrection
     aloneEstimatedIPC = float(committed) / float(aloneEstimateTicks)
     
-    sharedMemTicks = sharedRoundtrip * responses
-    sharedExposedLatTicks = sharedMemTicks * mlp
     print >> tracefile, configname
-    print >> tracefile, "Interference: ", sharedRoundtrip, aloneRoundtrip, interference
-    print >> tracefile, "Ticks:       ", ticks
-    print >> tracefile, "Committed    ", committed
-    print >> tracefile, "MLP:         ", mlp
-    print >> tracefile, "Resps:       ", responses
-    print >> tracefile, "Memticks :   ", sharedMemTicks, sharedIntTicks
-    print >> tracefile, "Exposed:     ", sharedExposedLatTicks, sharedExposedIntTicks
+    print >> tracefile, "Interference:    ", sharedRoundtrip, aloneRoundtrip, interference
+    print >> tracefile, "Ticks:           ", ticks
+    print >> tracefile, "Committed        ", committed
+    print >> tracefile, "MPM MLP Cost:    ", avgMLPCostMPB
+    print >> tracefile, "MPM roundtrip:   ", sharedRoundtrip
+    print >> tracefile, "MLP visible perc ", mlpVisiblePerc
+    print >> tracefile, "Resps:           ", responses
+    print >> tracefile, "Alone est ticks  ", aloneEstimateTicks 
     print >> tracefile, ""
     
     return aloneEstimatedIPC
@@ -149,6 +153,9 @@ def commitCounterWithMLPCorrectionAloneIPC(committed, ticks, serialMisses, spbSe
     
     return aloneIPCEstimate
 
+def computeLatencyDifference():
+    pass
+
 def computeModelAccuracy(data, opts, np, compTrace):
     
     accuracy = {}
@@ -175,17 +182,19 @@ def computeModelAccuracy(data, opts, np, compTrace):
         else:
             fatal("Unknown memory system")
         
-        mlpname = cachename+".average_mlp"
+        mlpcostpermissname = cachename+".mq.avg_mlp_cost_per_miss"
         roundtripname = cachename+".avg_roundtrip_latency"
         responsesname = cachename+".num_roundtrip_responses"
         committedname = "detailedCPU"+str(cpuID)+".COM:count"
-        opacuserialmissname = cachename+".opacu_serial_misses"
-        mshrcntserialmissname = cachename+".mshrcnt_serial_misses"
+        opacuserialmissname = cachename+".mq.opacu_serial_misses"
+        mshrcntserialmissname = cachename+".mq.mshrcnt_serial_misses"
+        
+        ictransfername = cachename+".sum_ic_transfer_latency"
         
         ipcname = "detailedCPU"+str(cpuID)+".COM:IPC"
         ticksname = "sim_ticks"
         
-        if mlpname not in data[mpbconfig]:
+        if mlpcostpermissname not in data[mpbconfig]:
             fatal("Pattern missing from results. Have you specified the correct memory system?")
         
         
@@ -197,16 +206,23 @@ def computeModelAccuracy(data, opts, np, compTrace):
         mpbIPC = data[mpbconfig][ipcname]["MPB"]
         ticks = data[mpbconfig][ticksname]["MPB"]
         
-        mpbmlpSPB = data[mpbconfig][mlpname]["SPB"]
+        ringCorrection = 0
+        if opts.doRingCorrection:
+            if opts.memsys == "RingBased":
+                ringCorrection = data[mpbconfig][ictransfername]["MPB"] - data[mpbconfig][ictransfername]["SPB"]
+                 
+            
+                    
+        avgMLPCostSPB = data[mpbconfig][mlpcostpermissname]["SPB"]
         opacuSerialMissesSPB = data[mpbconfig][opacuserialmissname]["SPB"]
         mshrcntSerialMissesSPB = data[mpbconfig][mshrcntserialmissname]["SPB"]
     
-        mpbmlp = data[mpbconfig][mlpname]["MPB"]
+        avgMLPCostMPB = data[mpbconfig][mlpcostpermissname]["MPB"]
         opacuSerialMisses = data[mpbconfig][opacuserialmissname]["MPB"]
         mshrcntSerialMisses = data[mpbconfig][mshrcntserialmissname]["MPB"]
     
-        if opts.model == "mlp":
-            estAloneIPC = l2MLPAloneIPC(committed, ticks, mpbmlp, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
+        if opts.model == "mlpcost":
+            estAloneIPC = l2MLPAloneIPC(committed, ticks, avgMLPCostMPB, avgMLPCostSPB, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace, ringCorrection)
         elif opts.model == "opacu":
             estAloneIPC = commitCounterAloneIPC(committed, ticks, opacuSerialMisses, mpbRoundtrip, spbRoundtrip, responses, str(mpbconfig), compTrace)
         elif opts.model == "mshrcnt":
