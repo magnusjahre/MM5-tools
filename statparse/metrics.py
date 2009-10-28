@@ -49,7 +49,12 @@ class WorkloadMetric():
         
         self.n = np
         
-        if experimentConfiguration.NO_SIMPOINT_VAL in multiprogramValues:
+        if multiprogramValues == {} and singleProgramValues == {}:
+            #results are missing, assume one simpoint 
+            self.numSimpoints = 1
+            self.speedups = [[]]
+            
+        elif experimentConfiguration.NO_SIMPOINT_VAL in multiprogramValues:
             # Simpoints have been removed by aggregation
             self.numSimpoints = 1
             self.speedups = [[]]

@@ -267,7 +267,7 @@ class StatResults():
                         aggregate[wlConfig] = self._aggregateWorkloadResults(np, params, wl)
 
         if self.expMetric != None:
-            aggregate = self._aggregateExperimentResults(aggregate, allNPs, allWls, allParams)
+            aggregate = self._aggregateExperimentResults(aggregate, allNPs, allWls, allBms, allParams)
             
         self._printAggregate(aggregate, allNPs, allWls, allParams, outfile, decimals, wlMetric.doTablePrint, allBms)
             
@@ -290,10 +290,20 @@ class StatResults():
 
         for np in allNPs:
             if np == 1:
-                if allWls == []:
+                if self.expMetric == None:
+                    assert allWls == []
                     for bm in allBms:
                         outdata = self._addAggregatePrintElement(outdata, np, bm, sortedParams, aggregate, decimals, printAllCPUs)
-                    
+                
+                else:
+                    line = ["Aggregate"]
+                    for p in sortedParams:
+                        for c in aggregate:
+                            if p == c.parameters:
+                                assert len(aggregate[c]) == 1
+                                line.append(printResults.numberToString(aggregate[c][0], decimals))
+                    outdata.append(line)
+                
                 continue
         
             if self.expMetric == None:
@@ -381,6 +391,7 @@ class StatResults():
         
     def _processSingleResults(self, bm, params, memsysNp):
         nominatorRes = processResults.filterResults(self.noPatResults, 1, params, experimentConfiguration.singleWlID, bm, memsysNp)
+        
         nominator = {}
         if self.aggregateSimpoints:
             nominator  = self._aggregateSimpoints(nominatorRes, nominator, bm)
@@ -592,8 +603,17 @@ class StatResults():
             aggregate[config.simpoint][subkey] = filteredRes[config]
         return aggregate
     
-    def _aggregateExperimentResults(self, aggregate, allNPs, allWls, allParams):
+    def _aggregateExperimentResults(self, aggregate, allNPs, allWls, allBMs, allParams):
         newAggregate = {}
+        
+        iterspace = []
+        if allNPs == [1]:
+            for bm in allBMs:
+                iterspace.append( ("*", bm ) )
+        else:
+            for wl in allWls:
+                iterspace.append( (wl, "*") )
+            
         
         for np in allNPs:
             
@@ -602,14 +622,22 @@ class StatResults():
             
             for params in allParams:
                 self.expMetric.clearValues()
-                for wl in allWls:
-                    wlConfig = ExperimentConfiguration(np, params, "*", wl)
+                for wl, bm in iterspace:
+                    wlConfig = ExperimentConfiguration(np, params, bm, wl)
                     for c in aggregate:
                         if c.compareTo(wlConfig):
-                            if len(aggregate[c]) > 1 and aggregate[c][0] != self.expMetric.errStr:
-                                raise Exception("Experiment aggregation does only make sense with both workload aggregation and simpoint aggregation")
-                            self.expMetric.addValue(aggregate[c][0], np)
-                
+                            if len(aggregate[c]) > 1: 
+                                raise Exception("Experiment aggregation does only make sense with both workload aggregation (if np > 1) and simpoint aggregation")
+                            elif aggregate[c][0] != self.expMetric.errStr:
+                                if not self.quiet:
+                                    print "Warning: computing experiment metric with missing results"
+                                    
+                            if np > 1:
+                                self.expMetric.addValue(aggregate[c][0], np)
+                            else:
+                                assert len(aggregate[c][0]) == 1
+                                self.expMetric.addValue(aggregate[c][0][0], np)
+                            
                 aggConfig = ExperimentConfiguration(np, params, "*")            
                 newAggregate[aggConfig] = self.expMetric.computeMetricValue()
         
