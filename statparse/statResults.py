@@ -33,7 +33,7 @@ class StatResults():
                    "Total":        ".*sum_roundtrip_latency.*",
                    "Requests":     ".*num_roundtrip_responses.*"}
 
-    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True):
+    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True, doPlot = False):
         self.index = index
         self.searchConfig = searchConfig
         
@@ -58,6 +58,7 @@ class StatResults():
         self.baseconfig = baseconfig
         
         self.createNoPatResults = createNoPatResults
+        self.doPlot = doPlot
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
@@ -318,7 +319,7 @@ class StatResults():
                             line.append(printResults.numberToString(aggregate[c][0], decimals))
                 outdata.append(line)
                                     
-        printResults.printData(outdata, leftJust, outfile)
+        printResults.printData(outdata, leftJust, outfile, self.doPlot)
     
     def _addAggregatePrintElement(self, outdata, np, wlOrBm, sortedParams, aggregate, decimals, printAllCPUs):
         

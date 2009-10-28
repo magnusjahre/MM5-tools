@@ -1,5 +1,7 @@
 
-def printData(textarray, leftJust, outfile):
+import plotResults
+
+def printData(textarray, leftJust, outfile, doPlot = False):
     if textarray == []:
         raise ValueError("array cannot be empty")
     if textarray[0] == []:
@@ -27,6 +29,9 @@ def printData(textarray, leftJust, outfile):
             else:
                 print >> outfile, textarray[i][j].rjust(colwidths[j]),
         print >> outfile, ""
+        
+    if doPlot:
+        plotResults.plotBarChart(textarray)
 
 def numberToString(number, decimalPlaces):
     if type(number) == type(int()):
