@@ -43,6 +43,7 @@ def parseArgs():
     resultOptions.add_option("--print-speedups", action="store_true", dest="printSpeedups", default=False, help="Divide per core statistics by single program performance")
     resultOptions.add_option("--print-all-patterns", action="store_true", dest="printAllPatterns", default=False, help="Print all matching patterns")
     resultOptions.add_option("--plot", action="store_true", dest="plot", default=False, help="Show the result table as a bar chart")
+    resultOptions.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print results relative to column n (where 1 is the leftmost column)")
     parser.add_option_group(resultOptions)
     
     otherOptions = OptionGroup(parser, "Other options")
@@ -252,7 +253,7 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.close()
 
 def doSearch(index, searchConfig, args, options, baseconfig):
-    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet, baseconfig, not options.printAllPatterns, options.plot)
+    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet, baseconfig, not options.printAllPatterns, options.plot, options.normalizeTo)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:

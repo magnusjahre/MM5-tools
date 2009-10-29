@@ -1,42 +1,55 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import figlegend
+
+COLORLIST = []
+baseRGBOptions = [0.0, 1.0]
+for i in baseRGBOptions:
+    for j in baseRGBOptions:
+        for k in baseRGBOptions:
+            COLORLIST.append( (i,j,k) )
+
+def createInvertedPlotData(data):
+
+    legendTitles = data.pop(0)[1:]
+    
+    xticLabels = []
+    for i in range(len(data)):
+        xticLabels.append(data[i].pop(0))    
+    
+    newdata = []
+    for i in range(len(legendTitles)):
+        newdata.append([0.0 for j in range(len(xticLabels))])
+   
+    for i in range(len(xticLabels)):
+        for j in range(len(legendTitles)):    
+            newdata[j][i] = float(data[i][j])                
+    
+    return newdata, xticLabels, legendTitles
 
 def plotBarChart(data):
     
+    plotData, xticLabels, legendTitles = createInvertedPlotData(data)  
     
-    
-    titles = data[0][1:]
-    
-    ind = np.arange(len(titles))
+    ind = np.arange(len(xticLabels))
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
-    lines = 0
-    for i in range(len(data))[1:]:
-        lines += 1
-    
+    lines = len(legendTitles)
     width = 0.8 / float(lines)
     
-    for i in range(len(data))[1:]:
-        name = data[i][0]
-        values = data[i][1:]
+    assert len(plotData) == lines
+    plottedLines = []
+    for i in range(lines):
+        if i >= len(COLORLIST):
+            raise Exception("Don't have enough colors to plot")        
+        l = ax.bar(ind+(width*i), plotData[i], width, color=COLORLIST[i])
+        plottedLines.append(l[i])
     
-        floatvals = []
-        for v in values:
-            try:
-                floatvals.append(float(v))
-            except:
-                raise Exception("Found non-float in plot table")
-            
-        colorval = (1.0 / float(lines)) * i
-        rgb = (colorval,colorval,colorval)
-        
-        ax.bar(ind+(width*(i-1)), floatvals, width, label=name, color=rgb)
-        
-    ax.legend(loc="upper right")
-    ax.set_xticks([i+0.5 for i in range(len(titles))])
-    ax.set_xticklabels(titles,rotation="vertical")
+    fig.legend(plottedLines, legendTitles, "upper right")
+    ax.set_xticks([i+0.4 for i in range(len(xticLabels))])
+    ax.set_xticklabels(xticLabels,rotation="vertical")
     
     plt.show()

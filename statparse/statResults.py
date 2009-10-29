@@ -33,7 +33,7 @@ class StatResults():
                    "Total":        ".*sum_roundtrip_latency.*",
                    "Requests":     ".*num_roundtrip_responses.*"}
 
-    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True, doPlot = False):
+    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True, doPlot = False, normalizeTo = -1):
         self.index = index
         self.searchConfig = searchConfig
         
@@ -59,6 +59,7 @@ class StatResults():
         
         self.createNoPatResults = createNoPatResults
         self.doPlot = doPlot
+        self.normalizeTo = normalizeTo
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
@@ -197,7 +198,7 @@ class StatResults():
                                 str(alat),
                                 str(error),
                                 printResults.numberToString(relErr, 2)])
-            printResults.printData(outtext, leftJustify, sys.stdout)
+            printResults.printData(outtext, leftJustify, sys.stdout, 2)
         
     
     def printSampleSizeResults(self, resulttuple, decimalPlaces):
@@ -223,7 +224,7 @@ class StatResults():
             
             outtext.append(line)
         
-        printResults.printData(outtext, leftJustify, sys.stdout)
+        printResults.printData(outtext, leftJustify, sys.stdout, decimalPlaces)
     
     def printAggregateResults(self, decimals, outfile, wlMetric, expMetric, aggregateSimpoints):
         
@@ -319,7 +320,7 @@ class StatResults():
                             line.append(printResults.numberToString(aggregate[c][0], decimals))
                 outdata.append(line)
                                     
-        printResults.printData(outdata, leftJust, outfile, self.doPlot)
+        printResults.printData(outdata, leftJust, outfile, decimals, self.doPlot, self.normalizeTo)
     
     def _addAggregatePrintElement(self, outdata, np, wlOrBm, sortedParams, aggregate, decimals, printAllCPUs):
         
@@ -684,7 +685,7 @@ class StatResults():
             line.append(printResults.numberToString(aggDistrib[d], decimalPlaces))
             outtext.append(line)
         
-        printResults.printData(outtext, leftJustify, outfile)    
+        printResults.printData(outtext, leftJustify, outfile, decimalPlaces)    
     
     def printDistributionsToFile(self, outfile):
         if outfile == sys.stdout:

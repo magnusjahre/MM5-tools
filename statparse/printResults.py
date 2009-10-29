@@ -1,13 +1,16 @@
 
 import plotResults
 
-def printData(textarray, leftJust, outfile, doPlot = False):
+def printData(textarray, leftJust, outfile, decimals, doPlot = False, normalizeToColumn = -1):
     if textarray == []:
         raise ValueError("array cannot be empty")
     if textarray[0] == []:
         raise ValueError("array cannot be empty")
     if len(textarray[0]) != len(leftJust):
         raise ValueError("justification array must be the same with as the rows")
+    
+    if normalizeToColumn != -1:
+        textarray = normalize(textarray, normalizeToColumn, decimals)
     
     padding = 2
     
@@ -44,6 +47,27 @@ def numberToString(number, decimalPlaces):
         return number
     
     raise TypeError("number is not int or float")
+
+def normalize(data, toColumnID, decimals):
+    
+    newdata = []
+    newdata.append(data[0])
+    
+    for i in range(len(data))[1:]:
+        for j in range(len(data[i])):
+            if j == 0:
+                newdata.append([data[i][j]])
+            else:
+                if toColumnID >= len(data[i]):
+                    raise Exception("Column ID does not exist, must be in the range from 1 to "+str(len(data[i])-1))
+                
+                try:
+                    normval = (float(data[i][j]) / float(data[i][toColumnID]))-1.0
+                except:
+                    raise Exception("Normalization failed on elements "+str(data[i][j])+" and "+str(float(data[i][toColumnID])))
+                newdata[i].append(numberToString(normval, decimals))
+
+    return newdata
 
 def createSortedParamList(allParams):
     
