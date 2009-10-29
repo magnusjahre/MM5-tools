@@ -4,11 +4,15 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import figlegend
 
 COLORLIST = []
-baseRGBOptions = [0.0, 1.0]
+baseRGBOptions = [0.0, 1.0, 0.5]
 for i in baseRGBOptions:
     for j in baseRGBOptions:
         for k in baseRGBOptions:
-            COLORLIST.append( (i,j,k) )
+            newtuple = (i,j,k)
+            if newtuple not in COLORLIST:
+                COLORLIST.append( newtuple )
+                
+print COLORLIST
 
 def createInvertedPlotData(data):
 
@@ -48,7 +52,7 @@ def plotBarChart(data):
         l = ax.bar(ind+(width*i), plotData[i], width, color=COLORLIST[i])
         plottedLines.append(l[i])
     
-    fig.legend(plottedLines, legendTitles, "upper right")
+    fig.legend(plottedLines, legendTitles, "upper center", ncol=5)
     ax.set_xticks([i+0.4 for i in range(len(xticLabels))])
     ax.set_xticklabels(xticLabels,rotation="vertical")
     
