@@ -11,8 +11,6 @@ for i in baseRGBOptions:
             newtuple = (i,j,k)
             if newtuple not in COLORLIST:
                 COLORLIST.append( newtuple )
-                
-print COLORLIST
 
 def createInvertedPlotData(data):
 
