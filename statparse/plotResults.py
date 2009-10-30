@@ -1,7 +1,6 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import figlegend
 
 COLORLIST = []
 baseRGBOptions = [0.0, 1.0, 0.5]
@@ -50,7 +49,11 @@ def plotBarChart(data):
         l = ax.bar(ind+(width*i), plotData[i], width, color=COLORLIST[i])
         plottedLines.append(l[i])
     
-    fig.legend(plottedLines, legendTitles, "upper center", ncol=5)
+    cols = 5
+    if len(legendTitles) < cols:
+        cols = len(legendTitles)
+    
+    fig.legend(plottedLines, legendTitles, "upper center", ncol=cols)
     ax.set_xticks([i+0.4 for i in range(len(xticLabels))])
     ax.set_xticklabels(xticLabels,rotation="vertical")
     
