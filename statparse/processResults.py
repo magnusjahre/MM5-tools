@@ -194,3 +194,20 @@ def _addConfigToMPBResults(results, config, statname, patternResults, aloneConfi
         results[config][statname]["SPB"] = {}
     
     return results
+
+def invertSearchResults(searchResults):
+    """ Converts the statistic name -> configuration -> value dictionary to a
+        configuration -> statistic name -> value dictionary 
+    """
+    
+    newdict = {}
+    
+    for statname in searchResults:
+        for config in searchResults[statname]:
+            if config not in newdict:
+                newdict[config] = {}
+                
+            assert statname not in newdict[config]
+            newdict[config][statname] = searchResults[statname][config]
+            
+    return newdict
