@@ -123,7 +123,7 @@ def simplePrint(results, decimalPlaces, outfile):
             line.append(numberToString(results[statkey][config], decimalPlaces))
             outtext.append(line) 
             
-    printData(outtext, leftJustify, outfile)
+    printData(outtext, leftJustify, outfile, decimalPlaces)
     
 def printResultDictionary(resultdict, decimals, outfile, titles = None):
     """ Prints the dictionary provided. If titles are provided, they are used 
@@ -170,4 +170,4 @@ def printResultDictionary(resultdict, decimals, outfile, titles = None):
             line.append(numberToString(configNameDict[config][h], decimals))
         outdata.append(line)
     
-    printData(outdata, leftjust, outfile)
+    printData(outdata, leftjust, outfile, decimals)

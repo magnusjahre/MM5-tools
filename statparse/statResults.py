@@ -292,19 +292,20 @@ class StatResults():
 
         for np in allNPs:
             if np == 1:
-                if self.expMetric == None:
-                    assert allWls == []
-                    for bm in allBms:
-                        outdata = self._addAggregatePrintElement(outdata, np, bm, sortedParams, aggregate, decimals, printAllCPUs)
-                
-                else:
-                    line = ["Aggregate"]
-                    for p in sortedParams:
-                        for c in aggregate:
-                            if p == c.parameters:
-                                assert len(aggregate[c]) == 1
-                                line.append(printResults.numberToString(aggregate[c][0], decimals))
-                    outdata.append(line)
+                if allNPs == [1]:
+                    if self.expMetric == None:
+                        assert allWls == []
+                        for bm in allBms:
+                            outdata = self._addAggregatePrintElement(outdata, np, bm, sortedParams, aggregate, decimals, printAllCPUs)
+                    
+                    else:
+                        line = ["Aggregate"]
+                        for p in sortedParams:
+                            for c in aggregate:
+                                if p == c.parameters:
+                                    assert len(aggregate[c]) == 1
+                                    line.append(printResults.numberToString(aggregate[c][0], decimals))
+                        outdata.append(line)
                 
                 continue
         
