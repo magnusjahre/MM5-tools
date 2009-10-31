@@ -17,8 +17,9 @@ indexmodulename = "index-all"
 
 numBanks = 4
 
-basenames = {"busqueue": "interferenceManager.avg_latency_bus_queue_",
-             "busservice": "interferenceManager.avg_latency_bus_service_",
+basenames = {"busqueue": "interferenceManager.latency_bus_queue_",
+             "busservice": "interferenceManager.latency_bus_service_",
+             "totallat": "interferenceManager.total_latency_",
              "cachemisses": "SharedCache..overall_misses",
              "ticks": "sim_ticks"}
 
@@ -65,15 +66,20 @@ def analyzeBusLatency(results, np, opts):
     data = {}
     
     titles = {}
-    titles[0] = "Shared Cache Misses"
-    titles[1] = "Average Queue Length"
+    titles[0] = "Shared Cache Misses per Tick"
+    titles[1] = "Queue Length per Tick"
     titles[2] = "Million Clock Cycles"
     
     for config in results:
         cpuID = expconfig.findCPUID(config.workload, config.benchmark, np)
         
-        busQueueLatency = results[config][basenames["busqueue"]+str(cpuID)]
-        busServiceLatency = results[config][basenames["busservice"]+str(cpuID)]
+        sumBusQueueLatency = 0
+        sumBusServiceLatency = 0
+        totalLatency = 0
+        for i in range(np):        
+            sumBusQueueLatency += results[config][basenames["busqueue"]+str(i)]
+            sumBusServiceLatency += results[config][basenames["busservice"]+str(i)]
+            totalLatency += results[config][basenames["totallat"]+str(i)]
         
         cacheMisses = 0
         for bankID in range(numBanks):
@@ -84,8 +90,8 @@ def analyzeBusLatency(results, np, opts):
         
         assert config not in data
         data[config] = {}
-        data[config][0] = cacheMisses
-        data[config][1] = float(busQueueLatency) / float(busServiceLatency)
+        data[config][0] = float(cacheMisses) / float(simticks) 
+        data[config][1] = float(totalLatency) / float(simticks)
         data[config][2] = float(simticks) / 1000000.0
         
     printResults.printResultDictionary(data, opts.decimals, sys.stdout, titles)
