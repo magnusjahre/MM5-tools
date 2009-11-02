@@ -60,12 +60,26 @@ def plotBarChart(data):
     
     plt.show()
     
+def plotScatter(data):
+    
+    plotData, xticLabels, legendTiles = createInvertedPlotData(data)
+    
+    if len(plotData) != 2:
+        raise Exception("Surface plots must consist of three dimensions")
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(plotData[0], plotData[1], 'o')
+    ax.set_xlabel(legendTiles[0])
+    ax.set_ylabel(legendTiles[1])
+    plt.show()
+    
 def plot3DPoints(data):
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
     if len(plotData) != 3:
-        raise Exception("Surface plots must consist of three dimensions")
+        raise Exception("3D point plots must consist of three dimensions")
     
     mlab.points3d(plotData[0],plotData[1],plotData[2],plotData[2], scale_mode="none", scale_factor=0.2)
     mlab.axes(x_axis_visibility=True, xlabel=legendTiles[0],
@@ -78,7 +92,7 @@ def plotNormalized3DPoints(data):
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
     if len(plotData) != 3:
-        raise Exception("Surface plots must consist of three dimensions")
+        raise Exception("Normalized 3D point plots must consist of three dimensions")
     
 
     xmax = max(plotData[0])

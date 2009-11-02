@@ -8,7 +8,7 @@ import statparse.printResults as printResults
 
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
-from statparse import processResults
+from statparse import processResults, plotResults
 
 import os
 import sys
@@ -17,14 +17,10 @@ indexmodulename = "index-all"
 
 numBanks = 4
 
-basenames = {"requests": "interferenceManager.requests_",
-             "busQueueLat": "interferenceManager.latency_bus_queue_",
-             "busServiceLat": "interferenceManager.latency_bus_service_",
-             "ticks": "sim_ticks",
-             "mr0": "SharedCache0.overall_miss_rate",
-             "mr1": "SharedCache1.overall_miss_rate",
-             "mr2": "SharedCache2.overall_miss_rate",
-             "mr3": "SharedCache3.overall_miss_rate"}
+basenames = {"requests": "membus0.total_requests",
+             "busQueueLat": "membus0.total_queue_cycles",
+             "busServiceLat": "membus0.total_service_cycles",
+             "ticks": "sim_ticks"}
 
 
 def parseArgs():
@@ -34,6 +30,8 @@ def parseArgs():
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1,val1:key2,val2:...")
     parser.add_option("--bus-channels", action="store", dest="channels", type="int", default=-1, help="The number of memory bus channels")
+    parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Show scatter-plot of resulting data")
+    parser.add_option("--benchmark", action="store", dest="benchmark", type="string", default="", help="Only show results for this benchmark")
 
     opts, args = parser.parse_args()
 
@@ -70,44 +68,29 @@ def analyzeBusLatency(results, np, opts):
     data = {}
     
     titles = {}
-    titles[0] = "R"
-    titles[1] = "Q(R)"
+    titles[0] = "Request Intensity (reqs / tick)"
+    titles[1] = "Avg Queue Delay (requests)"
     
     for config in results:
         
-#        cpuID = expconfig.findCPUID(config.workload, config.benchmark, np)
-        
-        totalReqs = 0
-        for i in range(np):
-            totalReqs += results[config][basenames["requests"]+str(i)]
-        
-        totalQueueLatency = 0
-        for i in range(np):    
-            totalQueueLatency += results[config][basenames["busQueueLat"]+str(i)]
-        
-        
-        totalServiceLatency = 0
-        for i in range(np):    
-            totalServiceLatency += results[config][basenames["busServiceLat"]+str(i)]
-#        ticks = results[config][basenames["ticks"]]
-        
-        missRates = [0 for i in range(4)]
-        missRates[0] = results[config][basenames["mr0"]]
-        missRates[1] = results[config][basenames["mr1"]]
-        missRates[2] = results[config][basenames["mr2"]]
-        missRates[3] = results[config][basenames["mr3"]]
-        
-        avgMissRate = sum(missRates) / 4
-        
-        QofR = (float(totalQueueLatency) / float(totalServiceLatency)) 
-        
+        totalReqs = float(results[config][basenames["requests"]])
+        totalQueueLat = float(results[config][basenames["busQueueLat"]])
+        totalServiceLat = float(results[config][basenames["busServiceLat"]])
+        ticks = float(results[config][basenames["ticks"]])        
+    
+        actualUtilization = totalServiceLat / ticks
         
         assert config not in data
         data[config] = {}
-        data[config][0] = totalReqs * avgMissRate
-        data[config][1] = QofR * totalReqs
+        data[config][0] = totalReqs / ticks
+        data[config][1] = totalQueueLat / totalServiceLat
+#        data[config][1] = actualUtilization
+
+    plotFunc = None
+    if opts.plot:
+        plotFunc = plotResults.plotScatter
     
-    printResults.printResultDictionary(data, opts.decimals, sys.stdout, titles, None)
+    printResults.printResultDictionary(data, opts.decimals, sys.stdout, titles, plotFunc)
 
 def main():
 
@@ -128,6 +111,8 @@ def main():
     searchConfig = expconfig.buildMatchAllConfig()
     searchConfig.parameters = params
     searchConfig.np = np
+    if opts.benchmark != "":
+        searchConfig.benchmark = str(opts.benchmark)
     results = StatResults(index, searchConfig, False, opts.quiet)
     searchRes = doSearch(results, np, opts)
     analyzeBusLatency(searchRes, np, opts)
