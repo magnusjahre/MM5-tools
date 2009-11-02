@@ -1,4 +1,4 @@
-from statparse import experimentConfiguration
+from statparse import experimentConfiguration, plotResults
 from statparse.metrics import NoAggregation
 
 import processResults
@@ -320,8 +320,12 @@ class StatResults():
                             assert len(aggregate[c]) == 1
                             line.append(printResults.numberToString(aggregate[c][0], decimals))
                 outdata.append(line)
-                                    
-        printResults.printData(outdata, leftJust, outfile, decimals, self.doPlot, self.normalizeTo)
+
+        plotFunc = None
+        if self.doPlot:
+            plotFunc = plotResults.plotBarChart
+        
+        printResults.printData(outdata, leftJust, outfile, decimals, plotFunc, self.normalizeTo)
     
     def _addAggregatePrintElement(self, outdata, np, wlOrBm, sortedParams, aggregate, decimals, printAllCPUs):
         

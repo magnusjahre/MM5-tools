@@ -1,6 +1,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from enthought.mayavi import mlab
 
 COLORLIST = []
 baseRGBOptions = [0.0, 1.0, 0.5]
@@ -34,7 +35,7 @@ def plotBarChart(data):
     plotData, xticLabels, legendTitles = createInvertedPlotData(data)  
     
     ind = np.arange(len(xticLabels))
-    
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
@@ -58,3 +59,38 @@ def plotBarChart(data):
     ax.set_xticklabels(xticLabels,rotation="vertical")
     
     plt.show()
+    
+def plot3DPoints(data):
+    
+    plotData, xticLabels, legendTiles = createInvertedPlotData(data)
+    
+    if len(plotData) != 3:
+        raise Exception("Surface plots must consist of three dimensions")
+    
+    mlab.points3d(plotData[0],plotData[1],plotData[2],plotData[2], scale_mode="none", scale_factor=0.2)
+    mlab.axes(x_axis_visibility=True, xlabel=legendTiles[0],
+              y_axis_visibility=True, ylabel=legendTiles[1],
+              z_axis_visibility=True, zlabel=legendTiles[2])
+    mlab.show()
+    
+def plotNormalized3DPoints(data):
+    
+    plotData, xticLabels, legendTiles = createInvertedPlotData(data)
+    
+    if len(plotData) != 3:
+        raise Exception("Surface plots must consist of three dimensions")
+    
+
+    xmax = max(plotData[0])
+    xdata = [float(plotData[0][i]) / float(xmax) for i in range(len(plotData[0]))]
+    ymax = max(plotData[1])
+    ydata = [float(plotData[1][i]) / float(ymax) for i in range(len(plotData[1]))]
+    zmax = max(plotData[2])
+    zdata = [float(plotData[2][i]) / float(zmax) for i in range(len(plotData[2]))]
+    
+    mlab.points3d(xdata,ydata,zdata,zdata, scale_mode="none", scale_factor=0.2)
+    mlab.axes(x_axis_visibility=True, xlabel=legendTiles[0],
+              y_axis_visibility=True, ylabel=legendTiles[1],
+              z_axis_visibility=True, zlabel=legendTiles[2])
+    mlab.show()
+    

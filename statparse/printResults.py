@@ -1,7 +1,7 @@
 
 import plotResults
 
-def printData(textarray, leftJust, outfile, decimals, doPlot = False, normalizeToColumn = -1):
+def printData(textarray, leftJust, outfile, decimals, plotFunction = None, normalizeToColumn = -1):
     if textarray == []:
         raise ValueError("array cannot be empty")
     if textarray[0] == []:
@@ -33,8 +33,8 @@ def printData(textarray, leftJust, outfile, decimals, doPlot = False, normalizeT
                 print >> outfile, textarray[i][j].rjust(colwidths[j]),
         print >> outfile, ""
         
-    if doPlot:
-        plotResults.plotBarChart(textarray)
+    if plotFunction != None:
+        plotFunction(textarray)
 
 def numberToString(number, decimalPlaces):
     if type(number) == type(int()):
@@ -125,7 +125,7 @@ def simplePrint(results, decimalPlaces, outfile):
             
     printData(outtext, leftJustify, outfile, decimalPlaces)
     
-def printResultDictionary(resultdict, decimals, outfile, titles = None):
+def printResultDictionary(resultdict, decimals, outfile, titles = None, plotFunction = None):
     """ Prints the dictionary provided. If titles are provided, they are used 
         instead of the header in resultdict
     
@@ -170,4 +170,4 @@ def printResultDictionary(resultdict, decimals, outfile, titles = None):
             line.append(numberToString(configNameDict[config][h], decimals))
         outdata.append(line)
     
-    printData(outdata, leftjust, outfile, decimals)
+    printData(outdata, leftjust, outfile, decimals, plotFunction)

@@ -17,3 +17,16 @@ def computeMean(n, sum):
 def computeRMS(n, sumsq):
     meanSquare = computeMean(n, sumsq)
     return sqrt(max(meanSquare ,0))
+
+def computeDistributionAverage(distribution):
+    
+    samples = distribution["samples"]
+    wsum = 0
+    
+    for key in distribution:
+        if key == "min_value" or key == "max_value" or key == "samples":
+            continue
+        wsum += key * distribution[key]
+        
+    return float(wsum) / float(samples)
+    
