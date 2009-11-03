@@ -14,6 +14,8 @@ from time import time
 from statfileParser import StatfileIndex
 from statResults import StatResults
 
+import plotResults
+
 def parseArgs():
     parser = OptionParser(usage="parseStats.py [options] (STATKEY | NUMERATOR-KEY DENOMINATOR-KEY)")
     
@@ -42,8 +44,9 @@ def parseArgs():
     resultOptions.add_option("--print-all-cores", action="store_true", dest="printAllCores", default=False, help="Print separate statistics for each core in table format")
     resultOptions.add_option("--print-speedups", action="store_true", dest="printSpeedups", default=False, help="Divide per core statistics by single program performance")
     resultOptions.add_option("--print-all-patterns", action="store_true", dest="printAllPatterns", default=False, help="Print all matching patterns")
-    resultOptions.add_option("--plot", action="store_true", dest="plot", default=False, help="Show the result table as a bar chart")
+    resultOptions.add_option("--plot", action="store", dest="plot", type="string", default="none", help="Plot the results with one of "+str(plotResults.plotnames))
     resultOptions.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print results relative to column n (where 1 is the leftmost column)")
+    resultOptions.add_option("--vector-stat", action="store_true", dest="vectorStat", default=False, help="The pattern is a vector stat so the statistic regarding this core should be retrieved")
     parser.add_option_group(resultOptions)
     
     otherOptions = OptionGroup(parser, "Other options")
@@ -93,6 +96,12 @@ def parseArgs():
         if not opts.quiet:
             print "Parsed base config string and got spec "+str(basespec)+" and parameters "+str(baseparams)
             print "Resulting baseline configuration: "+str(baseconfig)
+    
+    
+    if opts.plot != "none":
+        if opts.plot not in plotResults.plotnames:
+            print "Unknown plot specified, alternatives are: "+str( plotResults.plotnames)
+            sys.exit(-1)
     
     outfile = sys.stdout
     if opts.outfile != "stdout":
@@ -253,7 +262,7 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.close()
 
 def doSearch(index, searchConfig, args, options, baseconfig):
-    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet, baseconfig, not options.printAllPatterns, options.plot, options.normalizeTo)
+    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet, baseconfig, not options.printAllPatterns, options.plot, options.normalizeTo, options.vectorStat)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:

@@ -13,13 +13,14 @@ from statparse import processResults, plotResults
 import os
 import sys
 
+import copy
+
 indexmodulename = "index-all"
 
 numBanks = 4
 
-basenames = {"requests": "membus0.total_requests",
-             "busQueueLat": "membus0.total_queue_cycles",
-             "busServiceLat": "membus0.total_service_cycles",
+basenames = {"requests": "interferenceManager.requests_",
+             "sharedlat": "interferenceManager.round_trip_latency_",
              "ticks": "sim_ticks"}
 
 
@@ -64,43 +65,62 @@ def doSearch(results, np, opts):
     searchRes = results.searchForPatterns(patterns) 
     return processResults.invertSearchResults(searchRes)
 
+def retrievePatterns(config, results, np):
+    cpuID = expconfig.findCPUID(config.workload, config.benchmark, np)
+    
+    requests = 0
+    totalSharedLat = 0
+    
+#    for cpuID in range(np):
+    requests += float(results[config][basenames["requests"]+str(cpuID)])
+    totalSharedLat += float(results[config][basenames["sharedlat"]+str(cpuID)])
+        
+    return requests, totalSharedLat
+
 def analyzeBusLatency(results, np, opts):
     
     data = {}
     
     titles = {}
-    titles[0] = "Request Intensity (reqs / tick)"
-    if opts.actualUtil:
-        titles[1] = "Utilization of Effective Bandwidth"
-    else:
-        titles[1] = "Avg Queue Delay (requests)"
+    titles[0] = "Number of MSHRs"
+    titles[1] = "Shared Latency Relative to 16"
+    
+    filterConfig = expconfig.buildMatchAllConfig()
+    filterConfig.parameters = {"BASEMSHRS": 16}
+    baselineConfigs = processResults.filterConfigurations(results.keys(), filterConfig)
     
     for config in results:
     
-        # NOTE: due to laziness, these values are retived from channel 0 only
-        
-        totalReqs = float(results[config][basenames["requests"]])
-        totalQueueLat = float(results[config][basenames["busQueueLat"]])
-        totalServiceLat = float(results[config][basenames["busServiceLat"]])
-        ticks = float(results[config][basenames["ticks"]])        
+
+        requests, totalSharedLat = retrievePatterns(config, results, np)
     
-        actualUtilization = totalServiceLat / ticks
+        latPerReq = totalSharedLat / requests
+    
+        filterConfig = copy.deepcopy(config)
+        filterConfig.parameters["BASEMSHRS"] = 16
+        baselineResults = processResults.filterConfigurations(baselineConfigs, filterConfig)
+        if baselineResults == []:
+            continue
+        assert len(baselineResults) == 1
         
+        
+        baselineReqs, baselineTotLat = retrievePatterns(baselineResults[0], results, np)
+    
+        baselineLatPerReq = baselineTotLat / baselineReqs
+    
         assert config not in data
         data[config] = {}
-        data[config][0] = totalReqs / ticks
-        
-        if opts.actualUtil:
-            data[config][1] = actualUtilization
-        else:
-            data[config][1] = totalQueueLat / totalServiceLat
+        data[config][0] = config.parameters["BASEMSHRS"]
+        data[config][1] = latPerReq / baselineLatPerReq
         
 
     plotFunc = None
     if opts.plot:
-        plotFunc = plotResults.plotScatter
+        plotFunc = plotResults.plotBoxPlot
     
     printResults.printResultDictionary(data, opts.decimals, sys.stdout, titles, plotFunc)
+    
+    
 
 def main():
 

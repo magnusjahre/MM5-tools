@@ -2,6 +2,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from enthought.mayavi import mlab
+import statparse.metrics as metrics
+from matplotlib.pyplot import boxplot
 
 COLORLIST = []
 baseRGBOptions = [0.0, 1.0, 0.5]
@@ -11,6 +13,20 @@ for i in baseRGBOptions:
             newtuple = (i,j,k)
             if newtuple not in COLORLIST:
                 COLORLIST.append( newtuple )
+
+plotnames = ["bar", "scatter", "box"]
+
+def getPlotFunctionFromName(plotname):
+    
+    if plotname == "bar":
+        return plotBarChart
+    if plotname == "scatter":
+        return plotScatter
+    if plotname == "box":
+        return plotBoxPlot
+    
+    return None
+    
 
 def createInvertedPlotData(data):
 
@@ -25,8 +41,9 @@ def createInvertedPlotData(data):
         newdata.append([0.0 for j in range(len(xticLabels))])
    
     for i in range(len(xticLabels)):
-        for j in range(len(legendTitles)):    
-            newdata[j][i] = float(data[i][j])                
+        for j in range(len(legendTitles)):
+            if data[i][j] != metrics.errorString:
+                newdata[j][i] = float(data[i][j])                
     
     return newdata, xticLabels, legendTitles
 
@@ -48,7 +65,7 @@ def plotBarChart(data):
         if i >= len(COLORLIST):
             raise Exception("Don't have enough colors to plot")        
         l = ax.bar(ind+(width*i), plotData[i], width, color=COLORLIST[i])
-        plottedLines.append(l[i])
+        plottedLines.append(l[0])
     
     cols = 5
     if len(legendTitles) < cols:
@@ -65,13 +82,35 @@ def plotScatter(data):
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
     if len(plotData) != 2:
-        raise Exception("Surface plots must consist of three dimensions")
+        raise Exception("Scatter plots must consist of two dimensions")
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(plotData[0], plotData[1], 'o')
     ax.set_xlabel(legendTiles[0])
     ax.set_ylabel(legendTiles[1])
+    plt.show()
+    
+def plotBoxPlot(data, showOutliers = True):
+    
+    plotData, xticLabels, legendTiles = createInvertedPlotData(data)
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    if not showOutliers:
+        outSymbol = ""
+    else:
+        outSymbol = "b+"
+    
+    boxplot(plotData, sym=outSymbol)
+    
+    xPositions = [i for i in range(len(plotData)+1)[1:]] 
+    averages = [np.average(d) for d in plotData]
+    plt.plot(xPositions, averages, 'o')
+    
+    ax.set_xticklabels(legendTiles)
+    
     plt.show()
     
 def plot3DPoints(data):

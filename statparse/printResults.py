@@ -1,5 +1,5 @@
 
-import plotResults
+import metrics
 
 def printData(textarray, leftJust, outfile, decimals, plotFunction = None, normalizeToColumn = -1):
     if textarray == []:
@@ -61,10 +61,13 @@ def normalize(data, toColumnID, decimals):
                 if toColumnID >= len(data[i]):
                     raise Exception("Column ID does not exist, must be in the range from 1 to "+str(len(data[i])-1))
                 
-                try:
-                    normval = (float(data[i][j]) / float(data[i][toColumnID]))-1.0
-                except:
-                    raise Exception("Normalization failed on elements "+str(data[i][j])+" and "+str(float(data[i][toColumnID])))
+                if data[i][j] == metrics.errorString or data[i][toColumnID] == metrics.errorString:  
+                    normval = 0.0
+                else:
+                    try:
+                        normval = (float(data[i][j]) / float(data[i][toColumnID]))-1.0
+                    except:
+                        raise Exception("Normalization failed on elements "+str(data[i][j])+" and "+str(data[i][toColumnID]))
                 newdata[i].append(numberToString(normval, decimals))
 
     return newdata

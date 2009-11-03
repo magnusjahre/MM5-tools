@@ -11,6 +11,8 @@ metrics = {"hmos": "Harmonic Mean of Speedups",
            "amean": "Arithmetic Mean",
            "sum": "Sum"}
 
+errorString = "N/A"
+
 def printPossibleMetrics():
     print
     print "The following metrics are supported:"
@@ -41,7 +43,7 @@ class WorkloadMetric():
         self.n = 0
         self.speedups = []
         self.spmNeeded = False
-        self.errStr = "N/A"
+        self.errStr = errorString
         self.doTablePrint = False
         self.speedups = [[]]
 

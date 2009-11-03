@@ -33,7 +33,7 @@ class StatResults():
                    "Total":        ".*sum_roundtrip_latency.*",
                    "Requests":     ".*num_roundtrip_responses.*"}
 
-    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True, doPlot = False, normalizeTo = -1):
+    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True, plotName = "none", normalizeTo = -1, vectorStat = False):
         self.index = index
         self.searchConfig = searchConfig
         
@@ -58,8 +58,10 @@ class StatResults():
         self.baseconfig = baseconfig
         
         self.createNoPatResults = createNoPatResults
-        self.doPlot = doPlot
+        self.plotFunc = plotResults.getPlotFunctionFromName(plotName)
         self.normalizeTo = normalizeTo
+        
+        self.doVectorRetrieval = vectorStat
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
@@ -320,12 +322,8 @@ class StatResults():
                             assert len(aggregate[c]) == 1
                             line.append(printResults.numberToString(aggregate[c][0], decimals))
                 outdata.append(line)
-
-        plotFunc = None
-        if self.doPlot:
-            plotFunc = plotResults.plotBarChart
         
-        printResults.printData(outdata, leftJust, outfile, decimals, plotFunc, self.normalizeTo)
+        printResults.printData(outdata, leftJust, outfile, decimals, self.plotFunc, self.normalizeTo)
     
     def _addAggregatePrintElement(self, outdata, np, wlOrBm, sortedParams, aggregate, decimals, printAllCPUs):
         
@@ -532,10 +530,17 @@ class StatResults():
                     else:
                         configRes[c] = self._accumulate(configRes[c], results[p][c])
                 else:
-                    if c in configRes:
-                        raise MultiplePatternError(results.keys(), results[p].keys())
-                        
-                    configRes[c] = results[p][c]
+                    
+                    if self.doVectorRetrieval:
+                        cpuID = experimentConfiguration.findCPUID(c.workload, c.benchmark, c.np)
+                        patElements = p.split("_")
+                        if patElements[-1] == str(cpuID):
+                            configRes[c] = results[p][c]
+                    else:                    
+                        if c in configRes:
+                            raise MultiplePatternError(results.keys(), results[p].keys())
+                            
+                        configRes[c] = results[p][c]
         return configRes
         
     def _computeWorkloadAggregate(self, results, np, params, wl):
