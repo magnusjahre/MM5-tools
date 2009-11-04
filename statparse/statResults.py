@@ -33,7 +33,8 @@ class StatResults():
                    "Total":        ".*sum_roundtrip_latency.*",
                    "Requests":     ".*num_roundtrip_responses.*"}
 
-    def __init__(self, index, searchConfig, aggregatePatterns, quiet, baseconfig = None, createNoPatResults = True, plotName = "none", normalizeTo = -1, vectorStat = False):
+    def __init__(self, index, searchConfig, aggregatePatterns, quiet, **kwargs):
+    
         self.index = index
         self.searchConfig = searchConfig
         
@@ -55,13 +56,46 @@ class StatResults():
         self.aggregatePatternsWarnIssued = False
         
         self.quiet = quiet
-        self.baseconfig = baseconfig
         
-        self.createNoPatResults = createNoPatResults
-        self.plotFunc = plotResults.getPlotFunctionFromName(plotName)
-        self.normalizeTo = normalizeTo
+        self._parseKeywordArguments(kwargs)
         
-        self.doVectorRetrieval = vectorStat
+    def _parseKeywordArguments(self, kwargs):
+    
+        if "baseconfig" in kwargs:
+            self.baseconfig = kwargs["baseconfig"]
+        else:
+            self.baseconfig = None
+            
+        if "createNoPatResults" in kwargs:
+            self.createNoPatResults = kwargs["createNoPatResults"]
+        else:
+            self.createNoPatResults = True
+        
+        if "plotName" in kwargs:
+            self.plotFunc = plotResults.getPlotFunctionFromName(kwargs["plotName"]) 
+        else:
+            self.plotFunc = plotResults.getPlotFunctionFromName("none")
+            
+        if "normalizeTo" in kwargs:
+            self.normalizeTo = kwargs["normalizeTo"]
+        else:
+            self.normalizeTo = -1
+            
+        if "vectorStat" in kwargs:
+            self.doVectorRetrieval = kwargs["vectorStat"]
+        else:
+            self.doVectorRetrieval = False
+            
+        if "plotParamString" in kwargs:
+            self.plotParamString = kwargs["plotParamString"]
+        else:
+            self.plotParamString = ""
+            
+        if "onlyParamKeyValues" in kwargs:
+            self.paramValuesOnly = kwargs["onlyParamKeyValues"]
+        else:
+            self.paramValuesOnly = False
+        
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
@@ -323,7 +357,10 @@ class StatResults():
                             line.append(printResults.numberToString(aggregate[c][0], decimals))
                 outdata.append(line)
         
-        printResults.printData(outdata, leftJust, outfile, decimals, self.plotFunc, self.normalizeTo)
+        printResults.printData(outdata, leftJust, outfile, decimals,
+                               plotFunction=self.plotFunc,
+                               normalizeTo=self.normalizeTo,
+                               plotParamString=self.plotParamString)
     
     def _addAggregatePrintElement(self, outdata, np, wlOrBm, sortedParams, aggregate, decimals, printAllCPUs):
         
@@ -378,6 +415,12 @@ class StatResults():
         return outdata
 
     def _paramsToString(self, params):
+        
+        if self.paramValuesOnly:
+            if len(params.keys()) != 1:
+                raise Exception("Value only parameter keys only makes when there is one parameter class in the search result")
+            return str(params[params.keys()[0]])
+        
         sortedKeys = params.keys()
         sortedKeys.sort()
         

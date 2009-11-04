@@ -1,7 +1,23 @@
 
 import metrics
 
-def printData(textarray, leftJust, outfile, decimals, plotFunction = None, normalizeToColumn = -1):
+def printData(textarray, leftJust, outfile, decimals, **kwargs):
+    
+    if "plotFunction" in kwargs:
+        plotFunction = kwargs["plotFunction"]
+    else:
+        plotFunction = None
+        
+    if "normalizeToColumn" in kwargs:        
+        normalizeToColumn = kwargs["normalizeToColumn"]
+    else:
+        normalizeToColumn = -1
+        
+    if "plotParamString" in kwargs:        
+        plotParamString = kwargs["plotParamString"]
+    else:
+        plotParamString = ""
+    
     if textarray == []:
         raise ValueError("array cannot be empty")
     if textarray[0] == []:
@@ -34,7 +50,7 @@ def printData(textarray, leftJust, outfile, decimals, plotFunction = None, norma
         print >> outfile, ""
         
     if plotFunction != None:
-        plotFunction(textarray)
+        plotFunction(textarray, plotParamString=plotParamString)
 
 def numberToString(number, decimalPlaces):
     if type(number) == type(int()):

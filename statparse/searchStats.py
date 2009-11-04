@@ -44,10 +44,15 @@ def parseArgs():
     resultOptions.add_option("--print-all-cores", action="store_true", dest="printAllCores", default=False, help="Print separate statistics for each core in table format")
     resultOptions.add_option("--print-speedups", action="store_true", dest="printSpeedups", default=False, help="Divide per core statistics by single program performance")
     resultOptions.add_option("--print-all-patterns", action="store_true", dest="printAllPatterns", default=False, help="Print all matching patterns")
-    resultOptions.add_option("--plot", action="store", dest="plot", type="string", default="none", help="Plot the results with one of "+str(plotResults.plotnames))
     resultOptions.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print results relative to column n (where 1 is the leftmost column)")
     resultOptions.add_option("--vector-stat", action="store_true", dest="vectorStat", default=False, help="The pattern is a vector stat so the statistic regarding this core should be retrieved")
     parser.add_option_group(resultOptions)
+    
+    plotOptions = OptionGroup(parser, "Result Plotting Options")
+    plotOptions.add_option("--plot", action="store", dest="plot", type="string", default="none", help="Plot the results with one of "+str(plotResults.plotnames))
+    plotOptions.add_option("--plot-params", action="store", dest="plotParams", type="string", default="", help="A standard parameter giving plot type specific options")
+    plotOptions.add_option("--only-key-value", action="store_true", dest="onlyParamKeyValue", default=False, help="Only print the parameter value instead of the default key-value string")
+    parser.add_option_group(plotOptions)
     
     otherOptions = OptionGroup(parser, "Other options")
     otherOptions.add_option("--orderfile", action="store", dest="orderFile", type="string", default="statsDumpOrder.txt", help="Dump order file to use in single file mode")
@@ -262,7 +267,14 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.close()
 
 def doSearch(index, searchConfig, args, options, baseconfig):
-    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet, baseconfig, not options.printAllPatterns, options.plot, options.normalizeTo, options.vectorStat)
+    statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet,
+                             baseconfig=baseconfig, 
+                             createNoPatResults=(not options.printAllPatterns),
+                             plotName=options.plot,
+                             normalizeTo=options.normalizeTo, 
+                             vectorStat=options.vectorStat,
+                             plotParamString=options.plotParams,
+                             onlyParamKeyValues=options.onlyParamKeyValue)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:

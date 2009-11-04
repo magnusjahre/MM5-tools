@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from enthought.mayavi import mlab
 import statparse.metrics as metrics
 from matplotlib.pyplot import boxplot
+from statparse import experimentConfiguration
 
 COLORLIST = []
 baseRGBOptions = [0.0, 1.0, 0.5]
@@ -15,6 +16,7 @@ for i in baseRGBOptions:
                 COLORLIST.append( newtuple )
 
 plotnames = ["bar", "scatter", "box"]
+plotFileName = "plot.pdf"
 
 def getPlotFunctionFromName(plotname):
     
@@ -26,7 +28,16 @@ def getPlotFunctionFromName(plotname):
         return plotBoxPlot
     
     return None
+
+def parsePlotParamString(kwargs):
+    if "plotParamString" not in kwargs:
+        return {}
     
+    if kwargs["plotParamString"] == "":
+        return {}
+    
+    params, spec = experimentConfiguration.parseParameterString(kwargs["plotParamString"])
+    return params        
 
 def createInvertedPlotData(data):
 
@@ -47,7 +58,7 @@ def createInvertedPlotData(data):
     
     return newdata, xticLabels, legendTitles
 
-def plotBarChart(data):
+def plotBarChart(data, **kwargs):
     
     plotData, xticLabels, legendTitles = createInvertedPlotData(data)  
     
@@ -75,9 +86,10 @@ def plotBarChart(data):
     ax.set_xticks([i+0.4 for i in range(len(xticLabels))])
     ax.set_xticklabels(xticLabels,rotation="vertical")
     
+    plt.savefig(plotFileName)
     plt.show()
     
-def plotScatter(data):
+def plotScatter(data, **kwargs):
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
@@ -89,31 +101,67 @@ def plotScatter(data):
     ax.plot(plotData[0], plotData[1], 'o')
     ax.set_xlabel(legendTiles[0])
     ax.set_ylabel(legendTiles[1])
-    plt.show()
     
-def plotBoxPlot(data, showOutliers = True):
+    plt.savefig(plotFileName, type="pdf")
+    plt.show()
+
+""" Boxplot supports the following string parameters:
+    - no-outliers: shows/hides scatterplot of outliers
+    - xlabel: x-axis label
+    - ylabel: y-axis label
+    - no-show: do not show plot
+    - filename: write plot to this file
+    - yrange: minimum y value and maximum y value splitted by a T
+"""    
+def plotBoxPlot(data, **kwargs):
+    
+    parameters = parsePlotParamString(kwargs)
+    if "no-outliers" in parameters:
+        outSymbol = ""
+    else:
+        outSymbol = "b+"
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
-    if not showOutliers:
-        outSymbol = ""
-    else:
-        outSymbol = "b+"
-    
     boxplot(plotData, sym=outSymbol)
     
     xPositions = [i for i in range(len(plotData)+1)[1:]] 
     averages = [np.average(d) for d in plotData]
-    plt.plot(xPositions, averages, 'o')
+    
+    avgLine = plt.plot(xPositions, averages, 'o')
     
     ax.set_xticklabels(legendTiles)
+    ax.set_xlim(0.5, len(legendTiles)+0.5)
     
-    plt.show()
+    fig.legend(avgLine, ["Arithmetic Mean"], "upper center", numpoints=1)
     
-def plot3DPoints(data):
+    if "yrange" in parameters:
+        try:
+            yrange = parameters["yrange"].split("T")
+            ymin = float(yrange[0])
+            ymax = float(yrange[1])
+        except:
+            raise Exception("Invalid yrange string")
+        ax.set_ylim(ymin, ymax)
+    
+    if "xlabel" in parameters:
+        ax.set_xlabel(parameters["xlabel"])
+    
+    if "ylabel" in parameters:
+        ax.set_ylabel(parameters["ylabel"])
+    
+    if "filename" in parameters:
+        plt.savefig(parameters["filename"], type="pdf")
+    else:
+        plt.savefig(plotFileName)
+    
+    if not "no-show" in parameters:
+        plt.show()
+    
+def plot3DPoints(data, **kwargs):
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
@@ -126,7 +174,7 @@ def plot3DPoints(data):
               z_axis_visibility=True, zlabel=legendTiles[2])
     mlab.show()
     
-def plotNormalized3DPoints(data):
+def plotNormalized3DPoints(data, **kwargs):
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
