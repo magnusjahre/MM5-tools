@@ -69,11 +69,12 @@ def analyzeBusLatency(results, np, opts):
     data = {}
     
     titles = {}
-    titles[0] = "Request Intensity (reqs / tick)"
+    titles[0] = "Request Intensity (Memory Requests / Clock Cycle)"
     if opts.actualUtil:
-        titles[1] = "Utilization of Effective Bandwidth"
+        titles[1] = "Effective Memory Bus Utilization"
     else:
-        titles[1] = "Avg Queue Delay (requests)"
+        #Average Memory Bus Queue Occupancy
+        titles[1] = "Memory Requests"
     
     for config in results:
     

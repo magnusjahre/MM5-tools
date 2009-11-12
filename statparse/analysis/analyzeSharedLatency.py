@@ -4,11 +4,12 @@ from optparse import OptionParser
 
 import statparse.experimentConfiguration as expconfig
 import statparse.experimentConfiguration as experimentConfiguration
-import statparse.printResults as printResults
 
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
-from statparse import processResults, plotResults
+from statparse import processResults
+from statparse.analysis import computeMean, computeRMS, computeStddev
+import deterministic_fw_wls
 
 import os
 import sys
@@ -19,10 +20,66 @@ indexmodulename = "index-all"
 
 numBanks = 4
 
-basenames = {"requests": "interferenceManager.requests_",
-             "sharedlat": "interferenceManager.round_trip_latency_",
-             "ticks": "sim_ticks"}
+class ResultPattern:
+    
+    def __init__(self, name, basepattern, **kwargs):
+        self.name = name
+        self.basepattern = basepattern
+        
+        if "vector" in kwargs:
+            self.vectorRange = kwargs["vector"]
+        else:
+            self.vectorRange = -1
 
+    def retrievePatterns(self, results, cpuID):
+        
+        searchPatterns = [self.basepattern]
+        if self.basepattern.startswith("PrivateL2Cache."):
+            searchPatterns = [self.basepattern.replace("PrivateL2Cache.", "PrivateL2Cache"+str(cpuID))]
+        
+        aggregateSize = -1
+        if self.basepattern.startswith("SharedCache."):
+            searchPatterns = []
+            aggregateSize = numBanks
+            for i in range(numBanks):
+                searchPatterns.append( self.basepattern.replace("SharedCache.", "SharedCache"+str(i)) )
+        
+        retvals = []
+        for searchPattern in searchPatterns:
+            values = []
+            if self.vectorRange != -1:
+                for i in range(self.vectorRange):
+                    values.append(float(results[searchPattern+"_"+str(i)]))
+            else:
+                values.append(float(results[searchPattern]))
+            retvals.append(values)
+        
+        if len(retvals) == 1:
+            return retvals[0]
+        
+        aggregateRetval = [0 for i in range(aggregateSize)]
+        for l in retvals:
+            for i in range(aggregateSize):
+                aggregateRetval[i] += l[i]
+        
+        return aggregateRetval
+                
+        
+
+allPatterns = [ResultPattern("intManRequests", "interferenceManager.requests", vector=4),
+               ResultPattern("avgMLP","PrivateL2Cache..mq.avg_mlp_estimation", vector=17),
+               ResultPattern("avgBusService", "membus0.avg_service_cycles"),
+               ResultPattern("busTotalReqs", "membus0.total_requests"),
+               ResultPattern("ticks", "sim_ticks"),
+               ResultPattern("avgBusQueueInt", "interferenceManager.avg_interference_bus_queue", vector=4),
+               ResultPattern("avgBusQueueLat", "interferenceManager.avg_latency_bus_queue", vector=4),
+               ResultPattern("avgBusServiceLat", "interferenceManager.avg_latency_bus_service", vector=4),
+               ResultPattern("sharedCacheMisses", "SharedCache..misses_per_cpu", vector=4),
+               ResultPattern("sharedCacheAccesses", "SharedCache..accesses_per_cpu", vector=4)]
+
+
+
+printstats = ["bus-queue", "request-intensity", "request-dist"]
 
 def parseArgs():
     parser = OptionParser(usage="analyzeBusLatency.py [options] np")
@@ -30,10 +87,9 @@ def parseArgs():
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1,val1:key2,val2:...")
-    parser.add_option("--bus-channels", action="store", dest="channels", type="int", default=-1, help="The number of memory bus channels")
-    parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Show scatter-plot of resulting data")
     parser.add_option("--benchmark", action="store", dest="benchmark", type="string", default="", help="Only show results for this benchmark")
-    parser.add_option("--actual-utilization", action="store_true", dest="actualUtil", default=False, help="Print data request intensity vs actual utilization")
+    parser.add_option("--workload", action="store", dest="workload", type="string", default="", help="Only show results for this workload")
+    parser.add_option("--print-values", action="store_true", dest="printValues", default=False, help="Print values in addition to error")
 
     opts, args = parser.parse_args()
 
@@ -59,68 +115,202 @@ def fatal(message):
 def doSearch(results, np, opts):
     
     patterns = []
-    for b in basenames:
-        patterns.append(basenames[b])
+    for p in allPatterns:
+        patterns.append(p.basepattern)
     
     searchRes = results.searchForPatterns(patterns) 
     return processResults.invertSearchResults(searchRes)
 
 def retrievePatterns(config, results, np):
+    
+    patternResults = {}
+    
     cpuID = expconfig.findCPUID(config.workload, config.benchmark, np)
     
-    requests = 0
-    totalSharedLat = 0
-    
-#    for cpuID in range(np):
-    requests += float(results[config][basenames["requests"]+str(cpuID)])
-    totalSharedLat += float(results[config][basenames["sharedlat"]+str(cpuID)])
+    for pattern in allPatterns:
         
-    return requests, totalSharedLat
+        assert pattern not in patternResults
+        patternResults[pattern.name] = {}
+        
+        patternResults[pattern.name] = pattern.retrievePatterns(results[config], cpuID)  
+    
+    return patternResults
+
+def createMHAOrder(): 
+    maxMSHRs = 16
+    MSHROptions = [1,2,4,8]
+    
+    mhaConfigs = []
+    for i in range(4):
+        for MSHROpt in MSHROptions:
+            tmpMHA = [0 for k in range(4)]
+            for j in range(4):
+                if j != i:
+                    tmpMHA[j] = maxMSHRs
+                else:
+                    tmpMHA[j] = MSHROpt
+        
+            mhaConfigs.append(tmpMHA)
+        
+    mhaStrings = []
+    for c in mhaConfigs:
+        tmpStr = str(c[0])
+        for v in c[1:]:
+            tmpStr += ","+str(v)
+        mhaStrings.append(tmpStr)
+    
+    return mhaStrings
+
 
 def analyzeBusLatency(results, np, opts):
     
-    data = {}
-    
-    titles = {}
-    titles[0] = "Number of MSHRs"
-    titles[1] = "Shared Latency Relative to 16"
+    baselineKey = "16,16,16,16"
     
     filterConfig = expconfig.buildMatchAllConfig()
-    filterConfig.parameters = {"BASEMSHRS": 16}
+    filterConfig.parameters = {"STATICASYMMETRICMHA": baselineKey}
     baselineConfigs = processResults.filterConfigurations(results.keys(), filterConfig)
+    
+    width = 15
+
+    print "Config".ljust(30),
+    for i in range(np):
+        if opts.printValues:
+            print ("CPU"+str(i)+" est").rjust(width),
+            print ("CPU"+str(i)+" act").rjust(width),
+        print ("CPU"+str(i)+" % e").rjust(width),
+    print 
+    
+    errsum = 0
+    errsqsum = 0 
+    numerrs = 0
     
     for config in results:
     
-
-        requests, totalSharedLat = retrievePatterns(config, results, np)
-    
-        latPerReq = totalSharedLat / requests
+        if config.parameters["STATICASYMMETRICMHA"] == baselineKey:
+            continue
+        
+        currentCpuID = expconfig.findCPUID(config.workload, config.benchmark, np)
+        currentMHA = int(config.parameters["STATICASYMMETRICMHA"].split(",")[currentCpuID])
+        
+        if currentMHA == 16:
+            continue
+        
+        expResults = retrievePatterns(config, results, np)
     
         filterConfig = copy.deepcopy(config)
-        filterConfig.parameters["BASEMSHRS"] = 16
+        filterConfig.parameters["STATICASYMMETRICMHA"] = baselineKey
         baselineResults = processResults.filterConfigurations(baselineConfigs, filterConfig)
         if baselineResults == []:
             continue
         assert len(baselineResults) == 1
         
         
-        baselineReqs, baselineTotLat = retrievePatterns(baselineResults[0], results, np)
+        # 1. estimate reduction in request intensity due to MSHR reduction
+        baselineExpResults = retrievePatterns(baselineResults[0], results, np)
     
-        baselineLatPerReq = baselineTotLat / baselineReqs
-    
-        assert config not in data
-        data[config] = {}
-        data[config][0] = config.parameters["BASEMSHRS"]
-        data[config][1] = latPerReq / baselineLatPerReq
+        baselineBusSlots = baselineExpResults["ticks"][0] / baselineExpResults["avgBusService"][0]
+        baselineActualUtilization = baselineExpResults["busTotalReqs"][0] / baselineBusSlots
         
+        mlpReduction = baselineExpResults["avgMLP"][16] / baselineExpResults["avgMLP"][currentMHA]   
+        
+        estimatedReducedReqCount = baselineExpResults["intManRequests"][currentCpuID] * mlpReduction
+        noCacheFreeSlots = baselineExpResults["intManRequests"][currentCpuID] - estimatedReducedReqCount
+        
+        sharedCacheMissRate = baselineExpResults["sharedCacheMisses"][currentCpuID] / baselineExpResults["sharedCacheAccesses"][currentCpuID]
+        freeRequestSlots = noCacheFreeSlots * sharedCacheMissRate 
+        
+        # 2. estimate how the CPUs will respond to this reduction:
+        maxRequests = [0.0 for i in range(np)]
+        requestDist = [0.0 for i in range(np)]
+        requestTotalWithoutCurrCPU = sum(expResults["intManRequests"]) - expResults["intManRequests"][currentCpuID] 
+        for i in range(np):
+            
+            if i != currentCpuID:
+                
+                requestDist[i] =  baselineExpResults["intManRequests"][i] / requestTotalWithoutCurrCPU  
+                
+                avgPrivateModeQLat = baselineExpResults["avgBusQueueLat"][i] - baselineExpResults["avgBusQueueInt"][i]
 
-    plotFunc = None
-    if opts.plot:
-        plotFunc = plotResults.plotBoxPlot
+                privModeAvgWait = avgPrivateModeQLat / baselineExpResults["avgBusServiceLat"][i]
+                sharedModeAvgWait = baselineExpResults["avgBusQueueLat"][i] / baselineExpResults["avgBusServiceLat"][i] 
+
+                print i, privModeAvgWait, sharedModeAvgWait
+                
+                thisMissRate = baselineExpResults["sharedCacheMisses"][i] / baselineExpResults["sharedCacheAccesses"][i]
+                
+                maxRequests[i] = (sharedModeAvgWait / privModeAvgWait) * baselineExpResults["intManRequests"][i] * thisMissRate 
+        
+        newRequestCount = [baselineExpResults["intManRequests"][i] for i in range(np)]         
+        newRequestCount[currentCpuID] = estimatedReducedReqCount
+        
+        if baselineActualUtilization > 0.95:
+            useSlots = sum(maxRequests) 
+            if sum(maxRequests) >= freeRequestSlots:
+                useSlots = freeRequestSlots
+                
+            for i in range(np):
+                if i != currentCpuID:
+                    newRequestCount[i] += useSlots * requestDist[i]
+                
+        else:
+            # bus is not full in baseline, assume similar request intensity in reduced case
+            pass
+        
+        print str(config).ljust(30),
+        for i in range(np):
+            estimatedIntensity = newRequestCount[i] / baselineExpResults["ticks"][0]
+            actualIntensity = expResults["intManRequests"][i] / expResults["ticks"][0]
+        
+            relError = ((estimatedIntensity - actualIntensity) / actualIntensity) * 100
+            
+            errsum += relError
+            errsqsum += relError**2
+            numerrs += 1
+        
+            if opts.printValues:
+                print ("%.4f" % estimatedIntensity).rjust(width),
+                print ("%.4f" % actualIntensity).rjust(width),
+            print ("%.1f" % relError).rjust(width),
+        print
     
-    printResults.printResultDictionary(data, opts.decimals, sys.stdout, titles, plotFunc)
+    print
+    print "Result statistics:"
+    print "Average error                "+str(computeMean(numerrs, errsum))+" %"
+    print "RMS error                    "+str(computeRMS(numerrs, errsqsum))+" %"
+    print "Standard deviation of errors "+str(computeStddev(numerrs, errsum, errsqsum))+" %"
+    print
     
+def printResultData(resultData, np, decimals):
     
+    width = 15
+    
+    workloads = resultData.keys()
+    workloads.sort()
+    
+    print "".ljust(width),
+    print "".ljust(width),
+    
+    if len(workloads) == 1:
+        wlNames = deterministic_fw_wls.getBms(workloads[0], np, False)
+        for wl in wlNames:
+            print wl.rjust(width),
+    else:
+        for i in range(np):
+            print ("CPU "+str(i)).rjust(width),
+    print
+    
+    for wl in workloads:
+        for mha in createMHAOrder():
+            print wl.ljust(width),
+            print mha.ljust(width),
+            for i in range(np):
+                try:
+                    res = resultData[wl][mha][i]
+                    print (("%."+str(decimals)+"f") % res).rjust(width),
+                except:
+                    print "N/A".rjust(width),
+                
+            print
 
 def main():
 
@@ -143,6 +333,9 @@ def main():
     searchConfig.np = np
     if opts.benchmark != "":
         searchConfig.benchmark = str(opts.benchmark)
+    if opts.workload != "":
+        searchConfig.workload = opts.workload    
+    
     results = StatResults(index, searchConfig, False, opts.quiet)
     searchRes = doSearch(results, np, opts)
     analyzeBusLatency(searchRes, np, opts)

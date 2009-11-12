@@ -99,8 +99,19 @@ def plotScatter(data, **kwargs):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(plotData[0], plotData[1], 'o')
-    ax.set_xlabel(legendTiles[0])
-    ax.set_ylabel(legendTiles[1])
+    
+    fontsize = 14
+    
+    ax.set_xlabel(legendTiles[0], fontsize=fontsize)
+    ax.set_ylabel(legendTiles[1], fontsize=fontsize)
+    
+    
+    for label in ax.get_xticklabels():
+        label.set_fontsize(fontsize) 
+    
+    for label in ax.get_yticklabels():
+        label.set_fontsize(fontsize) 
+    
     
     plt.savefig(plotFileName, type="pdf")
     plt.show()

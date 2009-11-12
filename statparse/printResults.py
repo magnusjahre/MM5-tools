@@ -189,4 +189,4 @@ def printResultDictionary(resultdict, decimals, outfile, titles = None, plotFunc
             line.append(numberToString(configNameDict[config][h], decimals))
         outdata.append(line)
     
-    printData(outdata, leftjust, outfile, decimals, plotFunction)
+    printData(outdata, leftjust, outfile, decimals, plotFunction=plotFunction)
