@@ -19,6 +19,7 @@ import copy
 indexmodulename = "index-all"
 
 numBanks = 4
+width = 15
 
 class ResultPattern:
     
@@ -75,7 +76,8 @@ allPatterns = [ResultPattern("intManRequests", "interferenceManager.requests", v
                ResultPattern("avgBusQueueLat", "interferenceManager.avg_latency_bus_queue", vector=4),
                ResultPattern("avgBusServiceLat", "interferenceManager.avg_latency_bus_service", vector=4),
                ResultPattern("sharedCacheMisses", "SharedCache..misses_per_cpu", vector=4),
-               ResultPattern("sharedCacheAccesses", "SharedCache..accesses_per_cpu", vector=4)]
+               ResultPattern("sharedCacheAccesses", "SharedCache..accesses_per_cpu", vector=4),
+               ResultPattern("avgIntManLatency", "interferenceManager.avg_total_latency", vector=4),]
 
 
 
@@ -92,6 +94,8 @@ def parseArgs():
     parser.add_option("--print-values", action="store_true", dest="printValues", default=False, help="Print values in addition to error")
     parser.add_option("--queue-model-cutoff", action="store", dest="queueModelCutoff", type="float", default=0.001, help="Assume that benchmarks with a lower request intensity than this cutoff cannot increase their request intensity")
     parser.add_option("--error-filter", action="store", dest="errorFilter", type="float", default=0.0, help="Only show results with an absolute error larger than this parameter (in percent)")
+    parser.add_option("--print-ri-error", action="store_true", dest="printRIError", default=False, help="Print request intensity error")
+    parser.add_option("--print-bq-error", action="store_true", dest="printBQError", default=False, help="Print bus queue latency error")
 
     opts, args = parser.parse_args()
 
@@ -164,6 +168,141 @@ def createMHAOrder():
     return mhaStrings
 
 
+def estimateNewRequestCount(config, np, baselineExpResults, expResults, currentCpuID, currentMHA, opts, errsum, errsqsum, numerrs, printAll):
+    
+    # 1. estimate reduction in request intensity due to MSHR reduction
+    baselineBusSlots = baselineExpResults["ticks"][0] / baselineExpResults["avgBusService"][0]
+    baselineActualUtilization = baselineExpResults["busTotalReqs"][0] / baselineBusSlots
+    
+    mlpReduction = baselineExpResults["avgMLP"][16] / baselineExpResults["avgMLP"][currentMHA]   
+    
+    estimatedReducedReqCount = baselineExpResults["intManRequests"][currentCpuID] * mlpReduction
+    noCacheFreeSlots = baselineExpResults["intManRequests"][currentCpuID] - estimatedReducedReqCount
+    
+    sharedCacheMissRate = baselineExpResults["sharedCacheMisses"][currentCpuID] / baselineExpResults["sharedCacheAccesses"][currentCpuID]
+    freeRequestSlots = noCacheFreeSlots * sharedCacheMissRate 
+    
+    # 2. estimate how the CPUs will respond to this reduction:
+    maxRequests = [0.0 for i in range(np)]
+    maxBusRequests = [0.0 for i in range(np)]
+    requestDist = [0.0 for i in range(np)]
+    requestTotalWithoutCurrCPU = sum(expResults["intManRequests"]) - expResults["intManRequests"][currentCpuID] 
+    for i in range(np):
+        
+        if i != currentCpuID:
+            
+            requestDist[i] =  baselineExpResults["intManRequests"][i] / requestTotalWithoutCurrCPU  
+            
+            avgPrivateModeQLat = baselineExpResults["avgBusQueueLat"][i] - baselineExpResults["avgBusQueueInt"][i]
+
+            privModeAvgWait = avgPrivateModeQLat / baselineExpResults["avgBusServiceLat"][i]
+            sharedModeAvgWait = baselineExpResults["avgBusQueueLat"][i] / baselineExpResults["avgBusServiceLat"][i] 
+
+            thisRequestIntensity = baselineExpResults["intManRequests"][i] / baselineExpResults["ticks"][0]
+            
+            if thisRequestIntensity > opts.queueModelCutoff:
+                maxRequests[i] = (sharedModeAvgWait / privModeAvgWait) * baselineExpResults["intManRequests"][i]
+            else:
+                maxRequests[i] = baselineExpResults["intManRequests"][i]
+            
+            thisMissRate = baselineExpResults["sharedCacheMisses"][i] / baselineExpResults["sharedCacheAccesses"][i]    
+            maxBusRequests[i] = maxRequests[i] * thisMissRate
+    
+    newRequestCount = [baselineExpResults["intManRequests"][i] for i in range(np)]         
+    newRequestCount[currentCpuID] = estimatedReducedReqCount
+    
+    if baselineActualUtilization > 0.95: 
+        
+        if sum(maxBusRequests) >= freeRequestSlots:
+            for i in range(np):
+                if i != currentCpuID:
+                    newRequestCount[i] += freeRequestSlots * requestDist[i]
+        else:
+            for i in range(np):
+                if i != currentCpuID:
+                    newRequestCount[i] = maxRequests[i]
+            
+    else:
+        # bus is not full in baseline, assume similar request intensity in reduced case
+        pass
+    
+    values = []
+    for i in range(np):
+        estimatedIntensity = newRequestCount[i] / baselineExpResults["ticks"][0]
+        actualIntensity = expResults["intManRequests"][i] / expResults["ticks"][0]
+    
+        relError = ((estimatedIntensity - actualIntensity) / actualIntensity) * 100
+        
+        errsum += relError
+        errsqsum += relError**2
+        numerrs += 1
+        
+        values.append( (estimatedIntensity, actualIntensity, relError) )
+    
+
+    printValues(values, opts, printAll, config)
+
+    return (errsum, errsqsum, numerrs), (newRequestCount, baselineBusSlots)
+
+
+def printValues(values, opts, printAll, config):
+    printIt = False
+    for e, a, re in values:
+        if abs(re) >= opts.errorFilter:
+            printIt = True
+    
+    if printIt and printAll:
+        print str(config).ljust(30),
+        for e,a,re in values:
+            if opts.printValues:
+                print ("%.4f" % e).rjust(width),
+                print ("%.4f" % a).rjust(width),
+            print ("%.1f" % re).rjust(width),
+        print
+
+def estimateNewQueueLatency(config, np, baselineExpResults, expResults, currentCpuID, currentMHA, newRequestCount, baselineBusSlots, printResults, opts, stats):
+    
+    
+    errsum, errsqsum, numerrs = stats
+    
+    missRates = [baselineExpResults["sharedCacheMisses"][i] / baselineExpResults["sharedCacheAccesses"][i] for i in range(np)]
+    
+    oldBusRequestCount = sum([(baselineExpResults["intManRequests"][i] * missRates[i]) for i in range(np)])
+    newBusRequestCount = sum([(newRequestCount[i] * missRates[i]) for i in range(np)])
+    
+    relativeRequestDifference = newBusRequestCount / oldBusRequestCount
+    
+    values = []
+    for i in range(np):
+        avgLat = baselineExpResults["avgBusQueueLat"][i]
+        
+        #TODO: refine model if needed
+        estimatedNewBusQueueLat = avgLat * relativeRequestDifference
+    
+        if opts.printBQError:
+            actualNewLat = expResults["avgBusQueueLat"][i]
+            if actualNewLat == 0.0:
+                relErr = 0.0
+            else:
+                relErr = ((estimatedNewBusQueueLat - actualNewLat) / actualNewLat) * 100
+            values.append( (estimatedNewBusQueueLat, actualNewLat, relErr) )
+            
+        else:
+            avgLatNoBus = baselineExpResults["avgIntManLatency"][i] - baselineExpResults["avgBusQueueLat"][i]
+            estNewTotLat = avgLatNoBus + estimatedNewBusQueueLat
+            actualNewTotLat = expResults["avgIntManLatency"][i]
+            relErr = ((estNewTotLat - actualNewTotLat) / actualNewTotLat) * 100
+            
+            values.append( (estNewTotLat, actualNewTotLat, relErr) )
+            
+        errsum += relErr
+        errsqsum += relErr**2
+        numerrs += 1 
+    
+    printValues(values, opts, printResults, config)
+    
+    return (errsum, errsqsum, numerrs)
+
 def analyzeBusLatency(results, np, opts):
     
     baselineKey = "16,16,16,16"
@@ -171,8 +310,6 @@ def analyzeBusLatency(results, np, opts):
     filterConfig = expconfig.buildMatchAllConfig()
     filterConfig.parameters = {"STATICASYMMETRICMHA": baselineKey}
     baselineConfigs = processResults.filterConfigurations(results.keys(), filterConfig)
-    
-    width = 15
 
     print "Config".ljust(30),
     for i in range(np):
@@ -185,6 +322,11 @@ def analyzeBusLatency(results, np, opts):
     errsum = 0
     errsqsum = 0 
     numerrs = 0
+    
+    laterrsum = 0
+    laterrsqsum = 0 
+    latnumerrs = 0
+    
     
     for config in results:
     
@@ -206,97 +348,37 @@ def analyzeBusLatency(results, np, opts):
             continue
         assert len(baselineResults) == 1
         
-        
-        # 1. estimate reduction in request intensity due to MSHR reduction
         baselineExpResults = retrievePatterns(baselineResults[0], results, np)
-    
-        baselineBusSlots = baselineExpResults["ticks"][0] / baselineExpResults["avgBusService"][0]
-        baselineActualUtilization = baselineExpResults["busTotalReqs"][0] / baselineBusSlots
         
-        mlpReduction = baselineExpResults["avgMLP"][16] / baselineExpResults["avgMLP"][currentMHA]   
+        stats, data = estimateNewRequestCount(config,
+                                              np,
+                                              baselineExpResults,
+                                              expResults,
+                                              currentCpuID,
+                                              currentMHA,
+                                              opts, 
+                                              errsum,
+                                              errsqsum,
+                                              numerrs,
+                                              opts.printRIError)
         
-        estimatedReducedReqCount = baselineExpResults["intManRequests"][currentCpuID] * mlpReduction
-        noCacheFreeSlots = baselineExpResults["intManRequests"][currentCpuID] - estimatedReducedReqCount
+        errsum, errsqsum, numerrs = stats
+        newRequestCount, baselineBusSlots = data
         
-        sharedCacheMissRate = baselineExpResults["sharedCacheMisses"][currentCpuID] / baselineExpResults["sharedCacheAccesses"][currentCpuID]
-        freeRequestSlots = noCacheFreeSlots * sharedCacheMissRate 
-        
-        # 2. estimate how the CPUs will respond to this reduction:
-        maxRequests = [0.0 for i in range(np)]
-        maxBusRequests = [0.0 for i in range(np)]
-        requestDist = [0.0 for i in range(np)]
-        requestTotalWithoutCurrCPU = sum(expResults["intManRequests"]) - expResults["intManRequests"][currentCpuID] 
-        for i in range(np):
+        stats = (laterrsum, laterrsqsum, latnumerrs)
+        stats = estimateNewQueueLatency(config, np, baselineExpResults, expResults, currentCpuID, currentMHA, newRequestCount, baselineBusSlots, not opts.printRIError, opts, stats)
+        laterrsum, laterrsqsum, latnumerrs = stats
             
-            if i != currentCpuID:
-                
-                requestDist[i] =  baselineExpResults["intManRequests"][i] / requestTotalWithoutCurrCPU  
-                
-                avgPrivateModeQLat = baselineExpResults["avgBusQueueLat"][i] - baselineExpResults["avgBusQueueInt"][i]
-
-                privModeAvgWait = avgPrivateModeQLat / baselineExpResults["avgBusServiceLat"][i]
-                sharedModeAvgWait = baselineExpResults["avgBusQueueLat"][i] / baselineExpResults["avgBusServiceLat"][i] 
-
-                thisRequestIntensity = baselineExpResults["intManRequests"][i] / baselineExpResults["ticks"][0]
-                
-                if thisRequestIntensity > opts.queueModelCutoff:
-                    maxRequests[i] = (sharedModeAvgWait / privModeAvgWait) * baselineExpResults["intManRequests"][i]
-                else:
-                    maxRequests[i] = baselineExpResults["intManRequests"][i]
-                
-                thisMissRate = baselineExpResults["sharedCacheMisses"][i] / baselineExpResults["sharedCacheAccesses"][i]    
-                maxBusRequests[i] = maxRequests[i] * thisMissRate
-        
-        newRequestCount = [baselineExpResults["intManRequests"][i] for i in range(np)]         
-        newRequestCount[currentCpuID] = estimatedReducedReqCount
-        
-        if baselineActualUtilization > 0.95: 
-            
-            if sum(maxBusRequests) >= freeRequestSlots:
-                for i in range(np):
-                    if i != currentCpuID:
-                        newRequestCount[i] += freeRequestSlots * requestDist[i]
-            else:
-                for i in range(np):
-                    if i != currentCpuID:
-                        newRequestCount[i] = maxRequests[i]
-                
-        else:
-            # bus is not full in baseline, assume similar request intensity in reduced case
-            pass
-        
-        values = []
-        for i in range(np):
-            estimatedIntensity = newRequestCount[i] / baselineExpResults["ticks"][0]
-            actualIntensity = expResults["intManRequests"][i] / expResults["ticks"][0]
-        
-            relError = ((estimatedIntensity - actualIntensity) / actualIntensity) * 100
-            
-            errsum += relError
-            errsqsum += relError**2
-            numerrs += 1
-            
-            values.append( (estimatedIntensity, actualIntensity, relError) )
-        
-        printIt = False
-        for ei, ai, re in values:
-            if abs(re) >= opts.errorFilter:
-                printIt = True
-        
-        if printIt:
-            print str(config).ljust(30),
-            for ei,ai,re in values:
-                if opts.printValues:
-                    print ("%.4f" % ei).rjust(width),
-                    print ("%.4f" % ai).rjust(width),
-                print ("%.1f" % re).rjust(width),
-            print
-    
     print
-    print "Result statistics:"
+    print "Request Intensity Result Statistics:"
     print "Average error                "+str(computeMean(numerrs, errsum))+" %"
     print "RMS error                    "+str(computeRMS(numerrs, errsqsum))+" %"
     print "Standard deviation of errors "+str(computeStddev(numerrs, errsum, errsqsum))+" %"
+    print
+    print "Latency Estimation Statistics:"
+    print "Average error                "+str(computeMean(latnumerrs, laterrsum))+" %"
+    print "RMS error                    "+str(computeRMS(latnumerrs, laterrsqsum))+" %"
+    print "Standard deviation of errors "+str(computeStddev(latnumerrs, laterrsum, laterrsqsum))+" %"
     print
     
 def printResultData(resultData, np, decimals):
