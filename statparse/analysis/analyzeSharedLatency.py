@@ -90,6 +90,8 @@ def parseArgs():
     parser.add_option("--benchmark", action="store", dest="benchmark", type="string", default="", help="Only show results for this benchmark")
     parser.add_option("--workload", action="store", dest="workload", type="string", default="", help="Only show results for this workload")
     parser.add_option("--print-values", action="store_true", dest="printValues", default=False, help="Print values in addition to error")
+    parser.add_option("--queue-model-cutoff", action="store", dest="queueModelCutoff", type="float", default=0.001, help="Assume that benchmarks with a lower request intensity than this cutoff cannot increase their request intensity")
+    parser.add_option("--error-filter", action="store", dest="errorFilter", type="float", default=0.0, help="Only show results with an absolute error larger than this parameter (in percent)")
 
     opts, args = parser.parse_args()
 
@@ -221,6 +223,7 @@ def analyzeBusLatency(results, np, opts):
         
         # 2. estimate how the CPUs will respond to this reduction:
         maxRequests = [0.0 for i in range(np)]
+        maxBusRequests = [0.0 for i in range(np)]
         requestDist = [0.0 for i in range(np)]
         requestTotalWithoutCurrCPU = sum(expResults["intManRequests"]) - expResults["intManRequests"][currentCpuID] 
         for i in range(np):
@@ -234,29 +237,35 @@ def analyzeBusLatency(results, np, opts):
                 privModeAvgWait = avgPrivateModeQLat / baselineExpResults["avgBusServiceLat"][i]
                 sharedModeAvgWait = baselineExpResults["avgBusQueueLat"][i] / baselineExpResults["avgBusServiceLat"][i] 
 
-                print i, privModeAvgWait, sharedModeAvgWait
+                thisRequestIntensity = baselineExpResults["intManRequests"][i] / baselineExpResults["ticks"][0]
                 
-                thisMissRate = baselineExpResults["sharedCacheMisses"][i] / baselineExpResults["sharedCacheAccesses"][i]
+                if thisRequestIntensity > opts.queueModelCutoff:
+                    maxRequests[i] = (sharedModeAvgWait / privModeAvgWait) * baselineExpResults["intManRequests"][i]
+                else:
+                    maxRequests[i] = baselineExpResults["intManRequests"][i]
                 
-                maxRequests[i] = (sharedModeAvgWait / privModeAvgWait) * baselineExpResults["intManRequests"][i] * thisMissRate 
+                thisMissRate = baselineExpResults["sharedCacheMisses"][i] / baselineExpResults["sharedCacheAccesses"][i]    
+                maxBusRequests[i] = maxRequests[i] * thisMissRate
         
         newRequestCount = [baselineExpResults["intManRequests"][i] for i in range(np)]         
         newRequestCount[currentCpuID] = estimatedReducedReqCount
         
-        if baselineActualUtilization > 0.95:
-            useSlots = sum(maxRequests) 
-            if sum(maxRequests) >= freeRequestSlots:
-                useSlots = freeRequestSlots
-                
-            for i in range(np):
-                if i != currentCpuID:
-                    newRequestCount[i] += useSlots * requestDist[i]
+        if baselineActualUtilization > 0.95: 
+            
+            if sum(maxBusRequests) >= freeRequestSlots:
+                for i in range(np):
+                    if i != currentCpuID:
+                        newRequestCount[i] += freeRequestSlots * requestDist[i]
+            else:
+                for i in range(np):
+                    if i != currentCpuID:
+                        newRequestCount[i] = maxRequests[i]
                 
         else:
             # bus is not full in baseline, assume similar request intensity in reduced case
             pass
         
-        print str(config).ljust(30),
+        values = []
         for i in range(np):
             estimatedIntensity = newRequestCount[i] / baselineExpResults["ticks"][0]
             actualIntensity = expResults["intManRequests"][i] / expResults["ticks"][0]
@@ -266,12 +275,22 @@ def analyzeBusLatency(results, np, opts):
             errsum += relError
             errsqsum += relError**2
             numerrs += 1
+            
+            values.append( (estimatedIntensity, actualIntensity, relError) )
         
-            if opts.printValues:
-                print ("%.4f" % estimatedIntensity).rjust(width),
-                print ("%.4f" % actualIntensity).rjust(width),
-            print ("%.1f" % relError).rjust(width),
-        print
+        printIt = False
+        for ei, ai, re in values:
+            if abs(re) >= opts.errorFilter:
+                printIt = True
+        
+        if printIt:
+            print str(config).ljust(30),
+            for ei,ai,re in values:
+                if opts.printValues:
+                    print ("%.4f" % ei).rjust(width),
+                    print ("%.4f" % ai).rjust(width),
+                print ("%.1f" % re).rjust(width),
+            print
     
     print
     print "Result statistics:"
