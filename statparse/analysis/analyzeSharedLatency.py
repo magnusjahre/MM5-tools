@@ -281,7 +281,9 @@ def estimateNewQueueLatency(config, np, baselineExpResults, expResults, currentC
     
         if opts.printBQError:
             actualNewLat = expResults["avgBusQueueLat"][i]
-            if actualNewLat == 0.0:
+            if actualNewLat < 10.0:
+                # filter out benchmarks than have very short queue times
+                # absolute difference is negligable but relative may be large
                 relErr = 0.0
             else:
                 relErr = ((estimatedNewBusQueueLat - actualNewLat) / actualNewLat) * 100
