@@ -185,6 +185,7 @@ def estimateNewRequestCount(config, np, baselineExpResults, expResults, currentC
     # 2. estimate how the CPUs will respond to this reduction:
     maxRequests = [0.0 for i in range(np)]
     maxBusRequests = [0.0 for i in range(np)]
+    additionalBusRequests = [0.0 for i in range(np)]
     requestDist = [0.0 for i in range(np)]
     requestTotalWithoutCurrCPU = sum(expResults["intManRequests"]) - expResults["intManRequests"][currentCpuID] 
     for i in range(np):
@@ -207,13 +208,14 @@ def estimateNewRequestCount(config, np, baselineExpResults, expResults, currentC
             
             thisMissRate = baselineExpResults["sharedCacheMisses"][i] / baselineExpResults["sharedCacheAccesses"][i]    
             maxBusRequests[i] = maxRequests[i] * thisMissRate
+            additionalBusRequests[i] = maxBusRequests[i] - (thisMissRate * baselineExpResults["intManRequests"][i])
     
     newRequestCount = [baselineExpResults["intManRequests"][i] for i in range(np)]         
     newRequestCount[currentCpuID] = estimatedReducedReqCount
     
     if baselineActualUtilization > 0.95: 
         
-        if sum(maxBusRequests) >= freeRequestSlots:
+        if sum(additionalBusRequests) >= freeRequestSlots:
             for i in range(np):
                 if i != currentCpuID:
                     newRequestCount[i] += freeRequestSlots * requestDist[i]
@@ -221,10 +223,6 @@ def estimateNewRequestCount(config, np, baselineExpResults, expResults, currentC
             for i in range(np):
                 if i != currentCpuID:
                     newRequestCount[i] = maxRequests[i]
-            
-    else:
-        # bus is not full in baseline, assume similar request intensity in reduced case
-        pass
     
     values = []
     for i in range(np):
@@ -277,6 +275,7 @@ def estimateNewQueueLatency(config, np, baselineExpResults, expResults, currentC
         avgLat = baselineExpResults["avgBusQueueLat"][i]
         
         #TODO: refine model if needed
+        #TODO: writebacks will also be reduced by an MHA change
         estimatedNewBusQueueLat = avgLat * relativeRequestDifference
     
         if opts.printBQError:
