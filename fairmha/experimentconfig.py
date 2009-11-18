@@ -41,9 +41,22 @@ class ExperimentConfiguration:
         self.binaryPath = _root +"/"+_binaryPath
         self.configPath = _root +"/"+_configPath
         self.simticks = -1
+        self.baselineParameters = None
         for b in self.specnames:
             self.specBenchmarks.append(b+"0")
-        
+    
+    """ Used for inhibiting the SPM benchmarks from iterating over the parameter space
+    
+        parameters - a list of (argument, value) pairs that identify values for the the 
+        MPM variable arguments in SPM 
+    """
+    def setBaselineParameters(self, parameters):
+#        assert self.baselineParameters == None
+#        self.baselineParameters = {}
+#        for arg, value in parameters:
+#            self.baselineParameters[arg] = value
+        self.baselineParameters = parameters
+    
     def setSimTicks(self, _simticks):
         self.simticks = _simticks
 
@@ -224,39 +237,50 @@ class ExperimentConfiguration:
         sortedNps.sort()
         for np in sortedNps:
             for wl in self.workloads[np]:
-                for varArgs in allCombs:
-                    
-                    if np > 1:
-                        params = self.getParams(np, wl, self.noBMIndentifier, self.noBMIndentifier, varArgs)
-                        command = self.getCommand(np, wl, params, self.noBMIndentifier, self.noBMIndentifier, 0, varArgs)
-                        commandlines.append( (command, params) )
-                    else:
-                        allSingleCombs =  self.generateAllArgumentCombinations(self.variableSingleCoreArguments)
+                
+                if self.baselineParameters == None or np > 1:
+                
+                    for varArgs in allCombs:
                         
-                        for singleVarArgs in allSingleCombs:
-                            for arg in varArgs:
-                                singleVarArgs.append(arg)
+                        if np > 1:
+                            params = self.getParams(np, wl, self.noBMIndentifier, self.noBMIndentifier, varArgs)
+                            command = self.getCommand(np, wl, params, self.noBMIndentifier, self.noBMIndentifier, 0, varArgs)
+                            commandlines.append( (command, params) )
                             
-                            singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, singleVarArgs)
-                            singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, singleVarArgs)
-                            commandlines.append( (singleCommand, singleParams) )
+                        else:
                             
-                            bmname = self.getParam(singleParams, "bm")
-                            if bmname not in self.singleCoreVarArgs:
-                                self.singleCoreVarArgs[bmname] = []
-                            self.singleCoreVarArgs[bmname].append(singleVarArgs)    
-                    
-                    if doSingleProgramMode:
-                        bms = workloads.getBms(wl,np)
-                        sharedExpKey = self.getUniqueIdentifier(params)
-                        assert sharedExpKey not in self.singleProgramModeParams
-                        self.singleProgramModeParams[sharedExpKey] = {}
+                            allSingleCombs =  self.generateAllArgumentCombinations(self.variableSingleCoreArguments)
+                            
+                            for singleVarArgs in allSingleCombs:
+                                for arg in varArgs:
+                                    singleVarArgs.append(arg)
+                                
+                                singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, singleVarArgs)
+                                singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, singleVarArgs)
+                                commandlines.append( (singleCommand, singleParams) )
+                                
+                                bmname = self.getParam(singleParams, "bm")
+                                if bmname not in self.singleCoreVarArgs:
+                                    self.singleCoreVarArgs[bmname] = []
+                                self.singleCoreVarArgs[bmname].append(singleVarArgs)    
                         
-                        for i in range(np):
-                            self.singleProgramModeParams[sharedExpKey][i] = varArgs
-                            aloneParams = self.getParams(np, wl, bms[i], i, varArgs)
-                            aloneKey = self.getUniqueIdentifier(aloneParams)
-                            self.singleProgramModeNotIssued[aloneKey] = True
+                        if doSingleProgramMode:
+                            bms = workloads.getBms(wl,np)
+                            sharedExpKey = self.getUniqueIdentifier(params)
+                            assert sharedExpKey not in self.singleProgramModeParams
+                            self.singleProgramModeParams[sharedExpKey] = {}
+                            
+                            for i in range(np):
+                                self.singleProgramModeParams[sharedExpKey][i] = varArgs
+                                aloneParams = self.getParams(np, wl, bms[i], i, varArgs)
+                                aloneKey = self.getUniqueIdentifier(aloneParams)
+                                self.singleProgramModeNotIssued[aloneKey] = True
+                                
+                else:
+                    assert not doSingleProgramMode
+                    singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, self.baselineParameters)
+                    singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, self.baselineParameters)
+                    commandlines.append( (singleCommand, singleParams) )
         
         return commandlines
     
