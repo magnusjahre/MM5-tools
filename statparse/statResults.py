@@ -583,13 +583,22 @@ class StatResults():
                     if self.doVectorRetrieval:
                         cpuID = experimentConfiguration.findCPUID(c.workload, c.benchmark, c.np)
                         patElements = p.split("_")
-                        if patElements[-1] == str(cpuID):
+                        
+                        addElem = False
+                        for patElem in patElements:
+                            if patElem == str(cpuID):
+                                addElem = True
+                        
+                        if addElem:
+                            assert c not in configRes
                             configRes[c] = results[p][c]
                     else:                    
                         if c in configRes:
                             raise MultiplePatternError(results.keys(), results[p].keys())
                             
                         configRes[c] = results[p][c]
+                        
+        
         return configRes
         
     def _computeWorkloadAggregate(self, results, np, params, wl):
