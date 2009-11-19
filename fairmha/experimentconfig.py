@@ -51,10 +51,6 @@ class ExperimentConfiguration:
         MPM variable arguments in SPM 
     """
     def setBaselineParameters(self, parameters):
-#        assert self.baselineParameters == None
-#        self.baselineParameters = {}
-#        for arg, value in parameters:
-#            self.baselineParameters[arg] = value
         self.baselineParameters = parameters
     
     def setSimTicks(self, _simticks):
