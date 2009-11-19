@@ -199,7 +199,11 @@ def createFileIndex(opts, args):
         
         index.dumpIndex(indexmodule)
         
-    return index
+    experimentConfig = None
+    if pbsconfig != None:
+        experimentConfig = pbsconfig.config
+        
+    return index, experimentConfig
 
 def writeSearchResults(statSearch, opts, outfile):
     
@@ -266,7 +270,7 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.flush()
         outfile.close()
 
-def doSearch(index, searchConfig, args, options, baseconfig):
+def doSearch(index, searchConfig, args, options, baseconfig, experimentConfig):
     statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet,
                              baseconfig=baseconfig, 
                              createNoPatResults=(not options.printAllPatterns),
@@ -274,7 +278,8 @@ def doSearch(index, searchConfig, args, options, baseconfig):
                              normalizeTo=options.normalizeTo, 
                              vectorStat=options.vectorStat,
                              plotParamString=options.plotParams,
-                             onlyParamKeyValues=options.onlyParamKeyValue)
+                             onlyParamKeyValues=options.onlyParamKeyValue,
+                             baselineParameters=experimentConfig.baselineParameters)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:
@@ -292,7 +297,7 @@ def main():
         print
     
     
-    index = createFileIndex(opts, args)
+    index, experimentConfig = createFileIndex(opts, args)
         
     if not opts.quiet:
         if len(args) == 1:
@@ -302,7 +307,7 @@ def main():
         print
 
     try:
-        statSearch = doSearch(index, searchConfig, args, opts, baseconfig)
+        statSearch = doSearch(index, searchConfig, args, opts, baseconfig, experimentConfig)
     except Exception as e:
         print str(e)
         return -1

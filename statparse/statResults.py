@@ -95,7 +95,13 @@ class StatResults():
             self.paramValuesOnly = kwargs["onlyParamKeyValues"]
         else:
             self.paramValuesOnly = False
-        
+            
+        if "baselineParameters" in kwargs:
+            self.baselineParameters = {}
+            for param, value in kwargs["baselineParameters"]:
+                self.baselineParameters[param] = value   
+        else:
+            self.baselineParameters = None
 
     def plainSearch(self, nomPat, denomPat = ""):
         self.matchingConfigs = self.index.findConfiguration(self.searchConfig)
@@ -359,7 +365,7 @@ class StatResults():
         
         printResults.printData(outdata, leftJust, outfile, decimals,
                                plotFunction=self.plotFunc,
-                               normalizeTo=self.normalizeTo,
+                               normalizeToColumn=self.normalizeTo,
                                plotParamString=self.plotParamString)
     
     def _addAggregatePrintElement(self, outdata, np, wlOrBm, sortedParams, aggregate, decimals, printAllCPUs):
@@ -601,12 +607,20 @@ class StatResults():
                 mpAggregate = self._createSimpointDict(filteredRes, mpAggregate, bm)
             
             if self.wlMetric.spmNeeded:
-                if self.baseconfig == None:
+                if self.baseconfig == None and self.baselineParameters == None:
                     singleRes = processResults.filterResults(results, 1, params, experimentConfiguration.singleWlID, bm, np)
                 else:
-                    tmpconfig = experimentConfiguration.buildMatchAllConfig()
-                    tmpconfig.copy(self.baseconfig)
+                    if self.baseconfig != None and self.baselineParameters != None:
+                        raise Exception("It does not make sense to specify a baseline when the baseline is set in the pbsconfig file")
+                    
+                    
+                    if self.baselineParameters != None:
+                        tmpconfig = ExperimentConfiguration(1, self.baselineParameters, bm)
+                    else:
+                        tmpconfig = experimentConfiguration.buildMatchAllConfig()
+                        tmpconfig.copy(self.baseconfig)
                     tmpconfig.benchmark = bm
+                    
                     singleRes = processResults.filterResultsWithConfig(results, tmpconfig)
                 
                 if singleRes == {}:

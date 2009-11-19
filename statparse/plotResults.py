@@ -88,7 +88,7 @@ def plotBarChart(data, **kwargs):
     
     plt.savefig(plotFileName)
     plt.show()
-    
+        
 def plotScatter(data, **kwargs):
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
@@ -205,4 +205,37 @@ def plotNormalized3DPoints(data, **kwargs):
               y_axis_visibility=True, ylabel=legendTiles[1],
               z_axis_visibility=True, zlabel=legendTiles[2])
     mlab.show()
+
+""" Creates a line plot
+
+    xvalues: a list of values to plot along the x-axis
+    yvalues: a list of lists that provide the corresponing y-axis values
+"""
+def plotLines(xvalues, yvalues, **kwargs):
+    
+    markers = ['b.-', 'g+-', 'r*-', 'co-', 'mv-']
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    lines = []
+    id = 0
+    for yvalue in yvalues:
+        line = ax.plot(xvalues, yvalue, markers[id])
+        lines.append(line)
+        id += 1
+        assert id < len(markers)
+    
+    if len(yvalues) < 5:
+        cols = len(yvalues)
+    else:
+        cols = 5
+    
+    if "legendTitles" in kwargs:
+        fig.legend(lines, kwargs["legendTitles"], "upper center", ncol=cols)
+    
+    if "filename" in kwargs:
+        plt.savefig(kwargs["filename"], type="pdf")
+    else:
+        plt.show()
     
