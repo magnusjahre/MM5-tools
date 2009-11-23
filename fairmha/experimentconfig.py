@@ -1,6 +1,7 @@
 
 import sys
 import deterministic_fw_wls as workloads
+import copy
 
 class ExperimentConfiguration:
     
@@ -274,9 +275,19 @@ class ExperimentConfiguration:
                                 
                 else:
                     assert not doSingleProgramMode
-                    singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, self.baselineParameters)
-                    singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, self.baselineParameters)
-                    commandlines.append( (singleCommand, singleParams) )
+                    
+                    if "USE-SIMPOINT" in self.variableSimulatorArguments:
+                        for simpoint in self.variableSimulatorArguments["USE-SIMPOINT"]:
+                            paramCopy = copy.copy(self.baselineParameters)
+                            paramCopy.append( ("USE-SIMPOINT", simpoint) )
+                            
+                            singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, paramCopy)
+                            singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, paramCopy)
+                            commandlines.append( (singleCommand, singleParams) )                    
+                    else:
+                        singleParams = self.getParams(np, self.noWlIdentifier, wl, self.noBMIndentifier, self.baselineParameters)
+                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, wl, self.noBMIndentifier, 0, self.baselineParameters)
+                        commandlines.append( (singleCommand, singleParams) )
         
         return commandlines
     
