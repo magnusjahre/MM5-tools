@@ -56,13 +56,31 @@ class TracefileData():
             print str(c)+": "+str(self.headers[c])
     
     def _parseColumnSpec(self, colSpec):
-        splitted = colSpec.split(",")
+        
+        errMessage = "Y-col spec can be a comma separated list of integers (1,2,3), a range (1-5) or a single number (1)"
+        
         newColSpec = []
-        for sp in splitted:
+        if "," in colSpec:
+            splitted = colSpec.split(",")
+            for sp in splitted:
+                try:
+                    newColSpec.append(int(sp))
+                except:
+                    raise Exception(errMessage)
+        elif "-" in colSpec:
+            splitted = colSpec.split("-")
+            if len(splitted) != 2:
+                raise Exception(errMessage)
             try:
-                newColSpec.append(int(sp))
+                newColSpec = range(int(splitted[0]), int(splitted[1])+1)
             except:
-                raise Exception("Y-col spec must be a comma separated list of integers")
+                raise Exception(errMessage)
+        else:
+            try:
+                newColSpec.append(int(colSpec))
+            except:
+                raise Exception(errMessage)
+        
         return newColSpec
     
     def plot(self, xCol, yCols, filename = ""):
