@@ -215,27 +215,40 @@ def plotLines(xvalues, yvalues, **kwargs):
     
     markers = ['b.-', 'g+-', 'r*-', 'co-', 'mv-']
     
+    if len(xvalues) != len(yvalues):
+        raise Exception("We need a set of x values for each set of y values")
+    
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
     lines = []
-    id = 0
-    for yvalue in yvalues:
-        line = ax.plot(xvalues, yvalue, markers[id])
+    for id in range(len(xvalues)):
+        line = ax.plot(xvalues[id], yvalues[id], markers[id])
         lines.append(line)
         id += 1
         assert id < len(markers)
     
-    if len(yvalues) < 5:
+    if len(yvalues) < 4:
         cols = len(yvalues)
     else:
-        cols = 5
+        cols = 4
     
     if "legendTitles" in kwargs:
         fig.legend(lines, kwargs["legendTitles"], "upper center", ncol=cols)
     
+    if "xrange" in kwargs:
+        if kwargs["xrange"] != "":
+            
+            try:
+                minX,maxX = kwargs["xrange"].split(",")
+            except:
+                raise Exception("X range spec must be of type min,max")            
+            ax.set_xlim( (float(minX), float(maxX))  )
+    
     if "filename" in kwargs:
-        plt.savefig(kwargs["filename"], type="pdf")
-    else:
-        plt.show()
+        if kwargs["filename"] != "":
+            plt.savefig(kwargs["filename"], type="pdf")
+            return
+        
+    plt.show()
     

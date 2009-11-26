@@ -1,22 +1,23 @@
 #!/usr/bin/env python
-
 import sys
 import os
 
 from optparse import OptionParser
 from statparse.tracefile.tracefileData import TracefileData
+import statparse.tracefile.tracefileData as tracefileModule
 
 def parseArgs():
-    parser = OptionParser(usage="analyzeTrace.py [options] filename")
+    parser = OptionParser(usage="analyzeTrace.py [options] filename1 [filename2 ...]")
 
     parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
-    parser.add_option("-x", "--x-column", action="store", dest="xCol", default="", type="string", help="The column IDs to use along the x-axis")
-    parser.add_option("-y", "--y-columns", action="store", dest="yCols", default="", type="string", help="The column IDs to use along the y-axis")
+    parser.add_option("-x", "--x-column", action="store", dest="xCol", default="", type="string", help="The file and column IDs to use along the x-axis")
+    parser.add_option("-y", "--y-columns", action="store", dest="yCols", default="", type="string", help="The file and column IDs to use along the y-axis")
     parser.add_option("-p", "--plot-filename", action="store", dest="plotFilename", default="", type="string", help="Write plot to file")
+    parser.add_option("--xrange", action="store", dest="xRange", default="", type="string", help="The x values to include in the plot (Syntax: min,max)")
     
     opts, args = parser.parse_args()
     
-    if len(args) != 1:
+    if len(args) < 1:
         print "Command line error"
         print "Usage: "+parser.usage
         sys.exit(-1)
@@ -27,20 +28,27 @@ def main():
 
     opts,args = parseArgs()
     
-    if not os.path.exists(args[0]):
-        print "Error: File "+str(args[0])+" not found"
-        return -1
-    
     if not opts.quiet:
         print
-        print "Trace file analysis"
-        print
+        print "Running trace file analysis..."
     
-    tracecontent = TracefileData(args[0])
-    tracecontent.readTracefile()
+    traces = []
+    for filename in args:
+        if not os.path.exists(filename):
+            print "Error: File "+str(filename)+" not found"
+            return -1
+        
+        tracecontent = TracefileData(filename)
+        tracecontent.readTracefile()
+        traces.append(tracecontent)
     
     if opts.xCol == "" and opts.yCols == "":
-        tracecontent.printColumnMapping()
+        fileID = 0
+        for trace in traces:
+            print
+            print "Column mapping for file ID "+str(fileID)+": "+trace.filename
+            trace.printColumnMapping()
+            fileID += 1
     else:
         if opts.xCol == "" or opts.yCols == "":
             print "Error: --x-column and --y-columns options must be used together"
@@ -49,7 +57,11 @@ def main():
         if not opts.quiet:
             print "Plotting results..."
         
-        tracecontent.plot(opts.xCol, opts.yCols, opts.plotFilename)
+        try:
+            tracefileModule.plot(traces, opts.xCol, opts.yCols, filename=opts.plotFilename, xrange=opts.xRange)
+        except Exception as e:
+            print "Plotting failed!"
+            print "Error: "+str(e) 
         
 if __name__ == '__main__':
     main()
