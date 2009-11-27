@@ -202,7 +202,7 @@ def createFileIndex(opts, args):
     experimentConfig = None
     if pbsconfig != None:
         experimentConfig = pbsconfig.config
-        
+    
     return index, experimentConfig
 
 def writeSearchResults(statSearch, opts, outfile):
@@ -309,7 +309,14 @@ def main():
     try:
         statSearch = doSearch(index, searchConfig, args, opts, baseconfig, experimentConfig)
     except Exception as e:
-        print str(e)
+        print 
+        print "Error:    Search failed"
+        print "Message:  "+str(e)
+        print
+        if opts.showStackTrace:
+            print "Stacktrace:"
+            traceback.print_exc(file=sys.stdout)
+            print
         return -1
     
     if not opts.quiet:

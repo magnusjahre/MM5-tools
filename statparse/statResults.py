@@ -98,8 +98,12 @@ class StatResults():
             
         if "baselineParameters" in kwargs:
             self.baselineParameters = {}
-            for param, value in kwargs["baselineParameters"]:
-                self.baselineParameters[param] = value   
+            if kwargs["baselineParameters"] != None:
+                for param, value in kwargs["baselineParameters"]:
+                    self.baselineParameters[param] = value
+            else:
+                self.baselineParameters = None
+                       
         else:
             self.baselineParameters = None
 
