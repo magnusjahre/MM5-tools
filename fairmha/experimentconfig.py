@@ -86,7 +86,6 @@ class ExperimentConfiguration:
                 
     def registerWorkloadRange(self, np, ids):
         assert np not in self.workloads
-        assert 1 not in self.workloads
         self.workloads[np] = []
         
         for i in ids:
