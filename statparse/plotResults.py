@@ -245,6 +245,15 @@ def plotLines(xvalues, yvalues, **kwargs):
                 raise Exception("X range spec must be of type min,max")            
             ax.set_xlim( (float(minX), float(maxX))  )
     
+    if "yrange" in kwargs:
+        if kwargs["yrange"] != "":
+            
+            try:
+                minY,maxY = kwargs["yrange"].split(",")
+            except:
+                raise Exception("Y range spec must be of type min,max")            
+            ax.set_ylim( (float(minY), float(maxY))  )
+    
     if "filename" in kwargs:
         if kwargs["filename"] != "":
             plt.savefig(kwargs["filename"], type="pdf")

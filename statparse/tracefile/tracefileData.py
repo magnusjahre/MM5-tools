@@ -19,7 +19,7 @@ def parseColumnSpec(colSpec):
     if "," in colSpec:
         splitted = colSpec.split(",")
         for sp in splitted:
-            fileID = 1
+            fileID = 0
             if ":" in sp:
                 try:
                     fileIDStr,colIDStr = sp.split(":")
@@ -35,7 +35,7 @@ def parseColumnSpec(colSpec):
             newColSpec.append( (fileID,colID) )
             
     elif "-" in colSpec:
-        fileID = 1
+        fileID = 0
         if ":" in colSpec:
             try:
                 fileIDStr, rangeSpec = colSpec.split(":")
@@ -57,7 +57,7 @@ def parseColumnSpec(colSpec):
             newColSpec.append( (fileID, val) )
         
     else:
-        fileID = 1
+        fileID = 0
         if ":" in colSpec:
             try:
                 fileIDStr, colIDStr = colSpec.split(":")
@@ -84,6 +84,8 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             filename = kwargs["filename"]
         if "xrange" in kwargs:
             xrange = kwargs["xrange"]
+        if "yrange" in kwargs:
+            yrange = kwargs["yrange"]
         
         
         xColSpec = parseColumnSpec(xCol)        
@@ -108,7 +110,7 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             xvalues.append(xColValues[yFileID])
             legendTitles.append(tracefiles[yFileID].headers[yColID])
             
-        plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange)
+        plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange)
 
 class TracefileData():
 
