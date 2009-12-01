@@ -26,7 +26,7 @@ def parseParameterString(paramString, params = None):
         with MEMORY-ADDRESS-PARTS 
     
         Arguments:
-            paramString, string: key1,val1:key2,val2:...
+            paramString, string: key1-val1:key2-val2:...
             params, dictionary: optional dictionary to add paramters to
                         format: simulator option name -> value 
         Returns:
@@ -41,24 +41,28 @@ def parseParameterString(paramString, params = None):
     bm = NO_BM
     wl = NO_WL
     
-    try:
-        paramlist = paramString.split(":")
-        for pstr in paramlist:
-            key,value = pstr.split(",")
-            if key == "NP":
-                np = stringToType(value)
-                if np == 1:
-                    wl = singleWlID
-            elif key == "BENCHMARK":
-                if value.startswith("fair"):
-                    wl = value
-                else:
-                    wl = singleWlID
-                    bm = bm
+    paramlist = paramString.split(":")
+    for pstr in paramlist:
+        try:
+            key,value = pstr.split("-")
+        except:
+            raise Exception("Could not parse parameter string "+paramString)
+        if key == "NP":
+            np = stringToType(value)
+            if np == 1:
+                wl = singleWlID
+        elif key == "BENCHMARK":
+            if value.startswith("fair"):
+                wl = value
             else:
-                params[key] = stringToType(value)
-    except:
-        raise Exception("Could not parse parameter string "+paramString)
+                wl = singleWlID
+                bm = bm
+        else:
+            if key in params:
+                raise Exception("Multiple values for same parameter is not supported")
+            
+            params[key] = stringToType(value)
+    
     
     return params, (np, bm, wl)
 

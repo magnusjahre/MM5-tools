@@ -24,7 +24,7 @@ def parseArgs():
     searchOptions.add_option("--architecture", action="store", dest="architecture", type="string", default="*", help="Limit the file to configurations with this memory system architecture")
     searchOptions.add_option("--benchmark", action="store", dest="benchmark", type="string", default="*", help="Only present the results for this benchmark")
     searchOptions.add_option("--workload", action="store", dest="workload", type="string", default="*", help="Only present the results for this benchmark")
-    searchOptions.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1,val1:key2,val2:...")
+    searchOptions.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1-val1:key2-val2:...")
     searchOptions.add_option("--search-file", action="store", dest="searchFile", type="string", default="", help="Search after key in this file")
     parser.add_option_group(searchOptions)
     
@@ -33,7 +33,7 @@ def parseArgs():
     aggregationOptions.add_option("--experiment-metric", action="store", dest="expAggMetric", default="", help="Metric to use when aggregating workloads")
     aggregationOptions.add_option("--aggregate-simpoints", action="store_true", dest="aggSimpoints", default=False, help="Aggregate simpoint results into one value representative for the whole execution")
     aggregationOptions.add_option("--aggregate-patterns", action="store_true", dest="aggPatterns", default=False, help="Aggregate values for multiple statistics into one result")
-    aggregationOptions.add_option("--baseline-parameters", action="store", dest="baselineParams", type="string", default="", help="Use the specified configuration as the baseline. Format: key1,val1:key2,val2:...")
+    aggregationOptions.add_option("--baseline-parameters", action="store", dest="baselineParams", type="string", default="", help="Use the specified configuration as the baseline. Format: key1-val1:key2-val2:...")
     parser.add_option_group(aggregationOptions)
     
     resultOptions = OptionGroup(parser, "Result Presentation Options")

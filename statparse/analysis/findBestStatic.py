@@ -13,6 +13,9 @@ import statparse.printResults as printres
 
 useMetrics = ["hmos", "stp", "fairness", "sum"]
 
+def getFilename(metricname):
+    return "best-static-"+metricname+".txt"
+
 def fatal(message):
     print "ERROR: "+message
     sys.exit(-1)
@@ -33,7 +36,7 @@ def parseArgs():
     
     return opts,args
     
-def findBestMHA(results, opts, metric):
+def findBestMHA(results, opts, metric, outfile):
     
     if not opts.quiet:
         print "Searching for pattern COM:IPC... ",
@@ -73,7 +76,25 @@ def findBestMHA(results, opts, metric):
             
             metval = results._aggregateWorkloadResults(opts.np, params, wl)
             if len(metval) == 1 and metval[0] != "N/A":
-                if metval[0] > maxmetval:
+                if metval[0] == maxmetval:
+                    # prefer larger MHAs if equal metric value
+                    bestMHA = bestparams.split(",")
+                    thisMHA = params["STATICASYMMETRICMHA"].split(",")
+                    assert len(bestMHA) == len(thisMHA)
+                    bestMHASum = 0
+                    thisMHASum = 0
+                    for i in range(len(bestMHA)):
+                        bestMHASum += int(bestMHA[i])
+                        thisMHASum += int(thisMHA[i])
+                    avgBestMHA = float(bestMHASum) / len(bestMHA)
+                    avgThisMHA = float(thisMHASum) / len(thisMHA) 
+                    
+                    # keep best if avg miss para is equal
+                    if avgThisMHA > avgBestMHA:
+                        maxmetval = metval[0]
+                        bestparams = params["STATICASYMMETRICMHA"]
+                    
+                elif metval[0] > maxmetval: 
                     maxmetval = metval[0]
                     bestparams = params["STATICASYMMETRICMHA"]
                     
@@ -97,9 +118,8 @@ def findBestMHA(results, opts, metric):
         
         
         resultprint.append(line)
-
-
-    printres.printData(resultprint, just, sys.stdout, opts.decimals)
+    
+    printres.printData(resultprint, just, outfile, opts.decimals)
     
 def main():
 
@@ -135,15 +155,19 @@ def main():
     
     
     for metricString in useMetrics:
+        
+        outfile = open(getFilename(metricString), "w")
+        
         if not opts.quiet:
             print
-            print "Printing results for metric "+metricString
+            print "Printing results for metric "+metricString+" to file "+getFilename(metricString)
             print
-        else:
-            print metricString
-            
+        
         metric = metrics.createMetric(metricString)
-        findBestMHA(results, opts, metric)
+        findBestMHA(results, opts, metric, outfile)
+        
+        outfile.flush()
+        outfile.close()
     
 
 if __name__ == '__main__':
