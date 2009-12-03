@@ -163,7 +163,14 @@ class ExperimentConfiguration:
         
     def getParam(self, params, type):
         return params[self.typeToParamPos[type]]
+    
+    def getNamedParamVal(self, params, paramName):
+        for index in self.varArgNames:
+            if self.varArgNames[index] == paramName:
+                return params[index]
         
+        raise Exception("Parameter "+paramName+" not found")
+    
     def getVarargsIdentifier(self, params):
         repr = ""
         for p in params[self.typeToParamPos["varargStart"]:]:
@@ -339,19 +346,22 @@ class ExperimentConfiguration:
             bmname = workloads.getBms(wl,sharedNp,True)[bmID]
             sharedVarargs = self.getVariableParameters(sharedParams)
             
-            aloneVarargList = None
-            for varargList in self.singleCoreVarArgs[bmname]:
-                isEqual = True
-                for argname, argval in varargList:
-                    if argname == "MEMORY-ADDRESS-PARTS":
-                        continue
-                    assert argname in sharedVarargs
-                    if sharedVarargs[argname] != argval:
-                        isEqual = False
-                        
-                if isEqual:
-                    assert aloneVarargList == None
-                    aloneVarargList = varargList
+            if self.baselineParameters != None:
+                aloneVarargList = self.baselineParameters
+            else:
+                aloneVarargList = None
+                for varargList in self.singleCoreVarArgs[bmname]:
+                    isEqual = True
+                    for argname, argval in varargList:
+                        if argname == "MEMORY-ADDRESS-PARTS":
+                            continue
+                        assert argname in sharedVarargs
+                        if sharedVarargs[argname] != argval:
+                            isEqual = False
+                            
+                    if isEqual:
+                        assert aloneVarargList == None
+                        aloneVarargList = varargList
                         
             outparams = self.getParams(1, self.noWlIdentifier, bmname, self.noBMIndentifier, aloneVarargList)
             

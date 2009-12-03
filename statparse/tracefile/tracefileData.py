@@ -8,6 +8,8 @@ from statparse.tracefile import isInt
 from statparse.tracefile import isFloat
 
 import statparse.plotResults as plotResults
+from statparse.util import warn
+import math
 
 __metaclass__ = type
 
@@ -111,6 +113,98 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             legendTitles.append(tracefiles[yFileID].headers[yColID])
             
         plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange)
+
+def findLowestEndpoint(value, sortedList):
+    min = 0
+    max = len(sortedList)
+    mid = (min + max) / 2
+    
+    while min < max:
+        mid = (min + max) / 2
+                
+        if value > sortedList[mid]:
+            min = mid + 1
+        else:
+            max = mid - 1
+        
+    if min == len(sortedList):
+        min = min-1
+        assert value >= sortedList[min]
+        return min
+      
+    if sortedList[min] > value: 
+        min = min-1    
+    
+    
+    if min >= 0: 
+        assert sortedList[min] <= value
+    if min+1 < len(sortedList):
+        assert sortedList[min+1] >= value
+    return min
+
+def interpolate(findX, lowestIndex, xvalues, yvalues):
+    assert len(xvalues) == len(yvalues)
+    
+    if lowestIndex == len(yvalues)-1:
+        return yvalues[lowestIndex]
+    
+    if lowestIndex == -1:
+        return yvalues[0]
+    
+    ydiff =  yvalues[lowestIndex+1] - yvalues[lowestIndex]
+    xdiff =  xvalues[lowestIndex+1] - xvalues[lowestIndex]
+    
+    findXDiff = findX - xvalues[lowestIndex]
+    
+    if xdiff == 0:
+        interpolY = yvalues[lowestIndex]
+    else:
+        interpolY = yvalues[lowestIndex] + findXDiff * (ydiff / xdiff)
+    
+    return interpolY 
+
+def computeInterpolatedErrors(mainTrace,
+                              mainXColumnID,
+                              mainYColumnID,
+                              interpolateTrace,
+                              interpolateXColumnID,
+                              interpolateYColumnID,
+                              relative,
+                              doNotWarn):
+
+    assert len(mainTrace.data[mainXColumnID]) == len(mainTrace.data[mainYColumnID])
+
+    errsum = 0
+    errsqsum = 0
+    numerrs = 0
+
+    for i in range(len(mainTrace.data[mainXColumnID])):
+        
+        mainXval = mainTrace.data[mainXColumnID][i]
+        
+        interX1 = findLowestEndpoint(mainXval, interpolateTrace.data[interpolateXColumnID])
+        intervalue = interpolate(mainXval,
+                                 interX1,
+                                 interpolateTrace.data[interpolateXColumnID],
+                                 interpolateTrace.data[interpolateYColumnID])
+        
+        if math.isnan(intervalue):
+            if not doNotWarn:
+                warn("Value is NaN, skipping")
+            continue
+        
+        error = mainTrace.data[mainYColumnID][i] - intervalue
+        
+        if relative:
+            assert mainTrace.data[mainYColumnID][i] != 0
+            error = error / mainTrace.data[mainYColumnID][i]
+            error = error * 100
+        
+        errsum += error
+        errsqsum += error*error
+        numerrs += 1
+            
+    return errsum, errsqsum, numerrs
 
 class TracefileData():
 

@@ -26,7 +26,7 @@ def parseParameterString(paramString, params = None):
         with MEMORY-ADDRESS-PARTS 
     
         Arguments:
-            paramString, string: key1-val1:key2-val2:...
+            paramString, string: key1+val1:key2+val2:...
             params, dictionary: optional dictionary to add paramters to
                         format: simulator option name -> value 
         Returns:
@@ -44,7 +44,7 @@ def parseParameterString(paramString, params = None):
     paramlist = paramString.split(":")
     for pstr in paramlist:
         try:
-            key,value = pstr.split("-")
+            key,value = pstr.split("+")
         except:
             raise Exception("Could not parse parameter string "+paramString)
         if key == "NP":

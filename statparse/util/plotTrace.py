@@ -10,8 +10,8 @@ def parseArgs():
     parser = OptionParser(usage="analyzeTrace.py [options] filename1 [filename2 ...]")
 
     parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
-    parser.add_option("-x", "--x-column", action="store", dest="xCol", default="", type="string", help="The file and column IDs to use along the x-axis")
-    parser.add_option("-y", "--y-columns", action="store", dest="yCols", default="", type="string", help="The file and column IDs to use along the y-axis")
+    parser.add_option("-x", "--x-column", action="store", dest="xCol", default="", type="string", help="The file and column IDs to use along the x-axis (e.g 0:0,1:1)")
+    parser.add_option("-y", "--y-columns", action="store", dest="yCols", default="", type="string", help="The file and column IDs to use along the y-axis (e.g 0:0,1:1)")
     parser.add_option("-p", "--plot-filename", action="store", dest="plotFilename", default="", type="string", help="Write plot to file")
     parser.add_option("--xrange", action="store", dest="xRange", default="", type="string", help="The x values to include in the plot (Syntax: min,max)")
     parser.add_option("--yrange", action="store", dest="yRange", default="", type="string", help="The y values to include in the plot (Syntax: min,max)")
