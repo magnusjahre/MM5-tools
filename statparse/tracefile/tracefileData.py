@@ -10,6 +10,7 @@ from statparse.tracefile import isFloat
 import statparse.plotResults as plotResults
 from statparse.util import warn
 import math
+import re
 
 __metaclass__ = type
 
@@ -78,16 +79,36 @@ def parseColumnSpec(colSpec):
     
     return newColSpec
 
+def buildColSpec(valuePairs):
+    spec = ""
+    for fileID, colID in valuePairs:
+        if spec != "":
+            spec += ","
+        spec += str(fileID)+":"+str(colID)
+    return spec
+    
+
 def plot(tracefiles, xCol, yCols, **kwargs):
         
         filename = ""
         xrange = ""
+        yrange = ""
+        cols = 2
+        ylabel = "none"
+        xlabel = "none"
         if "filename" in kwargs:
             filename = kwargs["filename"]
         if "xrange" in kwargs:
             xrange = kwargs["xrange"]
         if "yrange" in kwargs:
             yrange = kwargs["yrange"]
+        if "cols" in kwargs:
+            cols = kwargs["cols"]
+        if "xlabel" in kwargs:
+            xlabel = kwargs["xlabel"]
+        if "ylabel" in kwargs:
+            ylabel = kwargs["ylabel"]
+            
         
         
         xColSpec = parseColumnSpec(xCol)        
@@ -112,7 +133,7 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             xvalues.append(xColValues[yFileID])
             legendTitles.append(tracefiles[yFileID].headers[yColID])
             
-        plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange)
+        plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel)
 
 def findLowestEndpoint(value, sortedList):
     min = 0
@@ -214,6 +235,17 @@ class TracefileData():
         self.data = {}
         self.separator = separator
         
+    def buildFromLists(self, names, values):    
+        
+        assert len(names) == len(values)
+        
+        for i in range(len(names)):
+            self.headers[i] = names[i] 
+        
+        for i in range(len(values)):
+            self.data[i] = values[i]    
+        
+    
     def readTracefile(self):
         tracefile = open(self.filename)
         
@@ -250,4 +282,31 @@ class TracefileData():
         for c in cols:
             print str(c)+": "+str(self.headers[c])
 
+    """ Searches after column titles that matches the regexp ^name.*cpuID$
+    
+        Returns:
+            - the ID of the column if the name uniquely identifies a column
+            - otherwise, -1 is returned 
+    """
+    def findColumnID(self, name, cpuID):
+        pattern = "^"+name+".*"+str(cpuID)+"$"
         
+        cols = self.headers.keys()
+        cols.sort()
+        
+        matchID = -1
+        for c in cols:
+            if re.search(pattern, self.headers[c]):
+                if matchID != -1:
+                    return -1
+                matchID = c
+                
+        return matchID
+    
+    def getValue(self, columnID, elementID):
+        return self.data[columnID][elementID]
+    
+    def getColumn(self, columnID):
+        return self.data[columnID]
+    
+    

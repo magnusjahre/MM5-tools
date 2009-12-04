@@ -1,6 +1,7 @@
 
 import sys
 import os
+import re
 
 def fatal(message):
     print
@@ -12,7 +13,7 @@ def warn(message):
     print "Warning: "+message
     
     
-def getExperimentDirs(np, includeParams):
+def getExperimentDirs(np, includeParams, **kwargs):
     if not os.path.exists("pbsconfig.py"):
         fatal("pbsconfig.py not found!")
     
@@ -23,6 +24,11 @@ def getExperimentDirs(np, includeParams):
     if includeParams != "":
         import statparse.experimentConfiguration as expconf
         paramDict, paramSpec = expconf.parseParameterString(includeParams)
+
+    if "workload" in kwargs:
+        workloadPattern = kwargs["workload"]
+    else:
+        workloadPattern = ".*"
 
     experimentdirs = []
     for cmd, shparams in pbsconfig.commandlines:
@@ -37,8 +43,9 @@ def getExperimentDirs(np, includeParams):
             if paramval != paramDict[includeParam]:
                 includeDirs = False
         
-        if includeDirs:
-            wl = configobj.getParam(shparams, "wl")
+        wl = configobj.getParam(shparams, "wl")
+        if includeDirs and re.search(workloadPattern, wl):
+            
             sharedFileID = configobj.getFileIdentifier(shparams)
     
             aloneFileIDs = []

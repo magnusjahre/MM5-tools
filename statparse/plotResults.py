@@ -228,10 +228,21 @@ def plotLines(xvalues, yvalues, **kwargs):
         id += 1
         assert id < len(markers)
     
-    if len(yvalues) < 4:
-        cols = len(yvalues)
+    if "cols" in kwargs:
+        cols = kwargs["cols"]
     else:
-        cols = 4
+        if len(yvalues) < 4:
+            cols = len(yvalues)
+        else:
+            cols = 4
+    
+    if "xlabel" in kwargs:
+        if kwargs["xlabel"] != "none":
+            ax.set_xlabel(kwargs["xlabel"])
+    
+    if "ylabel" in kwargs:
+        if kwargs["ylabel"] != "none":
+            ax.set_ylabel(kwargs["ylabel"])
     
     if "legendTitles" in kwargs:
         fig.legend(lines, kwargs["legendTitles"], "upper center", ncol=cols)
