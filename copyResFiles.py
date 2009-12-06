@@ -33,7 +33,8 @@ resultfiles = ["interconnect*.txt",
                "*QueueOccupancyTrace.txt",
                "bbv_outfile.bb",
                "statsDumpOrder.txt",
-               "missBandwidthPolicy*.txt"]
+               "missBandwidthPolicy*.txt",
+               "detailedCPU*IPCTrace.txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
