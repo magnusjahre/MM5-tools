@@ -9,6 +9,7 @@ from statparse.tracefile import isFloat
 
 import statparse.plotResults as plotResults
 from statparse.util import warn
+from statparse.tracefile.errorStatistics import ErrorStatistics
 import math
 import re
 
@@ -227,6 +228,25 @@ def computeInterpolatedErrors(mainTrace,
             
     return errsum, errsqsum, numerrs
 
+def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relative):
+    
+    mainColID = mainTrace.findColumnID(mainColumnName, -1)
+    otherColId = otherTrace.findColumnID(otherColumnName, -1)
+
+    if mainColID == -1 or otherColId == -1:
+        raise Exception("Column "+mainColumnName+" or "+otherColumnName+" not found")
+
+    mainColData = mainTrace.getColumn(mainColID)
+    otherColData = otherTrace.getColumn(otherColId)
+    
+    assert len(otherColData) >= len(mainColData)
+    
+    errors = ErrorStatistics(relative)    
+    for i in range(len(mainColData)):
+        errors.sample(otherColData[i] - mainColData[i], mainColData[i])
+
+    return errors
+
 class TracefileData():
 
     def __init__(self, filename, separator = ";"):
@@ -283,13 +303,17 @@ class TracefileData():
             print str(c)+": "+str(self.headers[c])
 
     """ Searches after column titles that matches the regexp ^name.*cpuID$
+        If cpuID equals -1, it searches after the pattern ^name.*
     
         Returns:
             - the ID of the column if the name uniquely identifies a column
             - otherwise, -1 is returned 
     """
     def findColumnID(self, name, cpuID):
-        pattern = "^"+name+".*"+str(cpuID)+"$"
+        if cpuID == -1:
+            pattern = "^"+name+".*"
+        else:
+            pattern = "^"+name+".*"+str(cpuID)+"$"
         
         cols = self.headers.keys()
         cols.sort()
