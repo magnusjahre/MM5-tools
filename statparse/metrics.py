@@ -101,11 +101,12 @@ class WorkloadMetric():
         self.speedups[simpointkey] = []
         for bm in benchmarks:
             if bm not in mpb[simpointkey]:
-                self.speedups[simpoint] = []
-                return
+                self.speedups[simpoint].append(errorString)
+                continue
                 
             if spb != {}:
                 if bm not in spb[simpoint]:
+                    #TODO: might want to leave values in as in MPB mode
                     self.speedups[simpoint] = []
                     return
                 
@@ -257,5 +258,4 @@ class NoAggregation(WorkloadMetric):
                 retarr.append([self.errStr for i in range(self.n)])
             else:
                 retarr.append(simpointVals)
-            
         return retarr

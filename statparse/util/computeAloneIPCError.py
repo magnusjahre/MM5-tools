@@ -24,6 +24,7 @@ def parseArgs():
     parser.add_option("--include-params", action="store", dest="includeParams", type="string", default="", help="A standard parameter string that indicates the parameters to include")
     parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print results for each workload")
     parser.add_option("--relative", action="store_true", dest="relativeErrors", default=False, help="Print relative errors (Default: absolute)")
+    parser.add_option("--print-values", action="store_true", dest="printValues", default=False, help="Print average values as well as errors")
     
     opts, args = parser.parse_args()
     
@@ -64,7 +65,7 @@ def computeIPCEstimateErrors(dirs, np, opts, command):
                 sharedTrace.readTracefile()
             except IOError:
                 if not opts.quiet:
-                    warn("File "+getTracename(shDirID)+" cannot be opened, skipping...")
+                    warn("File "+getTracename(shDirID, aloneCPUID)+" cannot be opened, skipping...")
                 continue
             
             aloneTrace = TracefileData(getTracename(aloneDirIDs[aloneCPUID], 0))
@@ -109,7 +110,7 @@ def main():
     results, aggRes = computeIPCEstimateErrors(dirs, np, opts, command)
         
     if opts.printAll:
-        errorStats.printErrorStatDict(results, opts.relativeErrors, opts.decimals)
+        errorStats.printErrorStatDict(results, opts.relativeErrors, opts.decimals, opts.printValues)
     else:
         print "Aggregate Results:"
         print aggRes

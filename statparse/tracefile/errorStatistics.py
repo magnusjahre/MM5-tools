@@ -12,32 +12,46 @@ import sys
 
 def getTitleLine(relative):
     if relative:
-        return ["", "Relative Mean Error (%)", "Relative RMS Error (%)", "Relative Standard Deviation (%)"]
-    return  ["", "Mean Error", "RMS Error", "Standard Deviation"]
+        return ["Relative Mean Error (%)", "Relative RMS Error (%)", "Relative Standard Deviation (%)"]
+    return  ["Mean Error", "RMS Error", "Standard Deviation"]
 
-def getJustifyArray():
+def getJustifyArray(printAvgVals):
+    if printAvgVals:
+        return [True, False, False, False, False, False]
     return [True, False, False, False]
 
 """ Prints a error dictionary
 
     errors: key string -> ErrorStatistics object
 """
-def printErrorStatDict(errors, relative, decimals):
+def printErrorStatDict(errors, relative, decimals, printAvgValues):
     lines = []
-    lines.append(getTitleLine(relative))
+    header = [""]
+    if printAvgValues:
+        header.append("Average Value")
+        header.append("Average Baseline Value")
+    for t in getTitleLine(relative):
+        header.append(t)
+    
+    lines.append(header)
     
     keys = errors.keys()
     keys.sort()
     
     for k in keys:
         mean, rms, stdev = errors[k].getStats()
-        thisLine = [str(k),
-                    numberToString(mean, decimals),
-                    numberToString(rms, decimals),
-                    numberToString(stdev, decimals)]
+        thisLine = [str(k)]
+        if printAvgValues:
+            val, baseline = errors[k].getValues()
+            thisLine.append(numberToString(val, decimals))
+            thisLine.append(numberToString(baseline, decimals))
+        
+        thisLine.append(numberToString(mean, decimals))
+        thisLine.append(numberToString(rms, decimals))
+        thisLine.append(numberToString(stdev, decimals))
         lines.append(thisLine)
         
-    printData(lines, getJustifyArray(), sys.stdout, decimals)
+    printData(lines, getJustifyArray(printAvgValues), sys.stdout, decimals)
         
 
 class ErrorStatistics():
@@ -48,11 +62,22 @@ class ErrorStatistics():
         self.errsqsum = 0
         self.numerrs = 0
         
+        self.valsum = 0
+        self.baselinesum = 0
+        
         self.relative = relative
         
-    def sample(self, error, baseline):
+    def sample(self, value, baseline):
+        
+        self.valsum += value
+        self.baselinesum += baseline
+        
+        error = value - baseline
         if self.relative:
-            tmperr = (float(error) / float(baseline)) * 100
+            try:
+                tmperr = (float(error) / float(baseline)) * 100
+            except ZeroDivisionError:
+                tmperr = 0
         else:
             tmperr = float(error)
         
@@ -65,6 +90,11 @@ class ErrorStatistics():
         rms = computeRMS(self.numerrs, self.errsqsum)
         stdev = computeStddev(self.numerrs, self.errsum, self.errsqsum)
         return mean, rms, stdev
+    
+    def getValues(self):
+        valmean = computeMean(self.numerrs, self.valsum)
+        baselinemean = computeMean(self.numerrs, self.baselinesum)
+        return valmean, baselinemean
     
     def __str__(self):
         return self.toString(2)
@@ -89,4 +119,5 @@ class ErrorStatistics():
     def aggregate(self, addErrors):
         self.errsum += addErrors.errsum
         self.errsqsum += addErrors.errsqsum
-        self.numerrs += addErrors.numerrs
+        self.numerrs += addErrors.numerrs        
+        

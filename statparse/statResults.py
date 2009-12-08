@@ -415,7 +415,7 @@ class StatResults():
                         found = True
                         
                         if len(aggregate[config]) > simpoint:
-                            valuePresent = True 
+                            valuePresent = True
                             if cpuID != np:
                                 line.append(printResults.numberToString(aggregate[config][simpoint][cpuID], decimals))
                             else:

@@ -64,7 +64,8 @@ def readFiles(filenames, opts):
             else:
                 values = re.split(opts.dataSeparator, line.strip())
                 if numVals != 0:
-                    assert len(values) == numVals
+                    if len(values) != numVals:
+                        fatal("Parse error, got header "+str(head))
                 numVals = len(values)
                 fileRows.append(values)
                 

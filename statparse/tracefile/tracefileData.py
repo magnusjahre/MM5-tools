@@ -228,10 +228,15 @@ def computeInterpolatedErrors(mainTrace,
             
     return errsum, errsqsum, numerrs
 
-def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relative):
+def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relative, **kwargs):
     
-    mainColID = mainTrace.findColumnID(mainColumnName, -1)
-    otherColId = otherTrace.findColumnID(otherColumnName, -1)
+    if "cpuID" in kwargs:
+        cpuID = kwargs["cpuID"]
+    else:
+        cpuID = -1
+    
+    mainColID = mainTrace.findColumnID(mainColumnName, cpuID)
+    otherColId = otherTrace.findColumnID(otherColumnName, cpuID)
 
     if mainColID == -1 or otherColId == -1:
         raise Exception("Column "+mainColumnName+" or "+otherColumnName+" not found")
@@ -243,7 +248,7 @@ def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relati
     
     errors = ErrorStatistics(relative)    
     for i in range(len(mainColData)):
-        errors.sample(otherColData[i] - mainColData[i], mainColData[i])
+        errors.sample(otherColData[i], mainColData[i])
 
     return errors
 
