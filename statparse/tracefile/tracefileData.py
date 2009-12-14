@@ -244,13 +244,19 @@ def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relati
     mainColData = mainTrace.getColumn(mainColID)
     otherColData = otherTrace.getColumn(otherColId)
     
-    assert len(otherColData) >= len(mainColData)
+    if len(otherColData) < len(mainColData):
+        raise MalformedTraceFileException("Malformed tracefile, other data is longer than main data")
     
     errors = ErrorStatistics(relative)    
     for i in range(len(mainColData)):
         errors.sample(otherColData[i], mainColData[i])
 
     return errors
+
+class MalformedTraceFileException(Exception):
+    def __init__(self, message):
+        self.message = message
+    
 
 class TracefileData():
 

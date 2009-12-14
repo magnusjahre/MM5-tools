@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from enthought.mayavi import mlab
 import statparse.metrics as metrics
-from matplotlib.pyplot import boxplot
+from matplotlib.pyplot import boxplot, imshow
 from statparse import experimentConfiguration
 
 COLORLIST = []
@@ -270,5 +270,42 @@ def plotLines(xvalues, yvalues, **kwargs):
             plt.savefig(kwargs["filename"], type="pdf")
             return
         
+    plt.show()
+    
+def plotImage(image, **kwargs):
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    plt.imshow(image)
+    plt.grid(True)
+    plt.colorbar()
+    
+    if "xrange" in kwargs:
+        if kwargs["xrange"] != "":
+            
+            try:
+                minX,maxX = kwargs["xrange"].split(",")
+            except:
+                raise Exception("X range spec must be of type min,max")            
+            ax.set_xlim( (float(minX), float(maxX))  )
+    
+    if "yrange" in kwargs:
+        if kwargs["yrange"] != "":
+            
+            try:
+                minY,maxY = kwargs["yrange"].split(",")
+            except:
+                raise Exception("Y range spec must be of type min,max")            
+            ax.set_ylim( (float(minY), float(maxY))  )
+    
+    if "xlabel" in kwargs:
+        if kwargs["xlabel"] != "none":
+            ax.set_xlabel(kwargs["xlabel"])
+    
+    if "ylabel" in kwargs:
+        if kwargs["ylabel"] != "none":
+            ax.set_ylabel(kwargs["ylabel"])
+    
     plt.show()
     

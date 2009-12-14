@@ -11,6 +11,7 @@ from optparse import OptionParser
 from statparse.util import fatal
 from statparse.util import warn
 from statparse.util import getExperimentDirs
+from statparse.tracefile import tracefileData
 
 commands = ["IPC", "MWS", "latency"]
 
@@ -71,14 +72,20 @@ def computeIPCEstimateErrors(dirs, np, opts, command):
             aloneTrace = TracefileData(getTracename(aloneDirIDs[aloneCPUID], 0))
             aloneTrace.readTracefile()
             
-            if command == "IPC":
-                curStats = tracefile.computeErrors(aloneTrace, "Measured Alone IPC", sharedTrace, "Estimated Alone IPC", opts.relativeErrors)
-            elif command == "MWS":
-                curStats = tracefile.computeErrors(aloneTrace, "Misses while Stalled", sharedTrace, "Misses while Stalled", opts.relativeErrors)
-            elif command == "latency":
-                curStats = tracefile.computeErrors(aloneTrace, "Alone Memory Latency", sharedTrace, "Estimated Private Latency", opts.relativeErrors)
-            else:
-                assert False, "unknown command"
+            try:
+                if command == "IPC":
+                    curStats = tracefile.computeErrors(aloneTrace, "Measured Alone IPC", sharedTrace, "Estimated Alone IPC", opts.relativeErrors)
+                    
+                elif command == "MWS":
+                    curStats = tracefile.computeErrors(aloneTrace, "Misses while Stalled", sharedTrace, "Misses while Stalled", opts.relativeErrors)
+                elif command == "latency":
+                    curStats = tracefile.computeErrors(aloneTrace, "Alone Memory Latency", sharedTrace, "Estimated Private Latency", opts.relativeErrors)
+                else:
+                    assert False, "unknown command"
+            
+            except tracefileData.MalformedTraceFileException:
+                warn("Malformed tracefile for file "+getTracename(shDirID, aloneCPUID))
+                continue
             
             aggregateErrors.aggregate(curStats)
             
