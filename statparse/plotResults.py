@@ -301,11 +301,16 @@ def plotImage(image, **kwargs):
     
     if "xlabel" in kwargs:
         if kwargs["xlabel"] != "none":
-            ax.set_xlabel(kwargs["xlabel"])
+            ax.set_xlabel(kwargs["xlabel"], size="large")
     
     if "ylabel" in kwargs:
         if kwargs["ylabel"] != "none":
-            ax.set_ylabel(kwargs["ylabel"])
+            ax.set_ylabel(kwargs["ylabel"], size="large")
+    
+    if "filename" in kwargs:
+        if kwargs["filename"] != "":
+            plt.savefig(kwargs["filename"], type="pdf")
+            return
     
     plt.show()
     
