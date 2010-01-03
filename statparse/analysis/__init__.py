@@ -2,7 +2,8 @@
 from math import sqrt
 
 def computeStddev(n, sum, sumsq):
-    assert n > 1
+    if n <= 1:
+        return 0
     
     n = float(n)
     sumsq = float(sumsq)
@@ -10,6 +11,9 @@ def computeStddev(n, sum, sumsq):
     return  sqrt( max(((n * sumsq) - sum * sum) / (n * (n-1)), 0) )
 
 def computeMean(n, sum):
+    if n == 0:
+        return 0
+    
     n = float(n)
     sum = float(sum)
     return sum / n
