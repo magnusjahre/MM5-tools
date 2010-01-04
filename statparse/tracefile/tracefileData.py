@@ -15,6 +15,8 @@ import re
 
 __metaclass__ = type
 
+INTMAX = 2147483647.0
+
 def parseColumnSpec(colSpec):
     
     errMessage = "Y-col spec can be a comma separated list of integers (1,2,3), a range (1-5) or a single number (1). All numbers may be preceeded with a file ID number (1:1, 2:4)"
@@ -249,7 +251,11 @@ def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relati
     
     errors = ErrorStatistics(relative)    
     for i in range(len(mainColData)):
-        errors.sample(otherColData[i], mainColData[i])
+        if otherColData[i] != INTMAX:
+            errors.sample(otherColData[i], mainColData[i])
+        else:
+            if otherColData[i] != mainColData[i]:
+                raise MalformedTraceFileException("Malformed tracefile, one column uses special invalid value INT_MAX but the other has a valid value ")
 
     return errors
 

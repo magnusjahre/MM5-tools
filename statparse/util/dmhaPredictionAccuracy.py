@@ -12,7 +12,7 @@ from statparse.util import fatal
 from statparse.util import warn
 from statparse.util import getExperimentDirs
 
-commands = ["requests", "latency"]
+commands = ["requests", "latency", "ipc"]
 
 
 def parseArgs():
@@ -69,6 +69,8 @@ def computePredictionAccuracy(dirs, np, opts, command):
                 curStats = tracefile.computeErrors(predictionTrace, "Measured Num Requests", predictionTrace, "Estimated Num Requests", opts.relativeErrors, cpuID=cpuID)
             elif command == "latency":
                 curStats = tracefile.computeErrors(predictionTrace, "Measured Avg Shared Latency", predictionTrace, "Estimated Avg Shared Latency", opts.relativeErrors, cpuID=cpuID)
+            elif command == "ipc":
+                curStats = tracefile.computeErrors(predictionTrace, "Measured IPC", predictionTrace, "Estimated IPC", opts.relativeErrors, cpuID=cpuID)
             else:
                 assert False, "unknown command"
             
