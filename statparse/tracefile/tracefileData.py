@@ -246,11 +246,15 @@ def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relati
     mainColData = mainTrace.getColumn(mainColID)
     otherColData = otherTrace.getColumn(otherColId)
     
+    useElements = len(mainColData)
     if len(otherColData) < len(mainColData):
-        raise MalformedTraceFileException("Malformed tracefile, other data is longer than main data")
+        useElements = len(otherColData) 
+        diff = len(mainColData) - len(otherColData)
+        if diff > 1:
+            raise MalformedTraceFileException("Malformed tracefile, other data more than one element longer than main data")
     
     errors = ErrorStatistics(relative)    
-    for i in range(len(mainColData)):
+    for i in range(useElements):
         if otherColData[i] != INTMAX:
             errors.sample(otherColData[i], mainColData[i])
         else:
