@@ -120,6 +120,7 @@ def flush_commands(fcnt):
     # Finish file
     output.close()
     
+    print "Attempting to submit file "+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs'
     results = popen2.popen3('qsub '+pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs')
     print results[0].read()
     print results[2].read()
