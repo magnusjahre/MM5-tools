@@ -8,6 +8,7 @@ from statparse.analysis import computeRMS
 from statparse.analysis import computeStddev
 from statparse.printResults import printData
 from statparse.printResults import numberToString
+from statparse.plotResults import plotRawBoxPlot
 import sys
 
 def getTitleLine(relative):
@@ -52,7 +53,17 @@ def printErrorStatDict(errors, relative, decimals, printAvgValues):
         lines.append(thisLine)
         
     printData(lines, getJustifyArray(printAvgValues), sys.stdout, decimals)
-        
+
+""" Plots a box and whiskers plot based on data from a dictionary of ErrorStatistics
+    objects
+"""
+def plotBoxFromDict(results, hideOutliers, title):
+    allErrors = []
+    for key in results:
+        for errVal in results[key].getAllErrors():
+            allErrors.append(errVal)
+    
+    plotRawBoxPlot([allErrors], hideOutliers=hideOutliers, titles=[title])
 
 class ErrorStatistics():
 
@@ -66,6 +77,7 @@ class ErrorStatistics():
         self.baselinesum = 0
         
         self.relative = relative
+        self.allErrors = []
         
     def sample(self, value, baseline):
         
@@ -84,6 +96,8 @@ class ErrorStatistics():
         self.errsum += tmperr
         self.errsqsum += tmperr*tmperr
         self.numerrs += 1
+        
+        self.allErrors.append(tmperr)
     
     def getStats(self):
         mean = computeMean(self.numerrs, self.errsum)
@@ -95,6 +109,9 @@ class ErrorStatistics():
         valmean = computeMean(self.numerrs, self.valsum)
         baselinemean = computeMean(self.numerrs, self.baselinesum)
         return valmean, baselinemean
+    
+    def getAllErrors(self):
+        return self.allErrors
     
     def __str__(self):
         return self.toString(2)

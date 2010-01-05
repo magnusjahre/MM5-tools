@@ -171,7 +171,56 @@ def plotBoxPlot(data, **kwargs):
     
     if not "no-show" in parameters:
         plt.show()
+
+""" Boxplot supports the following string parameters:
+    - data: a list of lists containing the data ranges to be visualized
+
+    - hideOutliers: shows/hides scatterplot of outliers
+    - filename: write plot to this file
+    - xlabel: x-axis label
+    - ylabel: y-axis label
+    - titles: A list of x-axis titles which contains the same number of elements
+              as the data list
+"""    
+def plotRawBoxPlot(data, **kwargs):
     
+    if "hideOutliers" in kwargs:
+        if kwargs["hideOutliers"]:
+            outSymbol = ""
+        else:
+            outSymbol = "b+"
+    else:
+        outSymbol = ""
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    boxplot(data, sym=outSymbol)
+
+    xPositions = [i for i in range(len(data)+1)[1:]] 
+    averages = [np.average(d) for d in data]
+    avgLine = plt.plot(xPositions, averages, 'o')
+
+    if "titles" in kwargs:
+        if len(kwargs["titles"]) != len(data):
+            raise Exception("The tiltles list must have the same length as the data list")
+        
+        ax.set_xticklabels(kwargs["titles"])
+    ax.set_xlim(0.5, len(data)+0.5)
+
+    fig.legend(avgLine, ["Arithmetic Mean"], "upper center", numpoints=1)
+    
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"])
+    
+    if "ylabel" in kwargs:
+        ax.set_ylabel(kwargs["ylabel"])
+    
+    if "filename" in kwargs:
+        plt.savefig(kwargs["filename"], type="pdf")
+    else:
+        plt.show()
+
 def plot3DPoints(data, **kwargs):
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)

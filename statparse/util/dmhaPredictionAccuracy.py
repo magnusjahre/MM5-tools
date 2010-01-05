@@ -12,6 +12,8 @@ from statparse.util import fatal
 from statparse.util import warn
 from statparse.util import getExperimentDirs
 
+from statparse.tracefile.errorStatistics import plotBoxFromDict
+
 commands = ["requests", "latency", "ipc"]
 
 
@@ -25,6 +27,8 @@ def parseArgs():
     parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print results for each workload")
     parser.add_option("--relative", action="store_true", dest="relativeErrors", default=False, help="Print relative errors (Default: absolute)")
     parser.add_option("--print-values", action="store_true", dest="printValues", default=False, help="Print average values as well as errors")
+    parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
+    parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")
     
     opts, args = parser.parse_args()
     
@@ -108,6 +112,10 @@ def main():
     else:
         print "Aggregate Results:"
         print aggRes
+
+    if opts.plotBox:
+        plotBoxFromDict(results, opts.hideOutliers, command)
+        
 
 if __name__ == '__main__':
     main()
