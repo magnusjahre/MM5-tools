@@ -6,6 +6,7 @@ from statparse.statResults import StatResults
 import statparse.experimentConfiguration as expconfig 
 import statparse.processResults as processResults
 import statparse.printResults as printResults
+from statparse import plotResults
 
 import sys
 import os
@@ -21,6 +22,7 @@ def parseArgs():
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--absolute-error", action="store_true", dest="abserror", default=False, help="Print absolute number of misses (default is relative to the number of shared cache misses)")
     parser.add_option("--print-banks", action="store_true", dest="printbanks", default=False, help="Print results per bank")
+    parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Create box and whiskers plot")
     
     opts, args = parser.parse_args()
     if len(args) != 1:
@@ -42,6 +44,7 @@ def evaluateATDAccuracy(results, opts, np):
         sharedMisses = []
         sharedEstimates = []
         aloneMisses = []
+        
         for b in range(numBanks):
             cpuID = expconfig.findCPUID(config.workload, config.benchmark, config.np)
             
@@ -63,19 +66,19 @@ def evaluateATDAccuracy(results, opts, np):
         if opts.printbanks:
             assert False, "Printing per bank results not implemented"
         
-        
-        colName = "Absolute Error"
         err = sum(sharedEstimates) - sum(aloneMisses)
-        
         if not opts.abserror:
-            colName = "Relative Error"
             err = float(err)/float(sum(sharedMisses))
         
         assert config not in missErrorResults
-        missErrorResults[config] = {}
-        missErrorResults[config][colName] = err
+        missErrorResults[config] = err
+
+    if opts.plotBox:
+        plotFunc = plotResults.plotBoxPlot
+    else:
+        plotFunc = None
             
-    printResults.printResultDictionary(missErrorResults, opts.decimals, sys.stdout)
+    printResults.printWorkloadResultTable(missErrorResults, opts.decimals, sys.stdout, np, plotFunc)
     
 def main():
     

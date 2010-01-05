@@ -327,7 +327,7 @@ class StatResults():
         titleLine = [""]
         leftJust = [True]
         for p in sortedParams:
-            titleLine.append(self._paramsToString(p))
+            titleLine.append(printResults.paramsToString(p, self.paramValuesOnly))
             leftJust.append(False)
             
         outdata.append(titleLine)
@@ -423,29 +423,6 @@ class StatResults():
             if valuePresent:
                 outdata.append(line)
         return outdata
-
-    def _paramsToString(self, params):
-        
-        if self.paramValuesOnly:
-            if len(params.keys()) != 1:
-                raise Exception("Value only parameter keys only makes when there is one parameter class in the search result")
-            return str(params[params.keys()[0]])
-        
-        sortedKeys = params.keys()
-        sortedKeys.sort()
-        
-        retstr = ""
-        isFirst = True
-        for k in sortedKeys:
-            if isFirst:
-                isFirst = False
-            else:
-                retstr += "-"
-            
-            retstr += str(k)[0:3]+"-"+str(params[k])
-            
-        
-        return retstr
         
     def _processSingleResults(self, bm, params, memsysNp):
         nominatorRes = processResults.filterResults(self.noPatResults, 1, params, experimentConfiguration.singleWlID, bm, memsysNp)

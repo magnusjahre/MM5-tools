@@ -73,6 +73,7 @@ def isSPB(suspectedSPBConfig, MPBConfig):
     matchConfig.copy(MPBConfig)
     matchConfig.np = 1
     matchConfig.workload = singleWlID
+    matchConfig.parameters = {}
     
     return suspectedSPBConfig.compareTo(matchConfig)
     

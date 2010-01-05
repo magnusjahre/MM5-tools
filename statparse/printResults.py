@@ -1,3 +1,5 @@
+from statparse.processResults import findAllParams, findAllWorkloads
+from deterministic_fw_wls import getBms
 
 import metrics
 
@@ -63,6 +65,29 @@ def numberToString(number, decimalPlaces):
         return number
     
     raise TypeError("number is not int or float")
+
+def paramsToString(params, valuesOnly = False):
+    
+    if valuesOnly:
+        if len(params.keys()) != 1:
+            raise Exception("Value only parameter keys only makes when there is one parameter class in the search result")
+        return str(params[params.keys()[0]])
+    
+    sortedKeys = params.keys()
+    sortedKeys.sort()
+    
+    retstr = ""
+    isFirst = True
+    for k in sortedKeys:
+        if isFirst:
+            isFirst = False
+        else:
+            retstr += "-"
+        
+        retstr += str(k)[0:3]+"-"+str(params[k])
+        
+    
+    return retstr
 
 def normalize(data, toColumnID, decimals):
     
@@ -143,7 +168,7 @@ def simplePrint(results, decimalPlaces, outfile):
             outtext.append(line) 
             
     printData(outtext, leftJustify, outfile, decimalPlaces)
-    
+
 def printResultDictionary(resultdict, decimals, outfile, titles = None, plotFunction = None):
     """ Prints the dictionary provided. If titles are provided, they are used 
         instead of the header in resultdict
@@ -188,5 +213,50 @@ def printResultDictionary(resultdict, decimals, outfile, titles = None, plotFunc
         for h in headers:
             line.append(numberToString(configNameDict[config][h], decimals))
         outdata.append(line)
+    
+    printData(outdata, leftjust, outfile, decimals, plotFunction=plotFunction)
+
+    
+def printWorkloadResultTable(resultdict, decimals, outfile, np, plotFunction = None):
+    """ Prints the dictionary provided.
+    
+        Arguments:
+            resultdict, dictionary: configuration -> value
+            decimals, int: number of decimal points
+            outfile, file: an open file to use for printing
+    """
+    
+    if resultdict == {}:
+        raise Exception("Result dicionary cannot be empty")
+    
+    allParams = findAllParams(resultdict.keys())
+    paramlist = createSortedParamList(allParams)    
+    
+    outdata = []
+    leftjust = [True]
+    headrow = [""]
+    for paramcomb in paramlist:
+        headrow.append(paramsToString(paramcomb))
+        leftjust.append(False)
+    outdata.append(headrow)
+    
+    allWls = findAllWorkloads(resultdict.keys())
+    allWls.sort()
+    
+    for wl in allWls:
+        for bm in getBms(wl, np, True):
+            line = [wl+"-"+bm]
+            for paramcomb in paramlist:
+                found = False
+                value = -1
+                for config in resultdict.keys():
+                    if config.parameters == paramcomb and config.workload == wl and config.benchmark == bm:
+                        assert not found
+                        value = resultdict[config]
+                        found = True
+                        
+                assert found
+                line.append(numberToString(value, decimals))
+            outdata.append(line)
     
     printData(outdata, leftjust, outfile, decimals, plotFunction=plotFunction)
