@@ -271,6 +271,13 @@ def writeSearchResults(statSearch, opts, outfile):
         outfile.close()
 
 def doSearch(index, searchConfig, args, options, baseconfig, experimentConfig):
+    
+    if experimentConfig != None:
+        baselineParams = experimentConfig.baselineParameters
+    else:
+        baselineParams = None    
+    
+    
     statSearch = StatResults(index, searchConfig, options.aggPatterns, options.quiet,
                              baseconfig=baseconfig, 
                              createNoPatResults=(not options.printAllPatterns),
@@ -279,7 +286,7 @@ def doSearch(index, searchConfig, args, options, baseconfig, experimentConfig):
                              vectorStat=options.vectorStat,
                              plotParamString=options.plotParams,
                              onlyParamKeyValues=options.onlyParamKeyValue,
-                             baselineParameters=experimentConfig.baselineParameters)
+                             baselineParameters=baselineParams)
     if len(args) == 1:
         statSearch.plainSearch(args[0])
     else:

@@ -117,15 +117,18 @@ class ErrorStatistics():
         self.relative = relative
         self.allErrors = []
         
-    def sample(self, value, baseline):
+    def sample(self, estimate, actual, baseline = -1):
         
-        self.valsum += value
-        self.baselinesum += baseline
+        self.valsum += estimate
+        self.baselinesum += actual
         
-        error = value - baseline
+        error = estimate - actual
         if self.relative:
             try:
-                tmperr = (float(error) / float(baseline)) * 100
+                if baseline == -1:
+                    tmperr = (float(error) / float(actual)) * 100
+                else:
+                    tmperr = (float(error) / float(baseline)) * 100
             except ZeroDivisionError:
                 tmperr = 0
         else:

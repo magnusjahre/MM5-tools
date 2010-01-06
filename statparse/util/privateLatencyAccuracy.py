@@ -39,6 +39,8 @@ def getTracename(directory, aloneCPUID, sharedMode):
     
     return directory+"/"+prefix+str(aloneCPUID)+postfix
 
+
+
 def main():
 
     opts,args = parseArgs()
@@ -57,12 +59,31 @@ def main():
     
     dirs, sortedparams = getNpExperimentDirs(np)
     
+    if opts.relativeErrors:
+        
+        if command == "total":
+            colname = "Total"
+        elif command == "bus-service":
+            colname = "bus_service"
+        elif command == "bus-queue":
+            colname = "bus_queue"
+        else:
+            assert False, "unknown command"
+        
+        
+        def getBaselineName(directory, aloneCPUID):
+            return directory+"/CPU"+str(aloneCPUID)+"LatencyTrace.txt", colname 
+        
+        baselineFunc = getBaselineName
+    else:
+        baselineFunc = None
+    
     if command == "total":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Total", "Total", False, True)
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Total", "Total", False, True, baselineFunc)
     elif command == "bus-service":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "bus_service", "bus_service", False, True)
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "bus_service", "bus_service", False, True, baselineFunc)
     elif command == "bus-queue":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "bus_queue", "bus_queue", False, True)
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "bus_queue", "bus_queue", False, True, baselineFunc)
     else:
         assert False, "unknown command"
         

@@ -236,11 +236,23 @@ def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relati
     else:
         cpuID = -1
     
+    if "baselineTrace" in kwargs:
+        if "baselineColumnName" not in kwargs:
+            raise Exception("baselineTrace cannot be provided without baselineColumnName")
+        baselineTrace = kwargs["baselineTrace"]
+        baselineColID = baselineTrace.findColumnID(kwargs["baselineColumnName"], cpuID)
+        if baselineColID == -1:
+            raise Exception("Column "+kwargs["baselineColumnName"]+" not found")
+        baselineData = baselineTrace.getColumn(baselineColID)
+    else:
+        baselineData = []
+    
     mainColID = mainTrace.findColumnID(mainColumnName, cpuID)
     otherColId = otherTrace.findColumnID(otherColumnName, cpuID)
 
     if mainColID == -1 or otherColId == -1:
         raise Exception("Column "+mainColumnName+" or "+otherColumnName+" not found")
+
 
     mainColData = mainTrace.getColumn(mainColID)
     otherColData = otherTrace.getColumn(otherColId)
@@ -252,10 +264,16 @@ def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relati
         if diff > 1:
             raise MalformedTraceFileException("Malformed tracefile, other data more than one element longer than main data")
     
+    if baselineData != []:
+        assert len(baselineData) == len(otherColData)
+    
     errors = ErrorStatistics(relative)    
     for i in range(useElements):
         if otherColData[i] != INTMAX:
-            errors.sample(otherColData[i], mainColData[i])
+            if baselineData != []:
+                errors.sample(otherColData[i], mainColData[i], baselineData[i])
+            else:
+                errors.sample(otherColData[i], mainColData[i])
         else:
             if otherColData[i] != mainColData[i]:
                 raise MalformedTraceFileException("Malformed tracefile, one column uses special invalid value INT_MAX but the other has a valid value ")
