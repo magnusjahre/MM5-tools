@@ -11,6 +11,21 @@ from statparse.printResults import numberToString
 from statparse.plotResults import plotRawBoxPlot
 import sys
 
+
+
+statNames = ["mean", "rms", "stdev"]
+
+def checkStatName(name):
+    if name in statNames:
+        return True
+    return False
+         
+def getStatnameMessage():
+    retstr = "Available statistics are: "+statNames[0]
+    for s in statNames[1:]:
+        retstr += ", "+s
+    return retstr
+
 def getTitleLine(relative):
     if relative:
         return ["Relative Mean Error (%)", "Relative RMS Error (%)", "Relative Standard Deviation (%)"]
@@ -25,34 +40,57 @@ def getJustifyArray(printAvgVals):
 
     errors: key string -> ErrorStatistics object
 """
-def printErrorStatDict(errors, relative, decimals, printAvgValues):
+def printErrorStatDict(errors, relative, decimals, sortedkeys = None):
     lines = []
     header = [""]
-    if printAvgValues:
-        header.append("Average Value")
-        header.append("Average Baseline Value")
     for t in getTitleLine(relative):
         header.append(t)
     
     lines.append(header)
     
-    keys = errors.keys()
-    keys.sort()
+    if sortedkeys == None:
+        keys = errors.keys()
+        keys.sort()
+    else:
+        keys = sortedkeys
     
     for k in keys:
         mean, rms, stdev = errors[k].getStats()
         thisLine = [str(k)]
-        if printAvgValues:
-            val, baseline = errors[k].getValues()
-            thisLine.append(numberToString(val, decimals))
-            thisLine.append(numberToString(baseline, decimals))
         
         thisLine.append(numberToString(mean, decimals))
         thisLine.append(numberToString(rms, decimals))
         thisLine.append(numberToString(stdev, decimals))
         lines.append(thisLine)
         
-    printData(lines, getJustifyArray(printAvgValues), sys.stdout, decimals)
+    printData(lines, getJustifyArray(False), sys.stdout, decimals)
+
+""" Prints error dictionary with parameters
+
+    errors: key string -> parameter string --> ErrorStatistics object
+    sortedParamKeys: list of strings with the order the parameters should appear in
+    statistic: a string describing the statistic to print
+"""
+def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decimals):
+    
+    header = [""]
+    justify = [True]
+    for p in sortedParamKeys:
+        header.append(p)
+        justify.append(False)
+    
+    lines = [header]
+    
+    mainkeys = errors.keys()
+    mainkeys.sort()
+    
+    for key in mainkeys:
+        thisLine = [key]
+        for p in sortedParamKeys:
+            thisLine.append(numberToString(errors[key][p].getStatByName(statistic), decimals))
+        lines.append(thisLine)
+    
+    printData(lines, justify, sys.stdout, decimals)
 
 """ Plots a box and whiskers plot based on data from a dictionary of ErrorStatistics
     objects
@@ -98,6 +136,21 @@ class ErrorStatistics():
         self.numerrs += 1
         
         self.allErrors.append(tmperr)
+    
+    
+    def getStatByName(self, name):
+        
+        if name not in statNames:
+            raise Exception("Unknown statistic name "+str(name))
+        
+        mean,rms,stdev = self.getStats()
+        if name == "mean":
+            return mean
+        if name == "rms":
+            return rms
+        
+        assert name == "stdev"
+        return stdev
     
     def getStats(self):
         mean = computeMean(self.numerrs, self.errsum)

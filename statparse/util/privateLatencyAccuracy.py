@@ -1,93 +1,43 @@
 #!/usr/bin/env python
-from statparse.tracefile.errorStatistics import ErrorStatistics
-import statparse.tracefile.errorStatistics as errorStats
-
-from statparse.tracefile.tracefileData import TracefileData
-import statparse.tracefile.tracefileData as tracefile
-import deterministic_fw_wls as workloads
 
 from optparse import OptionParser
+from statparse.util import fatal, getNpExperimentDirs, computeTraceError
+from statparse.tracefile.errorStatistics import checkStatName, getStatnameMessage, printParamErrorStatDict, plotBoxFromDict, printErrorStatDict
 
-from statparse.util import fatal
-from statparse.util import warn
-from statparse.util import getExperimentDirs
-from statparse.tracefile import tracefileData
-
-from statparse.tracefile.errorStatistics import plotBoxFromDict
+commands = ["total", "bus-queue", "bus-service"]
 
 def parseArgs():
-    parser = OptionParser(usage="privateLatencyAccuracy.py [options] np")
+    parser = OptionParser(usage="privateLatencyAccuracy.py [options] np command statistic")
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Print extra progress output")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
-    parser.add_option("--include-params", action="store", dest="includeParams", type="string", default="", help="A standard parameter string that indicates the parameters to include")
     parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print results for each workload")
     parser.add_option("--relative", action="store_true", dest="relativeErrors", default=False, help="Print relative errors (Default: absolute)")
-    parser.add_option("--print-values", action="store_true", dest="printValues", default=False, help="Print average values as well as errors")
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
     parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")   
     
     opts, args = parser.parse_args()
     
-    if len(args) != 1:
+    if len(args) != 3:
         fatal("command line error\nUsage: "+parser.usage)
+    
+    if args[1] not in commands:
+        fatal("Unknown command "+args[1]+", candidates are "+str(commands))
+    
+    if not checkStatName(args[2]):
+        fatal("Unknown statistic name. "+getStatnameMessage()) 
     
     return opts,args
 
-def getTracename(dir, cpuID, latency):
+def getTracename(directory, aloneCPUID, sharedMode):
     prefix = "CPU"
-    if latency:
-        postfix = "LatencyTrace.txt"
-    else:
+    if sharedMode:
         postfix = "InterferenceTrace.txt"
+    else:
+        postfix = "LatencyTrace.txt"
     
-    return dir+"/"+prefix+str(cpuID)+postfix
-
-def getResultKey(wl, aloneCPUID, bmNames):
-    return wl+"-"+str(aloneCPUID)+"-"+bmNames[aloneCPUID]
-
-def computeLatencyAccuracy(dirs, np, opts):
-    
-    results = {}
-    
-    aggregateErrors = ErrorStatistics(opts.relativeErrors)
-    for wl, shDirID, aloneDirIDs in dirs:
-        
-        if opts.verbose:
-            print "Processing workload "+wl
-            
-        bmNames = workloads.getBms(wl, np, False)
-        
-        for aloneCPUID in range(len(aloneDirIDs)):
-            
-            sharedTrace = TracefileData(getTracename(shDirID, aloneCPUID, False))
-        
-            try:
-                sharedTrace.readTracefile()
-            except IOError:
-                if not opts.quiet:
-                    warn("File "+getTracename(shDirID, aloneCPUID)+" cannot be opened, skipping...")
-                continue
-            
-            aloneTrace = TracefileData(getTracename(aloneDirIDs[aloneCPUID], 0, True))
-            aloneTrace.readTracefile()
-            
-            try:
-                curStats = tracefile.computeErrors(aloneTrace, "Total", sharedTrace, "Total", opts.relativeErrors)            
-            except tracefileData.MalformedTraceFileException:
-                warn("Malformed tracefile for file "+getTracename(shDirID, aloneCPUID, False))
-                continue
-            
-            aggregateErrors.aggregate(curStats)
-            
-            if getResultKey(wl, aloneCPUID, bmNames) in results:
-                fatal("This script only handles one variable parameter")
-            
-            results[getResultKey(wl, aloneCPUID, bmNames)] = curStats
-            
-        
-    return results, aggregateErrors 
+    return directory+"/"+prefix+str(aloneCPUID)+postfix
 
 def main():
 
@@ -97,19 +47,29 @@ def main():
     except:
         fatal("Number of CPUs must be an integer")
     
+    command = args[1]
+    statistic = args[2]
+    
     if not opts.quiet:
         print
-        print "Alone IPC Prediction Accuracy Estimation"
+        print "Number of Requests Synchronized Alone Latency Accuracy"
         print
     
-    dirs = getExperimentDirs(np, opts.includeParams)
-    results, aggRes = computeLatencyAccuracy(dirs, np, opts)
+    dirs, sortedparams = getNpExperimentDirs(np)
+    
+    if command == "total":
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Total", "Total", False, True)
+    elif command == "bus-service":
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "bus_service", "bus_service", False, True)
+    elif command == "bus-queue":
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "bus_queue", "bus_queue", False, True)
+    else:
+        assert False, "unknown command"
         
     if opts.printAll:
-        errorStats.printErrorStatDict(results, opts.relativeErrors, opts.decimals, opts.printValues)
+        printParamErrorStatDict(results, sortedparams, statistic, opts.relativeErrors, opts.decimals)
     else:
-        print "Aggregate Results:"
-        print aggRes
+        printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)
         
     if opts.plotBox:
         plotBoxFromDict(results, opts.hideOutliers, "Latency")

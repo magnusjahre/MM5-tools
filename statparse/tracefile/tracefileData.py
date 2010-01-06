@@ -8,7 +8,6 @@ from statparse.tracefile import isInt
 from statparse.tracefile import isFloat
 
 import statparse.plotResults as plotResults
-from statparse.util import warn
 from statparse.tracefile.errorStatistics import ErrorStatistics
 import math
 import re
@@ -214,7 +213,7 @@ def computeInterpolatedErrors(mainTrace,
         
         if math.isnan(intervalue):
             if not doNotWarn:
-                warn("Value is NaN, skipping")
+                print "Warning: Value is NaN, skipping"
             continue
         
         error = mainTrace.data[mainYColumnID][i] - intervalue

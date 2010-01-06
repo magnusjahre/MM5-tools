@@ -10,7 +10,7 @@ from optparse import OptionParser
 
 from statparse.util import fatal
 from statparse.util import warn
-from statparse.util import getExperimentDirs
+from statparse.util import getSingleParamExperimentDirs
 
 from statparse.analysis import computeStddev
 from statparse.analysis import computeMean
@@ -306,7 +306,7 @@ def main():
         print "Alone IPC Prediction Accuracy Estimation"
         print
     
-    dirs = getExperimentDirs(np, opts.includeParams, workload=opts.workload)
+    dirs = getSingleParamExperimentDirs(np, opts.includeParams, workload=opts.workload)
     results, aggRes = computeIPCEstimateErrors(dirs, np, opts, period)
     
     if opts.printAll:
