@@ -3,18 +3,18 @@ import sys
 import os
 import traceback
 
-import metrics
-import experimentConfiguration
-from experimentConfiguration import ExperimentConfiguration
-
 from optparse import OptionParser
 from optparse import OptionGroup
 from time import time
 
+import plotResults
+import metrics
+import experimentConfiguration
+from experimentConfiguration import ExperimentConfiguration
 from statfileParser import StatfileIndex
 from statResults import StatResults
 
-import plotResults
+import optcomplete
 
 def parseArgs():
     parser = OptionParser(usage="parseStats.py [options] (STATKEY | NUMERATOR-KEY DENOMINATOR-KEY)")
@@ -60,6 +60,7 @@ def parseArgs():
     otherOptions.add_option("--show-stacktrace", action="store_true", dest="showStackTrace", default=False, help="Show stacktrace on caught exceptions")
     parser.add_option_group(otherOptions)
     
+    optcomplete.autocomplete(parser)
     opts, args = parser.parse_args()
     
     if len(args) > 2 or len(args) < 1:
@@ -101,7 +102,6 @@ def parseArgs():
         if not opts.quiet:
             print "Parsed base config string and got spec "+str(basespec)+" and parameters "+str(baseparams)
             print "Resulting baseline configuration: "+str(baseconfig)
-    
     
     if opts.plot != "none":
         if opts.plot not in plotResults.plotnames:

@@ -1,9 +1,5 @@
 
-import numpy as np
-import matplotlib.pyplot as plt
-from enthought.mayavi import mlab
 import statparse.metrics as metrics
-from matplotlib.pyplot import boxplot, imshow
 from statparse import experimentConfiguration
 
 COLORLIST = []
@@ -60,6 +56,9 @@ def createInvertedPlotData(data):
 
 def plotBarChart(data, **kwargs):
     
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
     plotData, xticLabels, legendTitles = createInvertedPlotData(data)  
     
     ind = np.arange(len(xticLabels))
@@ -90,6 +89,8 @@ def plotBarChart(data, **kwargs):
     plt.show()
         
 def plotScatter(data, **kwargs):
+    
+    import matplotlib.pyplot as plt
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
@@ -125,6 +126,10 @@ def plotScatter(data, **kwargs):
     - yrange: minimum y value and maximum y value splitted by a T
 """    
 def plotBoxPlot(data, **kwargs):
+    
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.pyplot import boxplot
     
     parameters = parsePlotParamString(kwargs)
     if "no-outliers" in parameters:
@@ -184,6 +189,10 @@ def plotBoxPlot(data, **kwargs):
 """    
 def plotRawBoxPlot(data, **kwargs):
     
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.pyplot import boxplot
+    
     if "hideOutliers" in kwargs:
         if kwargs["hideOutliers"]:
             outSymbol = ""
@@ -223,6 +232,8 @@ def plotRawBoxPlot(data, **kwargs):
 
 def plot3DPoints(data, **kwargs):
     
+    from enthought.mayavi import mlab
+    
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
     if len(plotData) != 3:
@@ -235,6 +246,8 @@ def plot3DPoints(data, **kwargs):
     mlab.show()
     
 def plotNormalized3DPoints(data, **kwargs):
+    
+    from enthought.mayavi import mlab
     
     plotData, xticLabels, legendTiles = createInvertedPlotData(data)
     
@@ -261,6 +274,8 @@ def plotNormalized3DPoints(data, **kwargs):
     yvalues: a list of lists that provide the corresponing y-axis values
 """
 def plotLines(xvalues, yvalues, **kwargs):
+    
+    import matplotlib.pyplot as plt
     
     markers = ['b.-', 'g+-', 'r*-', 'co-', 'mv-']
     
@@ -322,6 +337,8 @@ def plotLines(xvalues, yvalues, **kwargs):
     plt.show()
     
 def plotImage(image, **kwargs):
+    
+    import matplotlib.pyplot as plt
     
     fig = plt.figure()
     ax = fig.add_subplot(111)

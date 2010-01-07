@@ -10,6 +10,10 @@ import os
 import re
 from copy import deepcopy
 
+from optparse import OptionParser
+import optcomplete
+import statparse.tracefile.errorStatistics as errorStats
+
 def fatal(message):
     print
     print "ERROR: "+message
@@ -217,4 +221,40 @@ def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, o
             assert paramkey not in results[reskey]
             results[reskey][paramkey] = curStats
     
-    return results, aggregateErrors 
+    return results, aggregateErrors
+
+class CustomListCompleter:
+    
+    def __init__(self, lists):
+        self.list = []
+        for l in lists:
+            for e in l:
+                self.list.append(e)
+        
+    def __call__(self, pwd, line, point, prefix, suffix):
+        return self.list
+
+def parseUtilArgs(programName, commands):
+    parser = OptionParser(usage=programName+" [options] np command statistic")
+
+    parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
+    parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Print extra progress output")
+    parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
+    parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print results for each workload")
+    parser.add_option("--relative", action="store_true", dest="relativeErrors", default=False, help="Print relative errors (Default: absolute)")
+    parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
+    parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")   
+    
+    optcomplete.autocomplete(parser, CustomListCompleter([commands, errorStats.statNames]))
+    opts, args = parser.parse_args()
+    
+    if len(args) != 3:
+        fatal("command line error\nUsage: "+parser.usage)
+    
+    if args[1] not in commands:
+        fatal("Unknown command "+args[1]+", candidates are "+str(commands))
+    
+    if not errorStats.checkStatName(args[2]):
+        fatal("Unknown statistic name. "+errorStats.getStatnameMessage()) 
+    
+    return opts,args
