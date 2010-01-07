@@ -46,7 +46,7 @@ def main():
         errorStats.printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)
         
     if opts.plotBox:
-        plotBoxFromDict(results, opts.hideOutliers, command)
+        plotBoxFromDict(results, opts.hideOutliers, sortedparams)
 
 if __name__ == '__main__':
     main()

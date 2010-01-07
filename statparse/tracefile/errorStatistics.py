@@ -92,16 +92,26 @@ def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decima
     
     printData(lines, justify, sys.stdout, decimals)
 
-""" Plots a box and whiskers plot based on data from a dictionary of ErrorStatistics
-    objects
+""" Plots a box and whiskers plot based on data from a dictionary 
+
+    results, dictionary - experimentKey -> parameterKey -> ErrorStatistics object
+    hideOutliers, bool 
+    title, list of strings - the sorted parameter titles
 """
-def plotBoxFromDict(results, hideOutliers, title):
-    allErrors = []
-    for key in results:
-        for errVal in results[key].getAllErrors():
-            allErrors.append(errVal)
+def plotBoxFromDict(results, hideOutliers, titles):
+    allErrors = {}
+    for expkey in results:
+        for paramkey in results[expkey]:
+            if paramkey not in allErrors:
+                allErrors[paramkey] = []
+            for errVal in results[expkey][paramkey].getAllErrors():
+                allErrors[paramkey].append(errVal)
     
-    plotRawBoxPlot([allErrors], hideOutliers=hideOutliers, titles=[title])
+    allErrorLists = []
+    for t in titles:
+        allErrorLists.append(allErrors[t])
+    
+    plotRawBoxPlot(allErrorLists, hideOutliers=hideOutliers, titles=titles)
 
 class ErrorStatistics():
 

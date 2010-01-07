@@ -66,7 +66,7 @@ def main():
         printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)
         
     if opts.plotBox:
-        plotBoxFromDict(results, opts.hideOutliers, "Latency")
+        plotBoxFromDict(results, opts.hideOutliers, sortedparams)
 
 if __name__ == '__main__':
     main()
