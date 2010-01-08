@@ -84,8 +84,6 @@ def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decima
     mainkeys = errors.keys()
     mainkeys.sort()
     
-    print sortedParamKeys
-    
     for key in mainkeys:
         thisLine = [key]
         for p in sortedParamKeys:
