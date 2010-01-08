@@ -84,10 +84,15 @@ def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decima
     mainkeys = errors.keys()
     mainkeys.sort()
     
+    print sortedParamKeys
+    
     for key in mainkeys:
         thisLine = [key]
         for p in sortedParamKeys:
-            thisLine.append(numberToString(errors[key][p].getStatByName(statistic), decimals))
+            if p in errors[key]:
+                thisLine.append(numberToString(errors[key][p].getStatByName(statistic), decimals))
+            else:
+                thisLine.append("N/A")
         lines.append(thisLine)
     
     printData(lines, justify, sys.stdout, decimals)
