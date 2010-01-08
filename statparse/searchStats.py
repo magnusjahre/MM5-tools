@@ -25,7 +25,8 @@ def parseArgs():
     searchOptions.add_option("--benchmark", action="store", dest="benchmark", type="string", default="*", help="Only present the results for this benchmark")
     searchOptions.add_option("--workload", action="store", dest="workload", type="string", default="*", help="Only present the results for this benchmark")
     searchOptions.add_option("--parameters", action="store", dest="parameters", type="string", default="", help="Only print configs matching key and value. Format: key1-val1:key2-val2:...")
-    searchOptions.add_option("--search-file", action="store", dest="searchFile", type="string", default="", help="Search after key in this file")
+    opt = searchOptions.add_option("--search-file", action="store", dest="searchFile", type="string", default="", help="Search after key in this file")
+    opt.completer = optcomplete.RegexCompleter(".*\.txt")
     parser.add_option_group(searchOptions)
     
     aggregationOptions = OptionGroup(parser, "Result Aggregation Options")
@@ -123,9 +124,17 @@ def getIndexmodule(basename):
 def createFileIndex(opts, args):
     
     if opts.searchFile != "":
-        if opts.np == -1 or opts.workload == "*":
-            print "Options --np and --workload are required for single experiment parsing"
+        if opts.np == -1:
+            print "Option --np is required for single experiment parsing"
             sys.exit(-1) 
+    
+        if opts.np > 1 and opts.workload == "*":
+            print "Option --workload is required for single experiment parsing"
+            sys.exit(-1)
+        
+        if opts.np == 1 and opts.benchmark == "*":
+            print "Option --benchmark is required for single experiment parsing"
+            sys.exit(-1)
     
         pbsconfig = None
         indexmodule, indexmodulename = getIndexmodule(os.path.basename(opts.searchFile).split(".")[0])
@@ -159,7 +168,10 @@ def createFileIndex(opts, args):
             starttime = time()
             
         if opts.searchFile != "":
-            index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
+            if opts.np == 1:
+                index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.benchmark)
+            else:
+                index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
         else:
             assert pbsconfig != None
             totalLines = float(len(pbsconfig.commandlines))
