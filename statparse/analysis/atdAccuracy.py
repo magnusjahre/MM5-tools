@@ -7,9 +7,11 @@ import statparse.experimentConfiguration as expconfig
 import statparse.processResults as processResults
 import statparse.printResults as printResults
 from statparse import plotResults
+from optcomplete import ListCompleter
 
 import sys
 import os
+import optcomplete
 
 indexmodulename = "index-all"
 numBanks = 4
@@ -23,6 +25,8 @@ def parseArgs():
     parser.add_option("--absolute-error", action="store_true", dest="abserror", default=False, help="Print absolute number of misses (default is relative to the number of shared cache misses)")
     parser.add_option("--print-banks", action="store_true", dest="printbanks", default=False, help="Print results per bank")
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Create box and whiskers plot")
+    
+    optcomplete.autocomplete(parser, ListCompleter(["4", "8", "16"]))
     
     opts, args = parser.parse_args()
     if len(args) != 1:
@@ -82,6 +86,8 @@ def evaluateATDAccuracy(results, opts, np):
     
 def main():
     
+    opts, args = parseArgs()
+    
     if not os.path.exists("pbsconfig.py"):
         print "ERROR: pbsconfig.py not found"
         return -1
@@ -89,8 +95,7 @@ def main():
     if not os.path.exists(indexmodulename+".pkl"):
         print "ERROR: cannot find index "+indexmodulename+".pkl, run searchStats.py to generate index"
         return -1 
-        
-    opts, args = parseArgs()
+    
     np = int(args[0])
 
     if not opts.quiet:
