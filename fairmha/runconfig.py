@@ -14,7 +14,7 @@ PBS_DIR_NAME = "pbsfiles"
 
 ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
 walltime = {1:5, 4:60, 8:96, 16:96}             # in hours
-perProcMem = {1:1792, 4:1792, 8:1792, 16:3584} # in MB
+perProcMem = {1:2, 4:2, 8:2, 16:4} # in GB
 
 finPattern = re.compile("End Simulation Statistics")
 
@@ -35,8 +35,7 @@ def getHeader(np):
     lines.append("#PBS -q default")
     lines.append("#PBS -j oe")
 
-    lines.append("#PBS -lnodes=1:ppn="+str(ppn[np]))
-    lines.append("#PBS -lpvmem="+str(perProcMem[np])+"MB")
+    lines.append("#PBS -lnodes=1:ppn="+str(ppn[np])+",pvmem="+str(perProcMem[np])+"gb,pmem="+str(perProcMem[np])+"gb")
     lines.append("#PBS -A "+str(PROJECT_NUM))
 
     header = ""
