@@ -117,6 +117,36 @@ def plotScatter(data, **kwargs):
     plt.savefig(plotFileName, type="pdf")
     plt.show()
 
+def plotRawScatter(xdata, ydata, **kwargs):
+    
+    import matplotlib.pyplot as plt
+        
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(xdata, ydata, 'o')
+    
+    fontsize = 14
+    
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"], fontsize=fontsize)
+    if "ylabel" in kwargs:
+        ax.set_ylabel(kwargs["ylabel"], fontsize=fontsize)
+    
+    
+    for label in ax.get_xticklabels():
+        label.set_fontsize(fontsize) 
+    
+    for label in ax.get_yticklabels():
+        label.set_fontsize(fontsize) 
+    
+    if "filename" in kwargs:
+        plt.savefig(kwargs["filename"], type="pdf")
+    else:
+        plt.show()
+
+
+
+
 """ Boxplot supports the following string parameters:
     - no-outliers: shows/hides scatterplot of outliers
     - xlabel: x-axis label

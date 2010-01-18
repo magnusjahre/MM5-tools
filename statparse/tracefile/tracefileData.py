@@ -261,7 +261,7 @@ def computeErrors(mainTrace, mainColumnName, otherTrace, otherColumnName, relati
     if len(otherColData) < len(mainColData):
         useElements = len(otherColData) 
         diff = len(mainColData) - len(otherColData)
-        if diff > 1:
+        if diff > 5:
             raise MalformedTraceFileException("Malformed tracefile, other data more than one element longer than main data")
     
     if baselineData != []:
