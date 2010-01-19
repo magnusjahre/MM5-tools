@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 from statparse import printResults
 from statparse.util import warn
+from optcomplete import DirCompleter
+from statparse.tracefile import isFloat
 
 import sys
 import os
 import re
 
 from optparse import OptionParser
+import optcomplete
+
+INT_MAX = 2147483648
 
 def fatal(message):
     print
@@ -37,6 +42,7 @@ def parseArgs():
     parser.add_option("--print-spec", action="store", dest="printSpec", type="string", default="", help="A comma separated list of one-indexed column IDs include in output (e.g. 2,3,1)")
     parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")    
 
+    optcomplete.autocomplete(parser, optcomplete.AllCompleter())
     opts, args = parser.parse_args()
     
     mergeSpec = parsePrintSpec(opts)
@@ -70,6 +76,7 @@ def readFiles(filenames, opts):
                             warn("Cannot parse line: "+str(line))
                         continue
                 numVals = len(values)
+                
                 fileRows.append(values)
                 
         if not (firstLength == numVals or firstLength == numVals-1):
