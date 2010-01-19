@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from statparse import printResults
+from statparse.util import warn
 
 import sys
 import os
@@ -65,7 +66,9 @@ def readFiles(filenames, opts):
                 values = re.split(opts.dataSeparator, line.strip())
                 if numVals != 0:
                     if len(values) != numVals:
-                        fatal("Parse error, got header "+str(head))
+                        if not opts.quiet:
+                            warn("Cannot parse line: "+str(line))
+                        continue
                 numVals = len(values)
                 fileRows.append(values)
                 
