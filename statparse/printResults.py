@@ -1,7 +1,12 @@
 from statparse.processResults import findAllParams, findAllWorkloads
 from deterministic_fw_wls import getBms
+from statparse.tracefile import isFloat
 
 import metrics
+
+redPrefix   = '\033[1;31m'
+greenPrefix = '\033[1;32m'
+colorSuffix = '\033[1;m'
 
 def printData(textarray, leftJust, outfile, decimals, **kwargs):
     
@@ -19,6 +24,11 @@ def printData(textarray, leftJust, outfile, decimals, **kwargs):
         plotParamString = kwargs["plotParamString"]
     else:
         plotParamString = ""
+    
+    if "colorCodeOffsets" in kwargs:
+        doColor = kwargs["colorCodeOffsets"]
+    else:
+        doColor = False
     
     if textarray == []:
         raise ValueError("array cannot be empty")
@@ -45,14 +55,48 @@ def printData(textarray, leftJust, outfile, decimals, **kwargs):
     
     for i in range(len(textarray)):
         for j in range(len(textarray[i])):
-            if leftJust[j]:
-                print >> outfile, textarray[i][j].ljust(colwidths[j]),
-            else:
-                print >> outfile, textarray[i][j].rjust(colwidths[j]),
+            print >> outfile, justify(colorCodeOffsets(textarray[i][j], doColor),
+                                      leftJust[j],
+                                      colwidths[j]),
         print >> outfile, ""
         
     if plotFunction != None:
         plotFunction(textarray, plotParamString=plotParamString)
+
+def colorCodeOffsets(text, doColor):
+    if not doColor:
+        return text
+    
+    if not isFloat(text):
+        return text
+    
+    floatVal = float(text)
+    
+    if floatVal == 0.0:
+        return text
+    
+    if floatVal > 0.0:
+        return greenPrefix+text+colorSuffix
+    
+    return redPrefix+text+colorSuffix
+    
+def justify(text, left, width):
+    
+    if colorSuffix not in text:
+        padding = width - len(text)
+    else:
+        tmpText = text.replace(colorSuffix, "")
+        tmpText = tmpText.replace(redPrefix, "")
+        tmpText = tmpText.replace(greenPrefix, "")
+        padding = width - len(tmpText)
+    
+    padStr = ""
+    for i in range(padding):
+        padStr += " "
+    
+    if left:
+        return text+padStr
+    return padStr+text
 
 def numberToString(number, decimalPlaces):
     if type(number) == type(int()):

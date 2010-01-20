@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from statparse import printResults
+from statparse import printResults, metrics
 from statparse.util import warn
 from optcomplete import DirCompleter
 from statparse.tracefile import isFloat
@@ -40,7 +40,8 @@ def parseArgs():
     parser.add_option("--data-separator", action="store", dest="dataSeparator", type="string", default="\s+", help="Separator for data lines text files")
     parser.add_option("--head-separator", action="store", dest="headSeparator", type="string", default="\s\s+", help="Separator for header lines text files")
     parser.add_option("--print-spec", action="store", dest="printSpec", type="string", default="", help="A comma separated list of one-indexed column IDs include in output (e.g. 2,3,1)")
-    parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")    
+    parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")
+    parser.add_option("--print-names", action="store_true", dest="printColumnNames", default=False, help="Print the column ID to column name mapping for the provided files")    
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
     opts, args = parser.parse_args()
@@ -73,7 +74,7 @@ def readFiles(filenames, opts):
                 if numVals != 0:
                     if len(values) != numVals:
                         if not opts.quiet:
-                            warn("Cannot parse line: "+str(line))
+                            warn("Cannot parse line: "+str(line.strip()))
                         continue
                 numVals = len(values)
                 
@@ -82,7 +83,7 @@ def readFiles(filenames, opts):
         if not (firstLength == numVals or firstLength == numVals-1):
             fatal("Unknown header format in file "+filename+", possibly a parse error") 
         
-        data.append( (head, fileRows, numVals) )
+        data.append( (head, fileRows, numVals, filename) )
     
     return data
 
@@ -90,9 +91,10 @@ def mergeData(fileData, opts):
     
     totalHeaders = [""]
     mergedData = {}
+    columnToFileList = []
     
     maxVals = 0
-    for headers, values, numVals in fileData:
+    for headers, values, numVals, filename in fileData:
         maxVals += numVals-1
          
         if len(headers) == numVals:
@@ -100,6 +102,7 @@ def mergeData(fileData, opts):
         
         for h in headers:
             totalHeaders.append(h)
+            columnToFileList.append(filename)
         
         for v in values:
             assert len(v) == numVals
@@ -127,7 +130,7 @@ def mergeData(fileData, opts):
                 
             mergedMatrix.append(line) 
     
-    return mergedMatrix
+    return mergedMatrix, columnToFileList
 
 def processData(mergedData, mergeSpec, opts):
     
@@ -149,11 +152,15 @@ def processData(mergedData, mergeSpec, opts):
         for i in range(1, len(mergedData)):
             normalizedData[i] = {}
             for j in range(1, len(mergedData[i])):
-                try:
-                    relVal = (float(mergedData[i][j]) / float(mergedData[i][opts.normalizeTo])) - 1
-                except:
-                    fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
-                normalizedData[i][j] = printResults.numberToString(relVal, opts.decimals)
+                
+                if mergedData[i][j] == metrics.errorString or mergedData[i][opts.normalizeTo] == metrics.errorString:
+                    normalizedData[i][j] = metrics.errorString
+                else:
+                    try:
+                        relVal = (float(mergedData[i][j]) / float(mergedData[i][opts.normalizeTo])) - 1
+                    except:
+                        fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
+                    normalizedData[i][j] = printResults.numberToString(relVal, opts.decimals)
         
         for i in normalizedData:
             for j in normalizedData[i]:
@@ -161,6 +168,31 @@ def processData(mergedData, mergeSpec, opts):
     
     
     return mergedData, justify
+
+def printNames(mergedData, columnToFileList):
+    
+    if len(mergedData) < 1:
+        fatal("Merged data is empty, cannot retrieve headers")
+    
+    headerRow = mergedData[0]
+    
+    print
+    print "Column ID to column name mapping"
+    print
+    
+    idWidth = 7
+    dataWidth = 45
+    
+    print "ColID".ljust(idWidth),
+    print "Column name".ljust(dataWidth),
+    print "Filename".ljust(dataWidth)
+    
+    id = 1
+    for name in headerRow[1:]:
+        print str(id).ljust(idWidth),
+        print name.ljust(dataWidth),
+        print columnToFileList[id-1].ljust(dataWidth)
+        id += 1
 
 def main():
 
@@ -171,10 +203,19 @@ def main():
             fatal("File "+filename+" does not exist!")
     
     fileData = readFiles(args, opts)
-    mergedData = mergeData(fileData, opts)
-    processedData, justify = processData(mergedData, printSpec, opts)
+    mergedData, columnToFileList = mergeData(fileData, opts)
     
-    printResults.printData(processedData, justify, sys.stdout, opts.decimals)
+    if opts.printColumnNames:
+        printNames(mergedData, columnToFileList)
+        return
+    
+    if opts.normalizeTo != -1:
+        doColor = True
+    else:
+        doColor = False
+    
+    processedData, justify = processData(mergedData, printSpec, opts)
+    printResults.printData(processedData, justify, sys.stdout, opts.decimals, colorCodeOffsets=doColor)
 
 if __name__ == '__main__':
     main()
