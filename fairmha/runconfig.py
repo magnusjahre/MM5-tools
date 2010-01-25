@@ -90,7 +90,7 @@ def flush_commands(fcnt):
     output.write(getHeader(current_cpu_count))
     
     print >> output, "cd /local/work"
-    print >> output, "rm -Rf jahre"
+    # print >> output, "rm -Rf jahre"
     print >> output, "mkdir jahre"
     print >> output, "cd jahre"
     
@@ -109,10 +109,11 @@ def flush_commands(fcnt):
 
     for fileID, command in latest_commands:
         print >> output, 'cp '+fileID+'/*.txt '+pbsconfig.experimentpath+'/'+fileID+'\n'
-#        print >> output, 'cp -r '+fileID+'/* '+pbsconfig.experimentpath+'/'+fileID+'\n'
+        print >> output, 'rm -Rf '+fileID
+        # print >> output, 'cp -r '+fileID+'/* '+pbsconfig.experimentpath+'/'+fileID+'\n'
 
-    print >> output, "cd .."
-    print >> output, "rm -Rf jahre"
+    # print >> output, "cd .."
+    # print >> output, "rm -Rf jahre"
 
     del latest_commands[:]
 
