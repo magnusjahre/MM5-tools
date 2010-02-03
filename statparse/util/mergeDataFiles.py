@@ -41,7 +41,8 @@ def parseArgs():
     parser.add_option("--head-separator", action="store", dest="headSeparator", type="string", default="\s\s+", help="Separator for header lines text files")
     parser.add_option("--print-spec", action="store", dest="printSpec", type="string", default="", help="A comma separated list of one-indexed column IDs include in output (e.g. 2,3,1)")
     parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")
-    parser.add_option("--print-names", action="store_true", dest="printColumnNames", default=False, help="Print the column ID to column name mapping for the provided files")    
+    parser.add_option("--print-names", action="store_true", dest="printColumnNames", default=False, help="Print the column ID to column name mapping for the provided files")
+    parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")    
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
     opts, args = parser.parse_args()
@@ -194,6 +195,29 @@ def printNames(mergedData, columnToFileList):
         print columnToFileList[id-1].ljust(dataWidth)
         id += 1
 
+def computeAverage(processedData, justify, opts):
+    header = processedData.pop(0)[1:]
+    datalen = len(header)
+    values = [0 for i in range(datalen)]
+    lines = 0.0
+
+    for l in processedData:
+        for i in range(datalen):
+            try:
+                values[i] += float(l[i+1])
+            except:
+                warn("Cannot convert to float, dropping line "+str(l))
+                break
+        lines += 1
+
+    resData = []
+    resData.append(header)
+    averages = [v / lines for v in values]
+    averageStrs = [printResults.numberToString(a, opts.decimals) for a in averages]
+    resData.append(averageStrs)
+
+    return resData, justify[1:]
+
 def main():
 
     opts,args, printSpec = parseArgs()
@@ -215,6 +239,8 @@ def main():
         doColor = False
     
     processedData, justify = processData(mergedData, printSpec, opts)
+    if opts.doAverage:
+        processedData, justify = computeAverage(processedData, justify, opts)
     printResults.printData(processedData, justify, sys.stdout, opts.decimals, colorCodeOffsets=doColor)
 
 if __name__ == '__main__':

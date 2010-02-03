@@ -203,7 +203,7 @@ def plotBoxPlot(data, **kwargs):
         plt.savefig(parameters["filename"], type="pdf")
     else:
         plt.savefig(plotFileName)
-    
+    plt.savefig("recent.pdf")
     if not "no-show" in parameters:
         plt.show()
 

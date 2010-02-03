@@ -127,9 +127,15 @@ def paramsToString(params, valuesOnly = False):
             isFirst = False
         else:
             retstr += "-"
+                
+        keyIdent = ""
+        if "-" in k:
+            for subkey in k.split("-"):
+                keyIdent += subkey[0]
+        else:
+            keyIdent = str(k)[0:3]
         
-        retstr += str(k)[0:3]+"-"+str(params[k])
-        
+        retstr += keyIdent+"-"+str(params[k])
     
     return retstr
 
