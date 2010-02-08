@@ -42,7 +42,8 @@ def parseArgs():
     parser.add_option("--print-spec", action="store", dest="printSpec", type="string", default="", help="A comma separated list of one-indexed column IDs include in output (e.g. 2,3,1)")
     parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")
     parser.add_option("--print-names", action="store_true", dest="printColumnNames", default=False, help="Print the column ID to column name mapping for the provided files")
-    parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")    
+    parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
+    parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")    
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
     opts, args = parser.parse_args()
@@ -111,11 +112,21 @@ def mergeData(fileData, opts):
             match = re.search("fair[0-9][0-9]", v[0])
             wl = match.group()
             
-            if wl not in mergedData:
-                mergedData[wl] = []
+            if not wl:
+                fatal("Could not find workload pattern in key "+v[0])
+            
+            spmatch = re.search("sp[0-9]", v[0])
+            sp = spmatch.group()
+            
+            linekey = wl
+            if sp:
+                linekey = wl+"-"+sp
+            
+            if linekey not in mergedData:
+                mergedData[linekey] = []
                 
             for val in v[1:]:
-                mergedData[wl].append(val)
+                mergedData[linekey].append(val)
     
     wls = mergedData.keys()
     wls.sort()
@@ -233,7 +244,7 @@ def main():
         printNames(mergedData, columnToFileList)
         return
     
-    if opts.normalizeTo != -1:
+    if opts.normalizeTo != -1 and not opts.noColor:
         doColor = True
     else:
         doColor = False

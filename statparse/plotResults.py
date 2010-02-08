@@ -220,6 +220,13 @@ def plotBoxPlot(data, **kwargs):
 def plotRawBoxPlot(data, **kwargs):
     
     import numpy as np
+    import matplotlib
+    
+    fontsize = 16
+    matplotlib.rc('xtick', labelsize=fontsize) 
+    matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('font', size=fontsize)
+    
     import matplotlib.pyplot as plt
     from matplotlib.pyplot import boxplot
     
