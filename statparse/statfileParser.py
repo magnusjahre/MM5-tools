@@ -19,7 +19,7 @@ PICKLERPROT = 2
 
 class StatfileIndex():
 
-    def __init__(self, modulename = ""):
+    def __init__(self, modulename = "", **kwargs):
         self.resultstore = {}
         self.configurations = []
         
@@ -31,12 +31,18 @@ class StatfileIndex():
             
         self.privateStatPatterns = [re.compile(stat) for stat in privateStatNames]
         
-    def addstat(self, statkey, configid, value):
-        if statkey not in self.resultstore:
-            self.resultstore[statkey] = {}
+        if "onlyIncludeStat" in kwargs:
+            self.includePattern = re.compile(kwargs["onlyIncludeStat"])
+        else:
+            self.includePattern = "*."
         
-        assert configid not in self.resultstore[statkey]
-        self.resultstore[statkey][configid] = value
+    def addstat(self, statkey, configid, value):
+        if self.includePattern.search(statkey):
+            if statkey not in self.resultstore:
+                self.resultstore[statkey] = {}
+            
+            assert configid not in self.resultstore[statkey]
+            self.resultstore[statkey][configid] = value
 
     def addFile(self, statsfilename, orderfilename, np, wlOrBm, params = {}):
         
