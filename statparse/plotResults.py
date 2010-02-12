@@ -119,25 +119,22 @@ def plotScatter(data, **kwargs):
 
 def plotRawScatter(xdata, ydata, **kwargs):
     
+    import matplotlib
     import matplotlib.pyplot as plt
+        
+    fontsize = 16
+    matplotlib.rc('xtick', labelsize=fontsize) 
+    matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('font', size=fontsize)
         
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.plot(xdata, ydata, 'o')
     
-    fontsize = 14
-    
     if "xlabel" in kwargs:
-        ax.set_xlabel(kwargs["xlabel"], fontsize=fontsize)
+        ax.set_xlabel(kwargs["xlabel"])
     if "ylabel" in kwargs:
-        ax.set_ylabel(kwargs["ylabel"], fontsize=fontsize)
-    
-    
-    for label in ax.get_xticklabels():
-        label.set_fontsize(fontsize) 
-    
-    for label in ax.get_yticklabels():
-        label.set_fontsize(fontsize) 
+        ax.set_ylabel(kwargs["ylabel"])
     
     if "filename" in kwargs:
         plt.savefig(kwargs["filename"], type="pdf")
@@ -253,6 +250,15 @@ def plotRawBoxPlot(data, **kwargs):
         
         ax.set_xticklabels(kwargs["titles"])
     ax.set_xlim(0.5, len(data)+0.5)
+
+
+    if "rotate" in kwargs:
+        for label in ax.get_xticklabels():
+            label.set_rotation(kwargs["rotate"])
+        
+    if "plotmargins" in kwargs:
+        left,right,top,bottom = kwargs["plotmargins"] 
+        plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
 
     fig.legend(avgLine, ["Arithmetic Mean"], "upper center", numpoints=1)
     
