@@ -257,8 +257,9 @@ def plotRawBoxPlot(data, **kwargs):
             label.set_rotation(kwargs["rotate"])
         
     if "plotmargins" in kwargs:
-        left,right,top,bottom = kwargs["plotmargins"] 
-        plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
+        if kwargs["plotmargins"] != None:
+            left,right,top,bottom = kwargs["plotmargins"] 
+            plt.subplots_adjust(left=left, right=right, top=top, bottom=bottom)
 
     fig.legend(avgLine, ["Arithmetic Mean"], "upper center", numpoints=1)
     

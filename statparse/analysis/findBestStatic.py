@@ -105,7 +105,7 @@ def findBestMHA(results, opts, metric, outfile):
                     print "Warning: skipping "+wl+", "+str(params)
             
         line = []
-        line.append(wl)
+        line.append(wl+"sp0")
         line.append(bestparams)
         line.append(printres.numberToString(maxmetval, opts.decimals))
         line.append(printres.numberToString(convMetricValue, opts.decimals))
