@@ -31,13 +31,23 @@ class StatfileIndex():
             
         self.privateStatPatterns = [re.compile(stat) for stat in privateStatNames]
         
+        self.includePatternList = []
         if "onlyIncludeStat" in kwargs:
-            self.includePattern = re.compile(kwargs["onlyIncludeStat"])
-        else:
-            self.includePattern = "*."
+            for p in kwargs["onlyIncludeStat"]:
+                self.includePatternList.append(re.compile(p))
+    
+    def doAddStat(self, statkey):
+        if self.includePatternList == []:
+            return True
+        
+        for p in self.includePatternList:
+            if p.search(statkey):
+                return True
+        
+        return False
         
     def addstat(self, statkey, configid, value):
-        if self.includePattern.search(statkey):
+        if self.doAddStat(statkey):
             if statkey not in self.resultstore:
                 self.resultstore[statkey] = {}
             

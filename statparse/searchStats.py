@@ -59,7 +59,7 @@ def parseArgs():
     otherOptions.add_option("--orderfile", action="store", dest="orderFile", type="string", default="statsDumpOrder.txt", help="Dump order file to use in single file mode")
     otherOptions.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only print search results")
     otherOptions.add_option("--show-stacktrace", action="store_true", dest="showStackTrace", default=False, help="Show stacktrace on caught exceptions")
-    otherOptions.add_option("--only-index", action="store", dest="onlyIndexPat", default=".*", help="Only put statistics that matches this pattern in the index to reduce memory consuption")
+    otherOptions.add_option("--only-index", action="store", dest="onlyIndexPat", default=".*", help="A comma-separated list of patterns to put in the index")
     parser.add_option_group(otherOptions)
     
     optcomplete.autocomplete(parser)
@@ -161,7 +161,7 @@ def createFileIndex(opts, args):
             totTime = time() - starttime
             print "Index load took %.2f s" % totTime
     else:
-        index = StatfileIndex(onlyIncludeStat=opts.onlyIndexPat)
+        index = StatfileIndex(onlyIncludeStat=opts.onlyIndexPat.split(","))
         
         starttime = 0.0
         if not opts.quiet:
