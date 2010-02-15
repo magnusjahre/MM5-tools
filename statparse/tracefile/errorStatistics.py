@@ -116,6 +116,17 @@ def plotBoxFromDict(results, hideOutliers, titles):
     
     plotRawBoxPlot(allErrorLists, hideOutliers=hideOutliers, titles=titles)
 
+def dumpAllErrors(results, filename):
+    outfile = open(filename, "w")
+    
+    for expkey in results:
+        for paramkey in results[expkey]:
+            for errval in results[expkey][paramkey].getAllErrors():
+                outfile.write(str(errval)+" ")
+    
+    outfile.flush()
+    outfile.close()
+
 class ErrorStatistics():
 
 

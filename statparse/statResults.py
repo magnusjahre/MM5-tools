@@ -326,9 +326,13 @@ class StatResults():
         outdata = []
         titleLine = [""]
         leftJust = [True]
-        for p in sortedParams:
-            titleLine.append(printResults.paramsToString(p, self.paramValuesOnly))
+        if sortedParams == [{}]:
+            titleLine.append("Data")
             leftJust.append(False)
+        else:
+            for p in sortedParams:
+                titleLine.append(printResults.paramsToString(p, self.paramValuesOnly))
+                leftJust.append(False)
             
         outdata.append(titleLine)
         

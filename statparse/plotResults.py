@@ -233,7 +233,7 @@ def plotRawBoxPlot(data, **kwargs):
         else:
             outSymbol = "b+"
     else:
-        outSymbol = ""
+        outSymbol = "b+"
     
     fig = plt.figure()
     ax = fig.add_subplot(111)

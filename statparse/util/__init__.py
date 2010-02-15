@@ -94,10 +94,13 @@ def getNpExperimentDirs(np):
         wl = configobj.getParam(shparams, "wl")
         
         sharedFileID = configobj.getFileIdentifier(shparams)
-    
+        
         aloneFileIDs = []
         for i in range(np):
             aparams = configobj.getSPMParameters(shparams, wl, i)
+            if "USE-SIMPOINT" in varparams:
+                aparams.append(varparams["USE-SIMPOINT"])
+            
             aloneFileID = configobj.getFileIdentifier(aparams)
             aloneFileIDs.append(aloneFileID)
         
@@ -121,13 +124,7 @@ def getResultKey(wl, aloneCPUID, np, varparams):
     return prefix+postfix
 
 def getVarparamKey(wl, aloneCPUID, np, varparams):
-    paramcopy = deepcopy(varparams)
-    if "USE-SIMPOINT" in paramcopy:
-        warn("simpoint handling not tested")
-        del paramcopy["USE-SIMPOINT"]
-    
-    paramstr = paramsToString(paramcopy)
-    return paramstr
+    return paramsToString(varparams)
 
 def findAllParams(dirs, np):
     allparams = []
@@ -243,7 +240,8 @@ def parseUtilArgs(programName, commands):
     parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print results for each workload")
     parser.add_option("--relative", action="store_true", dest="relativeErrors", default=False, help="Print relative errors (Default: absolute)")
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
-    parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")   
+    parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")
+    parser.add_option("--all-error-file", action="store", dest="allErrorFile", default="", help="Write all errors to this file")   
     
     optcomplete.autocomplete(parser, CustomListCompleter([commands, errorStats.statNames]))
     opts, args = parser.parse_args()

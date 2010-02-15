@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from statparse.util import fatal, getNpExperimentDirs, computeTraceError, parseUtilArgs
-from statparse.tracefile.errorStatistics import plotBoxFromDict
+from statparse.tracefile.errorStatistics import plotBoxFromDict, dumpAllErrors
 import statparse.tracefile.errorStatistics as errorStats
 
 commands = ["IPC", "MWS", "latency"]
@@ -47,6 +47,9 @@ def main():
         
     if opts.plotBox:
         plotBoxFromDict(results, opts.hideOutliers, sortedparams)
+        
+    if opts.allErrorFile:
+        dumpAllErrors(results, opts.allErrorFile)
 
 if __name__ == '__main__':
     main()

@@ -32,9 +32,9 @@ def parseArgs():
             print parser.usage
             fatal("Command line error")
     
-    return opts,datafile
+    return opts, args, datafile
     
-def readFile(datafile, opts):
+def readFile(datafile, removeColumns):
     header = datafile.readline().strip().split("  ")
     data = []
     for l in datafile:
@@ -50,8 +50,8 @@ def readFile(datafile, opts):
     if len(header) != len(data[0])-1:
         fatal("Datafile parse error, header has length "+str(len(header))+", data length is "+str(len(data[0])))
     
-    if opts.removeColumns != "":
-        colstrs = opts.removeColumns.split(",")
+    if removeColumns != "":
+        colstrs = removeColumns.split(",")
         removelist = [float(s) for s in colstrs]
         
         newheader = []
@@ -82,15 +82,12 @@ def createBoxWhiskerData(rawdata, datacols):
     
 def main():
 
-    opts,datafile = parseArgs()
+    opts, args, datafile = parseArgs()
     
-    print
-    print "Data file plot"
-    print
-    
+    print "Data file plot of file "+args[0]
     print "Processing data..."
     
-    header, data = readFile(datafile, opts)
+    header, data = readFile(datafile, opts.removeColumns)
     
     bwdata = createBoxWhiskerData(data, len(header))
     
@@ -114,7 +111,6 @@ def main():
                    ylabel=opts.ytitle)
 
     print "Done!"
-    print
 
 if __name__ == '__main__':
     main()
