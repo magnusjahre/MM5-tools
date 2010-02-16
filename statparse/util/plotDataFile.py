@@ -40,12 +40,20 @@ def readFile(datafile, removeColumns):
     for l in datafile:
         rawline = l.strip().split()
         tmp = [rawline[0]]
+        
+        error = False
         for e in rawline[1:]:
+            if e == "N/A":
+                error = True
+                continue
+            
             try:
                 tmp.append(float(e))
             except:
                 fatal("Parse error, cannot convert "+e+" to float")
-        data.append(tmp)
+        
+        if not error:
+            data.append(tmp)
         
     if len(header) != len(data[0])-1:
         fatal("Datafile parse error, header has length "+str(len(header))+", data length is "+str(len(data[0])))

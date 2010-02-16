@@ -88,8 +88,12 @@ def getNpExperimentDirs(np):
             continue
         
         varparams = configobj.getVariableParameters(shparams)
-        if varparams not in allparams:
-            allparams.append(varparams)
+        vpcopy = deepcopy(varparams)
+        if "USE-SIMPOINT" in vpcopy:
+            del vpcopy["USE-SIMPOINT"]
+        
+        if vpcopy not in allparams:
+            allparams.append(vpcopy)
         
         wl = configobj.getParam(shparams, "wl")
         
@@ -124,7 +128,11 @@ def getResultKey(wl, aloneCPUID, np, varparams):
     return prefix+postfix
 
 def getVarparamKey(wl, aloneCPUID, np, varparams):
-    return paramsToString(varparams)
+    paramcopy = deepcopy(varparams)
+    if "USE-SIMPOINT" in paramcopy:
+        del paramcopy["USE-SIMPOINT"]
+    
+    return paramsToString(paramcopy)
 
 def findAllParams(dirs, np):
     allparams = []
