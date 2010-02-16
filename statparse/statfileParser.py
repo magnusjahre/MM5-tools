@@ -111,7 +111,7 @@ class StatfileIndex():
                         break
                 
                 curCPUID = curConf.getIDInWorkload()
-                currentPrivateStatPatterns = [re.compile(stat+str(curCPUID)) for stat in privateStatNames]
+                currentPrivateStatPatterns = [re.compile(stat+str(curCPUID)+"\.") for stat in privateStatNames]
                 continue
             elif l.startswith("---------- End Simulation"):
                 configIDs.pop(0)
