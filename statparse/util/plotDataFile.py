@@ -46,6 +46,9 @@ def readFile(datafile, removeColumns):
             if e == "N/A":
                 error = True
                 continue
+            elif e == "RM":
+                error = True
+                continue
             
             try:
                 tmp.append(float(e))
@@ -54,7 +57,7 @@ def readFile(datafile, removeColumns):
         
         if not error:
             data.append(tmp)
-        
+    
     if len(header) != len(data[0])-1:
         fatal("Datafile parse error, header has length "+str(len(header))+", data length is "+str(len(data[0])))
     
