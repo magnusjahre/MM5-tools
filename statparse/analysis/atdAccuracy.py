@@ -25,6 +25,7 @@ def parseArgs():
     parser.add_option("--absolute-error", action="store_true", dest="abserror", default=False, help="Print absolute number of misses (default is relative to the number of shared cache misses)")
     parser.add_option("--print-banks", action="store_true", dest="printbanks", default=False, help="Print results per bank")
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Create box and whiskers plot")
+    parser.add_option("--miss-filter", action="store", type="int", dest="missFilter", default=0, help="Filter results that do not have this number of misses")
     
     optcomplete.autocomplete(parser, ListCompleter(["4", "8", "16"]))
     
@@ -70,12 +71,17 @@ def evaluateATDAccuracy(results, opts, np):
         if opts.printbanks:
             assert False, "Printing per bank results not implemented"
         
-        err = sum(sharedEstimates) - sum(aloneMisses)
-        if not opts.abserror:
-            err = float(err)/float(sum(sharedMisses))
+        if sum(sharedMisses) > opts.missFilter:
         
-        assert config not in missErrorResults
-        missErrorResults[config] = err
+            err = sum(sharedEstimates) - sum(aloneMisses)
+            if not opts.abserror:
+                err = float(err)/float(sum(sharedMisses))
+            
+            assert config not in missErrorResults
+            missErrorResults[config] = err
+            
+        else:
+            missErrorResults[config] = "RM"
 
     if opts.plotBox:
         plotFunc = plotResults.plotBoxPlot
