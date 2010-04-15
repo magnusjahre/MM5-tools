@@ -387,7 +387,7 @@ def plotImage(image, **kwargs):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
-    plt.imshow(image)
+    plt.imshow(image, origin="lower")
     plt.grid(True)
     plt.colorbar()
     
@@ -417,6 +417,15 @@ def plotImage(image, **kwargs):
         if kwargs["ylabel"] != "none":
             ax.set_ylabel(kwargs["ylabel"], size="large")
     
+    if "xticklabels" in kwargs:
+        ax.set_xticklabels(kwargs["xticklabels"])
+    
+    if "yticklabels" in kwargs:
+        ax.set_yticklabels(kwargs["yticklabels"])
+    
+    if "title" in kwargs:
+        ax.set_title(kwargs["title"], size="large")
+        
     if "filename" in kwargs:
         if kwargs["filename"] != "":
             plt.savefig(kwargs["filename"], type="pdf")
