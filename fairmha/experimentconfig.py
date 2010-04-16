@@ -3,6 +3,8 @@ import sys
 import deterministic_fw_wls as workloads
 import copy
 
+specnames = ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
+
 class ExperimentConfiguration:
     
     noBMIndentifier = "b"
@@ -35,7 +37,6 @@ class ExperimentConfiguration:
     varArgNames = {}
     singleVarArgNames = {}
     
-    specnames = ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
     specBenchmarks = [] 
     
     def __init__(self, _root, _binaryPath, _configPath):
@@ -43,7 +44,7 @@ class ExperimentConfiguration:
         self.configPath = _root +"/"+_configPath
         self.simticks = -1
         self.baselineParameters = None
-        for b in self.specnames:
+        for b in specnames:
             self.specBenchmarks.append(b+"0")
     
     """ Used for inhibiting the SPM benchmarks from iterating over the parameter space

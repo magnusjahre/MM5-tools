@@ -5,6 +5,7 @@ from statparse.util import fatal
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
 from statparse.plotResults import plotImage
+from fairmha.experimentconfig import specnames
 
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
@@ -13,24 +14,43 @@ import statparse.printResults as printres
 import os
 import sys
 
-ERRVAL = -1.0
+ERRVAL = 0.0
 
 def parseArgs():
-    parser = OptionParser(usage="findResourceProfile.py [options] benchmark")
+    parser = OptionParser(usage="findResourceProfile.py [options] [benchmark]")
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--simpoint", action="store", dest="simpoint", type="int", default=-1, help="Only provide results for this simpoint value")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot results in heatmap")
+    parser.add_option("--list-benchmarks", action="store_true", dest="listBenchmarks", default=False, help="Print a list of the benchmark names")
 
     opts, args = parser.parse_args()
 
-    if len(args) != 1:
+    if len(args) > 1:
         print
         print "Commandline error:"
         print parser.usage
         print 
         sys.exit(0)
+    
+    if len(args) == 1:
+        if args[0] not in specnames:
+            print
+            print fatal("Unknown SPEC benchmark "+args[0])
+            print
+    
+    if opts.listBenchmarks:
+        names = specnames[:]
+        names.sort()
+        print
+        print "SPEC Benchmark Names"
+        print
+        for b in names:
+            print "- "+b
+        print
+        sys.exit(0)
+        
     
     return opts,args
 
@@ -94,6 +114,50 @@ def printTable(allWays, allUtils, profile, opts):
         just.append(False)
         
     printres.printData(textarray, just, sys.stdout, opts.decimals)
+
+def doSearch(benchmark, index, opts):
+    searchConfig = expconfig.buildMatchAllConfig()
+    searchConfig.benchmark = benchmark
+    if opts.simpoint != -1:
+        searchConfig.simpoint = opts.simpoint
+    results = StatResults(index,
+                          searchConfig,
+                          False,
+                          opts.quiet)
+    return results
+
+def handleSingleBenchmark(benchmark, index, opts):
+
+    results = doSearch(benchmark, index, opts)
+    
+    allWays, allUtils, profile = gatherPerformanceProfile(results)
+    
+    if not opts.quiet:
+        print
+        print "Performance Profile for "+benchmark
+        print
+    
+    printTable(allWays, allUtils, profile, opts)
+
+    if opts.plot:
+        doPlot(benchmark, allWays, allUtils, profile)
+        
+
+def doPlot(title, allWays, allUtils, profile, filename = ""):
+    
+    yrangestr = "0,"+str(len(allWays))
+    xrangestr = "0,"+str(len(allUtils))
+    
+    plotImage(profile,
+              xlabel="Maximum Memory Bus Utilization",
+              ylabel="Available Cache Ways",
+              title=title,
+              xticklabels=allUtils,
+              yticklabels=allWays,
+              yrange=yrangestr,
+              xrange=xrangestr,
+              filename=filename)
+
 def main():
     opts,args = parseArgs()
     
@@ -117,40 +181,13 @@ def main():
     index = StatfileIndex("index-all")
     if not opts.quiet:
         print "done!"
+
+    if len(args) > 0:
+        benchmark = args[0]+"0"
+        handleSingleBenchmark(benchmark, index, opts)
+    else:
+        print "not impl"
     
-    searchConfig = expconfig.buildMatchAllConfig()
-    searchConfig.benchmark = args[0]
-    if opts.simpoint != -1:
-        searchConfig.simpoint = opts.simpoint
-    results = StatResults(index,
-                          searchConfig,
-                          False,
-                          opts.quiet)
-    
-    allWays, allUtils, profile = gatherPerformanceProfile(results)
-    
-    if not opts.quiet:
-        print
-        print "Performance Profile for "+args[0]
-        print
-    
-    printTable(allWays, allUtils, profile, opts)
-    
-    
-    
-    if opts.plot:
-        
-        yrangestr = "0,"+str(len(allWays))
-        xrangestr = "0,"+str(len(allUtils))
-        
-        plotImage(profile,
-                  xlabel="Maximum Memory Bus Utilization",
-                  ylabel="Available Cache Ways",
-                  title=args[0],
-                  xticklabels=allUtils,
-                  yticklabels=allWays,
-                  yrange=yrangestr,
-                  xrange=xrangestr)
 
 if __name__ == '__main__':
     main()
