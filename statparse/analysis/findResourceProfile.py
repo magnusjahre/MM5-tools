@@ -90,7 +90,7 @@ def gatherPerformanceProfile(results):
     
     return allWays, allUtils, profile
 
-def printTable(allWays, allUtils, profile, opts):
+def printTable(allWays, allUtils, profile, opts, outfilename = ""):
     
     header = [""]
     for util in allUtils:
@@ -113,7 +113,15 @@ def printTable(allWays, allUtils, profile, opts):
     for i in range(len(allUtils)):
         just.append(False)
         
-    printres.printData(textarray, just, sys.stdout, opts.decimals)
+    if outfilename != "":
+        outfile = open(outfilename, "w")
+    else:
+        outfile = sys.stdout
+        
+    printres.printData(textarray, just, outfile, opts.decimals)
+
+    if outfilename != "":
+        outfile.close() 
 
 def doSearch(benchmark, index, opts):
     searchConfig = expconfig.buildMatchAllConfig()
@@ -125,6 +133,22 @@ def doSearch(benchmark, index, opts):
                           False,
                           opts.quiet)
     return results
+
+def handleMultibenchmark(index, opts):
+    
+    if not opts.quiet:
+        print
+        print "Creating profiles for all benchmarks..."
+        print
+    
+    for benchmark in specnames:
+        
+        print "Processing "+benchmark 
+        
+        results = doSearch(benchmark+"0", index, opts)
+        allWays, allUtils, profile = gatherPerformanceProfile(results)
+        printTable(allWays, allUtils, profile, opts, "profile-data-"+benchmark+".txt")
+        doPlot(benchmark, allWays, allUtils, profile, "profile-plot-"+benchmark+".pdf")
 
 def handleSingleBenchmark(benchmark, index, opts):
 
@@ -186,7 +210,7 @@ def main():
         benchmark = args[0]+"0"
         handleSingleBenchmark(benchmark, index, opts)
     else:
-        print "not impl"
+        handleMultibenchmark(index, opts)
     
 
 if __name__ == '__main__':
