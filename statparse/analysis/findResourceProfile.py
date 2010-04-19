@@ -62,11 +62,20 @@ def gatherPerformanceProfile(results):
     
     allWays = []
     allUtils = []
+    
     for p in allParams:
-        if p["MEMORY-BUS-MAX-UTIL"] not in allUtils:
-            allUtils.append(p["MEMORY-BUS-MAX-UTIL"])
+        
+        if "MEMORY-BUS-MAX-UTIL" in p:
+            useBWKey = "MEMORY-BUS-MAX-UTIL" 
+        else: 
+            assert "NFQ-PRIORITIES" in p
+            useBWKey = "NFQ-PRIORITIES"
+        
+        if p[useBWKey] not in allUtils:
+            allUtils.append(p[useBWKey])
         if p["MAX-CACHE-WAYS"] not in allWays:
-            allWays.append(p["MAX-CACHE-WAYS"]) 
+            allWays.append(p["MAX-CACHE-WAYS"])
+             
     allWays.sort()
     allUtils.sort()
     
@@ -77,7 +86,7 @@ def gatherPerformanceProfile(results):
     for i in range(len(allWays)):
         for j in range(len(allUtils)):
             searchConfig.parameters["MAX-CACHE-WAYS"] = allWays[i]
-            searchConfig.parameters["MEMORY-BUS-MAX-UTIL"] = allUtils[j]
+            searchConfig.parameters[useBWKey] = allUtils[j]
             
             configRes = procres.filterConfigurations(results.matchingConfigs, searchConfig)
             
