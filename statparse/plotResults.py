@@ -389,7 +389,7 @@ def plotImage(image, **kwargs):
     
     plt.imshow(image, origin="lower")
     plt.grid(True)
-    plt.colorbar()
+    cbar = plt.colorbar()
     
     if "xrange" in kwargs:
         if kwargs["xrange"] != "":
@@ -409,6 +409,14 @@ def plotImage(image, **kwargs):
                 raise Exception("Y range spec must be of type min,max")            
             ax.set_ylim( (float(minY), float(maxY))  )
     
+    if "zrange" in kwargs:
+        if kwargs["zrange"] != "":
+            try:
+                minZ,maxZ = kwargs["zrange"].split(",")
+            except:
+                raise Exception("Z range spec must be of type min,max")            
+            plt.clim(float(minZ), float(maxZ))
+    
     if "xlabel" in kwargs:
         if kwargs["xlabel"] != "none":
             ax.set_xlabel(kwargs["xlabel"], size="large")
@@ -416,6 +424,10 @@ def plotImage(image, **kwargs):
     if "ylabel" in kwargs:
         if kwargs["ylabel"] != "none":
             ax.set_ylabel(kwargs["ylabel"], size="large")
+    
+    if "zlabel" in kwargs:
+        if kwargs["zlabel"] != "none":
+            cbar.set_label(kwargs["zlabel"], size="large")
     
     if "xticklabels" in kwargs:
         ax.set_xticklabels(kwargs["xticklabels"])

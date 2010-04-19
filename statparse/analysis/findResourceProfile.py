@@ -180,15 +180,18 @@ def doPlot(title, allWays, allUtils, profile, filename = ""):
     
     yrangestr = "0,"+str(len(allWays))
     xrangestr = "0,"+str(len(allUtils))
+    zrangestr = "0,"+str(max(max(profile)))
     
     plotImage(profile,
               xlabel="Maximum Memory Bus Utilization",
               ylabel="Available Cache Ways",
+              zlabel="Instructions Per Cycle (IPC)",
               title=title,
               xticklabels=allUtils,
               yticklabels=allWays,
               yrange=yrangestr,
               xrange=xrangestr,
+              zrange=zrangestr,
               filename=filename)
 
 def main():
