@@ -6,10 +6,13 @@ from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
 from statparse.plotResults import plotImage
 from fairmha.experimentconfig import specnames
+from workloads import workloads
+from statparse.tracefile import isFloat
 
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
 import statparse.printResults as printres
+import optcomplete
 
 import os
 import sys
@@ -24,7 +27,11 @@ def parseArgs():
     parser.add_option("--simpoint", action="store", dest="simpoint", type="int", default=-1, help="Only provide results for this simpoint value")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot results in heatmap")
     parser.add_option("--list-benchmarks", action="store_true", dest="listBenchmarks", default=False, help="Print a list of the benchmark names")
+    parser.add_option("--optimal-part-np", action="store", type="int", dest="optPartNP", default=4, help="Find optimal partitions for this core count")
+    parser.add_option("--max-ways", action="store", type="int", dest="maxWays", default=16, help="Total number of ways available")
+    parser.add_option("--max-bandwidth", action="store", type="float", dest="maxBW", default=1.0, help="Total bandwidth available")
 
+    optcomplete.autocomplete(parser, optcomplete.ListCompleter(specnames))
     opts, args = parser.parse_args()
 
     if len(args) > 1:
@@ -143,6 +150,71 @@ def doSearch(benchmark, index, opts):
                           opts.quiet)
     return results
 
+def convertUtilList(allUtils):
+    assert len(allUtils) > 0
+    if isFloat(allUtils[0]):
+        return allUtils
+    
+    newUtilList = []
+    for u in allUtils:
+        try:
+            newUtilList.append(float(u.split(",")[0]))
+        except:
+            fatal("Unknown NFQ priorities format")
+    return newUtilList
+
+def mergeBmDict(bmdict):
+    vals = []
+    message = "Malformed resource allocation key list for at least one benchmark"
+    for k in bmdict:
+        if vals == []:
+            vals = bmdict[k]
+        else:
+            for i in range(len(vals)):
+                try:
+                    if(bmdict[k][i] != vals[i]):
+                        fatal(message)
+                except:
+                    fatal(message)
+                    
+    return vals
+
+def generateAllRAs(level, allocation, resources, maxlevel, maxval, results):
+    if level < maxlevel:
+        for r in resources:
+            newAlloc = allocation[:]
+            newAlloc.append(r)
+            generateAllRAs(level+1, newAlloc, resources, maxlevel, maxval, results)
+    
+    
+    if level == maxlevel and sum(allocation) == maxval:
+        results.append(allocation)
+        
+
+def findOptimalPartitions(bmprofiles, bmways, bmutils, opts):
+    
+    if not opts.quiet:
+        print
+        print "Searching for optimal partitions"
+        print
+    
+    ways = mergeBmDict(bmways)
+    utils = mergeBmDict(bmutils)
+    
+    np = opts.optPartNP
+    
+    validCacheAllocs = []
+    generateAllRAs(0, [], ways, np, opts.maxWays, validCacheAllocs)
+    
+    validBWAllocs = []
+    generateAllRAs(0, [], utils, np, opts.maxBW, validBWAllocs)
+    
+    for cacheAlloc in validCacheAllocs:
+        for bwAlloc in validBWAllocs:
+            print cacheAlloc, bwAlloc
+            
+            # TODO: compute performance
+
 def handleMultibenchmark(index, opts):
     
     if not opts.quiet:
@@ -150,14 +222,28 @@ def handleMultibenchmark(index, opts):
         print "Creating profiles for all benchmarks..."
         print
     
+    allprofiles = {}
+    allBmWays = {}
+    allBmUtils = {}
+    
     for benchmark in specnames:
         
         print "Processing "+benchmark 
         
         results = doSearch(benchmark+"0", index, opts)
         allWays, allUtils, profile = gatherPerformanceProfile(results)
+        
+        allUtils = convertUtilList(allUtils)
+        
         printTable(allWays, allUtils, profile, opts, "profile-data-"+benchmark+".txt")
         doPlot(benchmark, allWays, allUtils, profile, "profile-plot-"+benchmark+".pdf")
+        
+        assert benchmark not in allprofiles
+        allprofiles[benchmark] = profile
+        allBmWays[benchmark] = allWays
+        allBmUtils[benchmark] = allUtils
+            
+    findOptimalPartitions(allprofiles, allBmWays, allBmUtils, opts)
 
 def handleSingleBenchmark(benchmark, index, opts):
 
@@ -169,6 +255,8 @@ def handleSingleBenchmark(benchmark, index, opts):
         print
         print "Performance Profile for "+benchmark
         print
+    
+    allUtils = convertUtilList(allUtils)
     
     printTable(allWays, allUtils, profile, opts)
 
@@ -183,7 +271,7 @@ def doPlot(title, allWays, allUtils, profile, filename = ""):
     zrangestr = "0,"+str(max(max(profile)))
     
     plotImage(profile,
-              xlabel="Maximum Memory Bus Utilization",
+              xlabel="NFQ Prioritiy",
               ylabel="Available Cache Ways",
               zlabel="Instructions Per Cycle (IPC)",
               title=title,
