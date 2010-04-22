@@ -30,6 +30,7 @@ def parseArgs():
     parser.add_option("--optimal-part-np", action="store", type="int", dest="optPartNP", default=4, help="Find optimal partitions for this core count")
     parser.add_option("--max-ways", action="store", type="int", dest="maxWays", default=16, help="Total number of ways available")
     parser.add_option("--max-bandwidth", action="store", type="float", dest="maxBW", default=1.0, help="Total bandwidth available")
+    parser.add_option("--plot-file", action="store", type="string", dest="plotFile", default="", help="Plot to this file")
 
     optcomplete.autocomplete(parser, optcomplete.ListCompleter(specnames))
     opts, args = parser.parse_args()
@@ -261,7 +262,7 @@ def handleSingleBenchmark(benchmark, index, opts):
     printTable(allWays, allUtils, profile, opts)
 
     if opts.plot:
-        doPlot(benchmark, allWays, allUtils, profile)
+        doPlot(benchmark, allWays, allUtils, profile, filename=opts.plotFile)
         
 
 def doPlot(title, allWays, allUtils, profile, filename = ""):
