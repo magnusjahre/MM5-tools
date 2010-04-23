@@ -37,6 +37,19 @@ def createMetric(name):
     
     raise Exception("Unknown metric "+name)
 
+def buildSimpointDict(benchmarkList, performanceList):
+    
+    if len(benchmarkList) != len(performanceList):
+        raise Exception("Benchmark name list and performance list must have the same length")
+    
+    bmdict = {}
+    for i in range(len(benchmarkList)):
+        bmdict[benchmarkList[i]] = performanceList[i]
+    
+    retdict = {}
+    retdict[experimentConfiguration.NO_SIMPOINT_VAL] = bmdict
+    return retdict
+
 class WorkloadMetric():
 
     def __init__(self):
