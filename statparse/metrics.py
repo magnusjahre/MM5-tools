@@ -11,6 +11,8 @@ metrics = {"hmos": "Harmonic Mean of Speedups",
            "amean": "Arithmetic Mean",
            "sum": "Sum"}
 
+mpMetricNames = ["hmos", "fairness", "stp", "sum"]
+
 errorString = "N/A"
 
 def printPossibleMetrics():
@@ -178,6 +180,9 @@ class SystemThroughput(WorkloadMetric):
     def __str__(self):
         return "System Throughput"
     
+    def key(self):
+        return "stp"
+    
     def computeMetricValue(self):
         return self.computeSum()
     
@@ -190,6 +195,9 @@ class HarmonicMeanOfSpeedups(WorkloadMetric):
     def __str__(self):
         return "Harmonic Mean of Speedups"
     
+    def key(self):
+        return "hmos"
+    
     def computeMetricValue(self):
         return self.computeHmean()
     
@@ -201,6 +209,9 @@ class Fairness(WorkloadMetric):
     
     def __str__(self):
         return "Fairness"
+    
+    def key(self):
+        return "fairness"
     
     def computeMetricValue(self):
         res = []
@@ -222,6 +233,9 @@ class Sum(WorkloadMetric):
     def __str__(self):
         return "Sum"
     
+    def key(self):
+        return "sum"
+    
     def computeMetricValue(self):
         return self.computeSum()
 
@@ -234,6 +248,9 @@ class HarmonicMean(WorkloadMetric):
     def __str__(self):
         return "Harmonic Mean"
     
+    def key(self):
+        return "hmean"
+    
     def computeMetricValue(self):
         return self.computeHmean()
 
@@ -245,6 +262,9 @@ class ArithmeticMean(WorkloadMetric):
     
     def __str__(self):
         return "Arithmetic Mean"
+    
+    def key(self):
+        return "amean"
     
     def computeMetricValue(self):
         res = []

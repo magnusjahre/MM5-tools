@@ -8,12 +8,15 @@ from statparse.plotResults import plotImage
 from fairmha.experimentconfig import specnames
 from deterministic_fw_wls import getBms, workloads, getWorkloads
 from statparse.tracefile import isFloat
+from resourcePartition import ResourcePartition
 
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
 import statparse.printResults as printres
 import optcomplete
 import statparse.metrics as metrics
+
+import pickle
 
 import os
 import sys
@@ -32,7 +35,8 @@ def parseArgs():
     parser.add_option("--max-ways", action="store", type="int", dest="maxWays", default=16, help="Total number of ways available")
     parser.add_option("--max-bandwidth", action="store", type="float", dest="maxBW", default=1.0, help="Total bandwidth available")
     parser.add_option("--plot-file", action="store", type="string", dest="plotFile", default="", help="Plot to this file")
-    parser.add_option("--metric", action="store", type="string", dest="metric", default="hmos", help="Performance metric to use when finding optimal partitions")
+    parser.add_option("--metric", action="store", type="string", dest="metric", default="", help="Performance metric to use when finding optimal partitions")
+    parser.add_option("--optimal-module-name", action="store", type="string", dest="optModuleName", default="optimalPartitions", help="The name of the python module to store the optimal partitions")
 
     optcomplete.autocomplete(parser, optcomplete.ListCompleter(specnames))
     opts, args = parser.parse_args()
@@ -220,50 +224,64 @@ def findOptimalPartitions(bmprofiles, bmways, bmutils, opts):
     validBWAllocs = []
     generateAllRAs(0, [], utils, np, opts.maxBW, validBWAllocs)
     
-    perfMetric = metrics.createMetric(opts.metric)
+    useMetrics = []
+    if opts.metric != "":
+        useMetrics.append(metrics.createMetric(opts.metric))
+    else:
+        for metricName in metrics.mpMetricNames:
+            useMetrics.append(metrics.createMetric(metricName))
+    
     optimalPartitions = {}
+    for perfMetric in useMetrics:
 
-    for wl in getWorkloads(np):
-        
         if not opts.quiet:
-            print "Finding optimal partition for workload "+wl+"..."
-        
-        benchmarks = getBms(wl, np)
-        benchmarksWithZeros = getBms(wl, np, True) 
-        
-        optimalPart = ResourcePartition(np)
-                 
-        for cacheAlloc in validCacheAllocs:
-            for bwAlloc in validBWAllocs:
-                
-                performance = []
-                baseline = []
-                perfMetric.clearValues()
+            print
+            print "Processing metric "+str(perfMetric)+"..."
 
-                for i in range(np):
-                    wayIndex = wayToIndex[cacheAlloc[i]]
-                    utilIndex = utilToIndex[bwAlloc[i]]
-
-                    performance.append(bmprofiles[benchmarks[i]][wayIndex][utilIndex])
+        optimalPartitions[str(perfMetric.key())] = {}
+    
+    
+        for wl in getWorkloads(np):
+            
+            if not opts.quiet:
+                print "Finding optimal partition for workload "+wl+"..."
+            
+            benchmarks = getBms(wl, np)
+            benchmarksWithZeros = getBms(wl, np, True) 
+            
+            optimalPart = ResourcePartition(np)
+                     
+            for cacheAlloc in validCacheAllocs:
+                for bwAlloc in validBWAllocs:
                     
-                    baselineWayIndex = wayToIndex[max(wayToIndex.keys())]
-                    baselineUtilIndex = utilToIndex[max(utilToIndex.keys())]
-                    
-                    baseline.append(bmprofiles[benchmarks[i]][baselineWayIndex][baselineUtilIndex])
-
-
-                sharedPerf = metrics.buildSimpointDict(benchmarksWithZeros, performance)
-                baselinePerf = metrics.buildSimpointDict(benchmarksWithZeros, baseline)
-
-                perfMetric.setValues(sharedPerf, baselinePerf, np, wl)
-                                
-                metricValue = perfMetric.computeMetricValue()
-                if metricValue > optimalPart.metricValue:
-                    optimalPart.setPartition(cacheAlloc, bwAlloc, metricValue)
-        
-        assert optimalPart.isInitialized()
-        assert wl not in optimalPartitions
-        optimalPartitions[wl] = optimalPart
+                    performance = []
+                    baseline = []
+                    perfMetric.clearValues()
+    
+                    for i in range(np):
+                        wayIndex = wayToIndex[cacheAlloc[i]]
+                        utilIndex = utilToIndex[bwAlloc[i]]
+    
+                        performance.append(bmprofiles[benchmarks[i]][wayIndex][utilIndex])
+                        
+                        baselineWayIndex = wayToIndex[max(wayToIndex.keys())]
+                        baselineUtilIndex = utilToIndex[max(utilToIndex.keys())]
+                        
+                        baseline.append(bmprofiles[benchmarks[i]][baselineWayIndex][baselineUtilIndex])
+    
+    
+                    sharedPerf = metrics.buildSimpointDict(benchmarksWithZeros, performance)
+                    baselinePerf = metrics.buildSimpointDict(benchmarksWithZeros, baseline)
+    
+                    perfMetric.setValues(sharedPerf, baselinePerf, np, wl)
+                                    
+                    metricValue = perfMetric.computeMetricValue()
+                    if metricValue > optimalPart.metricValue:
+                        optimalPart.setPartition(cacheAlloc, bwAlloc, metricValue)
+            
+            assert optimalPart.isInitialized()
+            assert wl not in optimalPartitions[perfMetric.key()]
+            optimalPartitions[perfMetric.key()][wl] = optimalPart
         
     return optimalPartitions
 
@@ -302,15 +320,17 @@ def handleMultibenchmark(index, opts):
 
 def printPartitions(optimalPartitions, opts):
     
-    wls = optimalPartitions.keys()
-    wls.sort()
+    outname = opts.optModuleName+".pkl"
     
-    print
-    print "Optimal partition results:"
-    print
+    if not opts.quiet:
+        print
+        print "Dumping optimal partitions data into module "+outname
     
-    for wl in wls:
-        print wl+": "+str(optimalPartitions[wl])
+    outfile = open(outname, "w")
+    
+    pickle.dump(optimalPartitions, outfile)
+    
+    outfile.close() 
     
 
 def handleSingleBenchmark(benchmark, index, opts):
@@ -379,30 +399,6 @@ def main():
         handleSingleBenchmark(benchmark, index, opts)
     else:
         handleMultibenchmark(index, opts)
-    
-
-class ResourcePartition:
-    
-    def __init__(self, np):
-        self.np = np
-        self.ways = []
-        self.utils = []
-        self.metricValue = 0
-        
-        self.initialized = False
-        
-    def setPartition(self, ways, utils, metricValue):
-        self.ways = ways
-        self.utils = utils
-        self.metricValue = metricValue
-        
-        self.initialized = True
-        
-    def isInitialized(self):
-        return self.initialized
-    
-    def __str__(self):
-        return str(self.ways)+", "+str(self.utils)+", "+str(self.metricValue)
 
 if __name__ == '__main__':
     main()
