@@ -277,7 +277,7 @@ def findOptimalPartitions(bmprofiles, bmways, bmutils, opts):
                                     
                     metricValue = perfMetric.computeMetricValue()
                     if metricValue > optimalPart.metricValue:
-                        optimalPart.setPartition(cacheAlloc, bwAlloc, metricValue)
+                        optimalPart.setPartition(cacheAlloc, bwAlloc, metricValue, sharedPerf)
             
             assert optimalPart.isInitialized()
             assert wl not in optimalPartitions[perfMetric.key()]
