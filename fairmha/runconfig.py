@@ -32,7 +32,7 @@ def getHeader(np):
     lines.append("#PBS -N m5sim")
     lines.append("#PBS -lwalltime="+str(walltime[np])+":00:00")
     lines.append("#PBS -m a")
-    lines.append("#PBS -q default")
+    #lines.append("#PBS -q default")
     lines.append("#PBS -j oe")
 
     lines.append("#PBS -lnodes=1:ppn="+str(ppn[np])+",pvmem="+str(perProcMem[np])+"gb,pmem="+str(perProcMem[np])+"gb")
