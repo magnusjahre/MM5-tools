@@ -1,6 +1,7 @@
 
 import statparse.metrics as metrics
 from statparse import experimentConfiguration
+from matplotlib.pyplot import xticks
 
 COLORLIST = []
 baseRGBOptions = [0.0, 1.0, 0.5]
@@ -383,6 +384,7 @@ def plotLines(xvalues, yvalues, **kwargs):
 def plotImage(image, **kwargs):
     
     import matplotlib.pyplot as plt
+    import numpy as np
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -430,10 +432,10 @@ def plotImage(image, **kwargs):
             cbar.set_label(kwargs["zlabel"], size="large")
     
     if "xticklabels" in kwargs:
-        ax.set_xticklabels(kwargs["xticklabels"])
+        plt.xticks(np.arange(len(kwargs["xticklabels"])), kwargs["xticklabels"])
     
     if "yticklabels" in kwargs:
-        ax.set_yticklabels(kwargs["yticklabels"])
+        plt.yticks(np.arange(len(kwargs["yticklabels"])), kwargs["yticklabels"])
     
     if "title" in kwargs:
         ax.set_title(kwargs["title"], size="large")

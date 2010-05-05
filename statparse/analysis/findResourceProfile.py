@@ -13,6 +13,7 @@ from resourcePartition import ResourcePartition
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
 import statparse.printResults as printres
+from statparse.printResults import printData, numberToString
 import optcomplete
 import statparse.metrics as metrics
 
@@ -37,6 +38,7 @@ def parseArgs():
     parser.add_option("--plot-file", action="store", type="string", dest="plotFile", default="", help="Plot to this file")
     parser.add_option("--metric", action="store", type="string", dest="metric", default="", help="Performance metric to use when finding optimal partitions")
     parser.add_option("--optimal-module-name", action="store", type="string", dest="optModuleName", default="optimalPartitions", help="The name of the python module to store the optimal partitions")
+    parser.add_option("--optimal-human-file-name", action="store", type="string", dest="humanPartFile", default="optimalPartitions.txt", help="The name of the file to store to store the human readable partitions")
 
     optcomplete.autocomplete(parser, optcomplete.ListCompleter(specnames))
     opts, args = parser.parse_args()
@@ -272,15 +274,21 @@ def findOptimalPartitions(bmprofiles, bmways, bmutils, opts):
     
                     sharedPerf = metrics.buildSimpointDict(benchmarksWithZeros, performance)
                     baselinePerf = metrics.buildSimpointDict(benchmarksWithZeros, baseline)
-    
-                    perfMetric.setValues(sharedPerf, baselinePerf, np, wl)
+                    
+                    if perfMetric.spmNeeded:
+                        perfMetric.setValues(sharedPerf, baselinePerf, np, wl)
+                    else:
+                        perfMetric.setValues(sharedPerf, {}, np, wl)
                                     
-                    metricValue = perfMetric.computeMetricValue()
+                    metricValue = perfMetric.computeMetricValue()[0]
+                    
                     if metricValue > optimalPart.metricValue:
                         optimalPart.setPartition(cacheAlloc, bwAlloc, metricValue, sharedPerf)
             
             assert optimalPart.isInitialized()
             assert wl not in optimalPartitions[perfMetric.key()]
+            if not opts.quiet:
+                print "Optimal partition: Cache "+str(optimalPart.ways)+", bw "+str(optimalPart.utils)
             optimalPartitions[perfMetric.key()][wl] = optimalPart
         
     return optimalPartitions
@@ -330,8 +338,35 @@ def printPartitions(optimalPartitions, opts):
     
     pickle.dump(optimalPartitions, outfile)
     
-    outfile.close() 
+    outfile.close()
     
+    header = ["Workload", "Optimal Cache Ways", "Optimal Utilization", "Metric Value"]
+    just = [True, False, False, False]
+    
+    if not opts.quiet:
+        print "Dumping human readable optimal partitions data into module "+opts.humanPartFile
+    
+    readableOptFile = open(opts.humanPartFile, "w")
+    for metric in optimalPartitions:
+        readableOptFile.write("\nOptimal partitons for metric "+metric+"\n\n")
+    
+        lines = [header]
+        
+        wls = optimalPartitions[metric].keys()
+        wls.sort()
+        
+        for wl in wls:
+            line = [wl,
+                    str(optimalPartitions[metric][wl].ways),
+                    str(optimalPartitions[metric][wl].utils),
+                    numberToString(optimalPartitions[metric][wl].metricValue, opts.decimals)]
+            
+            lines.append(line)
+    
+        printData(lines, just, readableOptFile, opts.decimals)
+    
+    readableOptFile.flush()
+    readableOptFile.close()
 
 def handleSingleBenchmark(benchmark, index, opts):
 
@@ -354,8 +389,8 @@ def handleSingleBenchmark(benchmark, index, opts):
 
 def doPlot(title, allWays, allUtils, profile, filename = ""):
     
-    yrangestr = "0,"+str(len(allWays))
-    xrangestr = "0,"+str(len(allUtils))
+    yrangestr = "-0.5,"+str(len(allWays)-0.5)
+    xrangestr = "-0.5,"+str(len(allUtils)-0.5)
     zrangestr = "0,"+str(max(max(profile)))
     
     plotImage(profile,
