@@ -61,7 +61,7 @@ def printSingleWorkload(wl, useParts, opts, useParams, metricObj, searchConf, in
     results.plainSearch("COM:IPC")
     
     expMetval = results._aggregateWorkloadResults(opts.np, useParams, wl)[0]
-    offlineMetval = useParts[wl].metricValue[0]
+    offlineMetval = useParts[wl].metricValue
     
     print
     print "Extended results for workload "+wl
@@ -122,7 +122,7 @@ def printAllWorkloads(results, useParts, opts, useParams, metricObj, searchConf,
     
     for wl in wls:
         expMetval = results._aggregateWorkloadResults(opts.np, useParams, wl)[0]
-        offlineMetval = useParts[wl].metricValue[0]
+        offlineMetval = useParts[wl].metricValue
         
         percerror = computePercError(offlineMetval, expMetval)
         
