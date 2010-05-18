@@ -24,6 +24,75 @@ import sys
 
 ERRVAL = 0.0
 
+class PerformanceModel:
+    
+    def __init__(self, debugPrint):
+        self.alpha = 0
+        self.missRate = 0.0
+        
+        self.busTransLat = 0.0
+        self.beta = 0.0
+        
+        self.bandwidthDepArrivalRate = 0.0
+        self.maxArrivalRate = 0.0
+        
+        self.mlp = 0.0
+        self.computeCycles = 0.0
+        self.committedInstructions = 0.0
+        self.sharedMemSysReqs = 0.0
+        
+        self.printDebug = debugPrint
+
+    def estimateIPC(self, bandwidthAlloc):
+        avgMemLat = self.estimateMemoryLatency(bandwidthAlloc)
+        expectedStallTime = avgMemLat * self.mlp * self.sharedMemSysReqs
+        
+        if self.printDebug:
+            print "Avg memory latency "+str(avgMemLat)+" and mlp "+str(self.mlp)+" gives stall time "+str(expectedStallTime)
+        
+        ipc = self.committedInstructions / (self.computeCycles + expectedStallTime)
+        
+        if self.printDebug:
+            print str(self.committedInstructions)+" committed instructions and "+str(self.computeCycles)+" compute cycles gives IPC "+str(ipc)
+            
+        return ipc
+
+    def estimateMemoryLatency(self, bandwidthAlloc):
+        
+        offeredArrival = bandwidthAlloc * self.bandwidthDepArrivalRate
+        arrivalRate = min(offeredArrival, self.maxArrivalRate)
+        
+        if self.printDebug:
+            print "Using arrival rate "+str(arrivalRate)+", offered is "+str(offeredArrival)+", max is "+str(self.maxArrivalRate)
+        
+        busLatency = self.beta + (bandwidthAlloc * (self.busTransLat**2) * arrivalRate)
+        
+        if self.printDebug:
+            print "Estimating average bus latency to "+str(busLatency)
+        
+        avgMemLat = self.alpha + self.missRate * busLatency 
+        
+        if self.printDebug:
+            print "Average memory latency estimate "+str(avgMemLat)
+        
+        return avgMemLat
+        
+    def setBusLatencies(self, busTransfer, busEntry):
+        self.beta = busTransfer + busEntry
+        self.busTransLat = busTransfer
+        
+    def setBWDepArrivalRate(self, totalBusRequests, totalCycles):
+        #TODO: Include idle time here?
+        self.bandwidthDepArrivalRate = float(totalBusRequests) / float(totalCycles)
+    
+    def setCycleVals(self, stallCycles, totalCycles, totalMemLat):
+        self.computeCycles = totalCycles - stallCycles
+        self.mlp = float(stallCycles) / float(totalMemLat)
+        
+    def setMaxArrivalRate(self, maxBusQueue, maxBusService):
+        self.maxArrivalRate = float(maxBusQueue) / float(maxBusService**2)
+        
+
 def parseArgs():
     parser = OptionParser(usage="findResourceProfile.py [options] [benchmark]")
 
@@ -39,6 +108,9 @@ def parseArgs():
     parser.add_option("--metric", action="store", type="string", dest="metric", default="", help="Performance metric to use when finding optimal partitions")
     parser.add_option("--optimal-module-name", action="store", type="string", dest="optModuleName", default="optimalPartitions", help="The name of the python module to store the optimal partitions")
     parser.add_option("--optimal-human-file-name", action="store", type="string", dest="humanPartFile", default="optimalPartitions.txt", help="The name of the file to store to store the human readable partitions")
+    parser.add_option("--validate-model", action="store_true", dest="validateModel", default=False, help="Validate the bandwidth model")
+    parser.add_option("--debug-model", action="store_true", dest="debugModel", default=False, help="Print debug info for performance model")
+    
 
     optcomplete.autocomplete(parser, optcomplete.ListCompleter(specnames))
     opts, args = parser.parse_args()
@@ -368,6 +440,58 @@ def printPartitions(optimalPartitions, opts):
     readableOptFile.flush()
     readableOptFile.close()
 
+def findPattern(patstring, results, maxBW = False):
+    results.plainSearch(patstring)
+    
+    if results.noPatResults == {}:
+        fatal("No results found for pattern "+patstring)
+    
+    searchConfig = expconfig.buildMatchAllConfig()    
+    searchConfig.parameters["MAX-CACHE-WAYS"] = 16
+    if maxBW:
+        searchConfig.parameters["NFQ-PRIORITIES"] = "0.99,0.01"
+    else:
+        searchConfig.parameters["NFQ-PRIORITIES"] = "0.5,0.5"
+    
+    configRes = procres.filterConfigurations(results.matchingConfigs, searchConfig)
+    assert len(configRes) == 1
+    return results.noPatResults[configRes[0]]
+
+def buildModel(benchmark, results, opts):
+    perfModel = PerformanceModel(opts.debugModel)
+    
+    perfModel.setCycleVals(findPattern("interferenceManager.cpu_stall_cycles", results),
+                           findPattern("sim_ticks", results),
+                           findPattern("interferenceManager.total_latency", results))
+
+    perfModel.setBusLatencies(findPattern("interferenceManager.avg_latency_bus_service", results),
+                              findPattern("interferenceManager.avg_latency_bus_entry", results))
+    
+    perfModel.setBWDepArrivalRate(findPattern("membus0.total_requests", results), 
+                                  findPattern("sim_ticks", results))
+
+    perfModel.setMaxArrivalRate(findPattern("interferenceManager.avg_latency_bus_queue", results, True),
+                                findPattern("interferenceManager.avg_latency_bus_service", results, True))
+
+    perfModel.committedInstructions = findPattern("detailedCPU0.COM:count", results)
+    perfModel.sharedMemSysReqs = findPattern("interferenceManager.requests", results)
+
+    accesses = 0
+    misses = 0
+    for b in range(4):
+        accesses += findPattern("SharedCache"+str(b)+".accesses_per_cpu", results)
+        misses += findPattern("SharedCache"+str(b)+".misses_per_cpu", results)
+    perfModel.missRate = float(misses) / float(accesses)
+    
+    alpha = findPattern("interferenceManager.avg_round_trip_latency", results) 
+    - (findPattern("interferenceManager.avg_latency_bus_entry", results) 
+    + findPattern("interferenceManager.avg_latency_bus_queue", results)
+    + findPattern("interferenceManager.avg_latency_bus_service", results)) 
+    
+    print
+    print "0.5 estimate: "+str(perfModel.estimateIPC(0.5))
+    print "0.5 actual:   "+str(findPattern("COM:IPC", results))
+
 def handleSingleBenchmark(benchmark, index, opts):
 
     results = doSearch(benchmark, index, opts)
@@ -385,7 +509,9 @@ def handleSingleBenchmark(benchmark, index, opts):
 
     if opts.plot:
         doPlot(benchmark, allWays, allUtils, profile, filename=opts.plotFile)
-        
+    
+    if opts.validateModel:
+        buildModel(benchmark, results, opts)
 
 def doPlot(title, allWays, allUtils, profile, filename = ""):
     
@@ -433,6 +559,8 @@ def main():
         benchmark = args[0]+"0"
         handleSingleBenchmark(benchmark, index, opts)
     else:
+        if opts.validateModel:
+            fatal("Model validation only supported for single benchmarks")
         handleMultibenchmark(index, opts)
 
 if __name__ == '__main__':

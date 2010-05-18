@@ -22,6 +22,7 @@ def parseArgs():
     parser.add_option("--partition-file", action="store", dest="partitionFile", type="string", default="optimalPartitions.pkl", help="File to read partitions from")
     parser.add_option("--np", action="store", dest="np", type="int", default=4, help="Number of cores")
     parser.add_option("--workload", action="store", dest="workload", type="string", default="", help="Print extended information about this workload")
+    parser.add_option("--no-metric", action="store_true", dest="noMetric", default=False, help="Inhibit selecting a parameter for the search")
 
     optcomplete.autocomplete(parser, optcomplete.ListCompleter(metrics.mpMetricNames))
     opts, args = parser.parse_args()
@@ -34,7 +35,10 @@ def parseArgs():
 
 def computeAccuracy(partitions, index, opts, metric):
     useParts = partitions[metric]
-    useParams = {'OPTIMAL-PARTITION-METRIC': metric}
+    if opts.noMetric:
+        useParams = {}
+    else:
+        useParams = {'OPTIMAL-PARTITION-METRIC': metric}
     
     metricObj = metrics.createMetric(metric)
     searchConf = experimentConfiguration.buildMatchAllConfig()
@@ -108,7 +112,6 @@ def printAllWorkloads(results, useParts, opts, useParams, metricObj, searchConf,
                           False,
                           opts.quiet)
     
-    
     results.aggregateSimpoints = False
     results.wlMetric = metricObj
     results.plainSearch("COM:IPC")
@@ -116,7 +119,7 @@ def printAllWorkloads(results, useParts, opts, useParams, metricObj, searchConf,
     wls = useParts.keys()
     wls.sort()
     
-    header = ["Workload", "Actual", "Prediction", "Error (%)"]
+    header = ["", "Actual", "Prediction", "Error (%)"]
     lines = []
     lines.append(header)
     
