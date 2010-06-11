@@ -4,7 +4,7 @@ from optparse import OptionParser
 from statparse.util import fatal
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
-from statparse.plotResults import plotImage
+from statparse.plotResults import plotImage, plotLines
 from fairmha.experimentconfig import specnames
 from deterministic_fw_wls import getBms, workloads, getWorkloads
 from statparse.tracefile import isFloat
@@ -21,12 +21,17 @@ import pickle
 
 import os
 import sys
+from math import log
 
 ERRVAL = 0.0
+USE_CACHE_WAYS = 16
 
 class PerformanceModel:
     
-    def __init__(self, debugPrint):
+    FUNC_LIN = 0
+    FUNC_POW = 1
+    
+    def __init__(self, debugPrint, functype):
         self.alpha = 0
         self.missRate = 0.0
         
@@ -42,40 +47,93 @@ class PerformanceModel:
         self.sharedMemSysReqs = 0.0
         
         self.printDebug = debugPrint
+ 
+        if functype ==  "lin":
+            self.functype = self.FUNC_LIN
+        elif functype == "pow":
+            self.functype = self.FUNC_POW
+        else:
+            raise Exception("Function type "+str(functype)+" not supported")
+        
+        self.linArrivalA = 0
+        self.linArrivalB = 0
+        
+        self.powArrivalA = 0
+        self.powArrivalB = 0
 
     def estimateIPC(self, bandwidthAlloc):
+        
+        if self.printDebug:
+            print "Estimating IPC for allocation "+str(bandwidthAlloc)
+        
         avgMemLat = self.estimateMemoryLatency(bandwidthAlloc)
         expectedStallTime = avgMemLat * self.mlp * self.sharedMemSysReqs
         
         if self.printDebug:
-            print "Avg memory latency "+str(avgMemLat)+" and mlp "+str(self.mlp)+" gives stall time "+str(expectedStallTime)
+            print "-- Avg memory latency "+str(avgMemLat)+" and mlp "+str(self.mlp)+" gives stall time "+str(expectedStallTime)
         
         ipc = self.committedInstructions / (self.computeCycles + expectedStallTime)
         
         if self.printDebug:
-            print str(self.committedInstructions)+" committed instructions and "+str(self.computeCycles)+" compute cycles gives IPC "+str(ipc)
+            print "-- "+str(self.committedInstructions)+" committed instructions and "+str(self.computeCycles)+" compute cycles gives IPC "+str(ipc)
             
         return ipc
 
-    def estimateMemoryLatency(self, bandwidthAlloc):
-        
-        offeredArrival = bandwidthAlloc * self.bandwidthDepArrivalRate
-        arrivalRate = min(offeredArrival, self.maxArrivalRate)
+    def estimateMemoryLatency(self, bandwidthAlloc):        
+        queueLatEst = self.computeBusQueueLat(bandwidthAlloc)
         
         if self.printDebug:
-            print "Using arrival rate "+str(arrivalRate)+", offered is "+str(offeredArrival)+", max is "+str(self.maxArrivalRate)
-        
-        busLatency = self.beta + (bandwidthAlloc * (self.busTransLat**2) * arrivalRate)
-        
+            print "-- Got bus queue latency estimate "+str(queueLatEst)
+
+        busLatency = self.beta + self.busTransLat + queueLatEst
+
         if self.printDebug:
-            print "Estimating average bus latency to "+str(busLatency)
+            print "-- Estimating average bus latency to "+str(busLatency)
         
         avgMemLat = self.alpha + self.missRate * busLatency 
         
         if self.printDebug:
-            print "Average memory latency estimate "+str(avgMemLat)
+            print "-- Alpha "+str(self.alpha)+" and miss rate "+str(self.missRate)+" gives average memory latency estimate "+str(avgMemLat)
         
         return avgMemLat
+    
+    def computeBusQueueLat(self, bandwidthAlloc):
+        if self.functype == self.FUNC_LIN:
+            return self.linArrivalA * bandwidthAlloc + self.linArrivalB
+        assert self.functype == self.FUNC_POW
+        return self.powArrivalA * (bandwidthAlloc ** self.powArrivalB) 
+    
+    def computeBusQueueFunction(self, midpoint, maxpoint):
+        
+        if self.printDebug:
+            print "Created arrival function with points "+str(midpoint)+", "+str(maxpoint)
+    
+        midbusq, midbuss, midbw = midpoint
+        maxbusq, maxbuss, maxbw = maxpoint
+    
+        if self.functype == self.FUNC_LIN:
+            self.computeLinBusQueueFunction(maxbusq, maxbw, midbusq, midbw)
+        elif self.functype == self.FUNC_POW:
+            self.computePowBusQueueFunction(maxbusq, maxbw, midbusq, midbw)
+        else:
+            raise Exception("Unsupported function type")
+    
+    def computePowBusQueueFunction(self, maxy, maxbw, midy, midbw):
+        self.powArrivalB = ((log(float(maxy)) - log(float(midy))) / (log(float(maxbw)) - log(float(midbw))))
+        self.powArrivalA = float(maxy) / (float(maxbw)**self.powArrivalB)
+        
+        print self.powArrivalA, maxy, maxbw
+        
+        if self.printDebug:
+            print "Created power estimation function y = "+str(self.powArrivalA)+"x^"+str(self.powArrivalB)
+        
+    
+    def computeLinBusQueueFunction(self, maxy, maxbw, midy, midbw):
+        self.linArrivalA = (maxy - midy) / (maxbw - midbw)
+        self.linArrivalB = midy - (self.linArrivalA * midbw)
+        
+        if self.printDebug:
+            print "Created linear estimation function y = "+str(self.linArrivalA)+"x + "+str(self.linArrivalB)
         
     def setBusLatencies(self, busTransfer, busEntry):
         self.beta = busTransfer + busEntry
@@ -110,6 +168,7 @@ def parseArgs():
     parser.add_option("--optimal-human-file-name", action="store", type="string", dest="humanPartFile", default="optimalPartitions.txt", help="The name of the file to store to store the human readable partitions")
     parser.add_option("--validate-model", action="store_true", dest="validateModel", default=False, help="Validate the bandwidth model")
     parser.add_option("--debug-model", action="store_true", dest="debugModel", default=False, help="Print debug info for performance model")
+    parser.add_option("--queue-lat-function", action="store", dest="queueLatFunction", default="pow", help="Bus queue latency estimation function type (pow or lin)")
     
 
     optcomplete.autocomplete(parser, optcomplete.ListCompleter(specnames))
@@ -447,18 +506,18 @@ def findPattern(patstring, results, maxBW = False):
         fatal("No results found for pattern "+patstring)
     
     searchConfig = expconfig.buildMatchAllConfig()    
-    searchConfig.parameters["MAX-CACHE-WAYS"] = 16
+    searchConfig.parameters["MAX-CACHE-WAYS"] = USE_CACHE_WAYS
     if maxBW:
         searchConfig.parameters["NFQ-PRIORITIES"] = "0.99,0.01"
     else:
-        searchConfig.parameters["NFQ-PRIORITIES"] = "0.5,0.5"
+        searchConfig.parameters["NFQ-PRIORITIES"] = "0.25,0.75"
     
     configRes = procres.filterConfigurations(results.matchingConfigs, searchConfig)
     assert len(configRes) == 1
     return results.noPatResults[configRes[0]]
 
-def buildModel(benchmark, results, opts):
-    perfModel = PerformanceModel(opts.debugModel)
+def buildModel(benchmark, results, opts, allUtils, allWays, profile):
+    perfModel = PerformanceModel(opts.debugModel, opts.queueLatFunction)
     
     perfModel.setCycleVals(findPattern("interferenceManager.cpu_stall_cycles", results),
                            findPattern("sim_ticks", results),
@@ -469,6 +528,9 @@ def buildModel(benchmark, results, opts):
     
     perfModel.setBWDepArrivalRate(findPattern("membus0.total_requests", results), 
                                   findPattern("sim_ticks", results))
+    
+    perfModel.computeBusQueueFunction((findPattern("interferenceManager.avg_latency_bus_queue", results), findPattern("interferenceManager.avg_latency_bus_service", results), 0.25),
+                                     (findPattern("interferenceManager.avg_latency_bus_queue", results, True), findPattern("interferenceManager.avg_latency_bus_service", results, True), 0.99))
 
     perfModel.setMaxArrivalRate(findPattern("interferenceManager.avg_latency_bus_queue", results, True),
                                 findPattern("interferenceManager.avg_latency_bus_service", results, True))
@@ -482,15 +544,26 @@ def buildModel(benchmark, results, opts):
         accesses += findPattern("SharedCache"+str(b)+".accesses_per_cpu", results)
         misses += findPattern("SharedCache"+str(b)+".misses_per_cpu", results)
     perfModel.missRate = float(misses) / float(accesses)
+
+    alpha = findPattern("interferenceManager.avg_round_trip_latency", results) - (findPattern("interferenceManager.avg_latency_bus_entry", results) + findPattern("interferenceManager.avg_latency_bus_queue", results) + findPattern("interferenceManager.avg_latency_bus_service", results)) 
     
-    alpha = findPattern("interferenceManager.avg_round_trip_latency", results) 
-    - (findPattern("interferenceManager.avg_latency_bus_entry", results) 
-    + findPattern("interferenceManager.avg_latency_bus_queue", results)
-    + findPattern("interferenceManager.avg_latency_bus_service", results)) 
+    perfModel.alpha = alpha
     
-    print
-    print "0.5 estimate: "+str(perfModel.estimateIPC(0.5))
-    print "0.5 actual:   "+str(findPattern("COM:IPC", results))
+    cacheIndex = -1
+    for i in range(len(allWays)):
+        if allWays[i] == USE_CACHE_WAYS:
+            assert cacheIndex == -1
+            cacheIndex = i
+    assert cacheIndex != -1
+    
+    predictions = []
+    for i in range(len(allUtils)):
+        predictions.append(perfModel.estimateIPC(allUtils[i]))
+    
+    plotLines([allUtils, allUtils],
+              [profile[cacheIndex], predictions],
+              legendTitles=["Actual", "Model"])
+    
 
 def handleSingleBenchmark(benchmark, index, opts):
 
@@ -511,7 +584,7 @@ def handleSingleBenchmark(benchmark, index, opts):
         doPlot(benchmark, allWays, allUtils, profile, filename=opts.plotFile)
     
     if opts.validateModel:
-        buildModel(benchmark, results, opts)
+        buildModel(benchmark, results, opts, allUtils, allWays, profile)
 
 def doPlot(title, allWays, allUtils, profile, filename = ""):
     
