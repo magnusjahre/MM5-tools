@@ -38,9 +38,6 @@ class PerformanceModel:
         self.busTransLat = 0.0
         self.beta = 0.0
         
-        self.bandwidthDepArrivalRate = 0.0
-        self.maxArrivalRate = 0.0
-        
         self.mlp = 0.0
         self.computeCycles = 0.0
         self.committedInstructions = 0.0
@@ -108,8 +105,8 @@ class PerformanceModel:
         if self.printDebug:
             print "Created arrival function with points "+str(midpoint)+", "+str(maxpoint)
     
-        midbusq, midbuss, midbw = midpoint
-        maxbusq, maxbuss, maxbw = maxpoint
+        midbusq, midbw = midpoint
+        maxbusq, maxbw = maxpoint
     
         if self.functype == self.FUNC_LIN:
             self.computeLinBusQueueFunction(maxbusq, maxbw, midbusq, midbw)
@@ -121,8 +118,6 @@ class PerformanceModel:
     def computePowBusQueueFunction(self, maxy, maxbw, midy, midbw):
         self.powArrivalB = ((log(float(maxy)) - log(float(midy))) / (log(float(maxbw)) - log(float(midbw))))
         self.powArrivalA = float(maxy) / (float(maxbw)**self.powArrivalB)
-        
-        print self.powArrivalA, maxy, maxbw
         
         if self.printDebug:
             print "Created power estimation function y = "+str(self.powArrivalA)+"x^"+str(self.powArrivalB)
@@ -138,17 +133,10 @@ class PerformanceModel:
     def setBusLatencies(self, busTransfer, busEntry):
         self.beta = busTransfer + busEntry
         self.busTransLat = busTransfer
-        
-    def setBWDepArrivalRate(self, totalBusRequests, totalCycles):
-        #TODO: Include idle time here?
-        self.bandwidthDepArrivalRate = float(totalBusRequests) / float(totalCycles)
     
     def setCycleVals(self, stallCycles, totalCycles, totalMemLat):
         self.computeCycles = totalCycles - stallCycles
         self.mlp = float(stallCycles) / float(totalMemLat)
-        
-    def setMaxArrivalRate(self, maxBusQueue, maxBusService):
-        self.maxArrivalRate = float(maxBusQueue) / float(maxBusService**2)
         
 
 def parseArgs():
@@ -522,21 +510,21 @@ def buildModel(benchmark, results, opts, allUtils, allWays, profile):
     perfModel.setCycleVals(findPattern("interferenceManager.cpu_stall_cycles", results),
                            findPattern("sim_ticks", results),
                            findPattern("interferenceManager.total_latency", results))
-
-    perfModel.setBusLatencies(findPattern("interferenceManager.avg_latency_bus_service", results),
-                              findPattern("interferenceManager.avg_latency_bus_entry", results))
     
-    perfModel.setBWDepArrivalRate(findPattern("membus0.total_requests", results), 
-                                  findPattern("sim_ticks", results))
-    
-    perfModel.computeBusQueueFunction((findPattern("interferenceManager.avg_latency_bus_queue", results), findPattern("interferenceManager.avg_latency_bus_service", results), 0.25),
-                                     (findPattern("interferenceManager.avg_latency_bus_queue", results, True), findPattern("interferenceManager.avg_latency_bus_service", results, True), 0.99))
-
-    perfModel.setMaxArrivalRate(findPattern("interferenceManager.avg_latency_bus_queue", results, True),
-                                findPattern("interferenceManager.avg_latency_bus_service", results, True))
-
     perfModel.committedInstructions = findPattern("detailedCPU0.COM:count", results)
     perfModel.sharedMemSysReqs = findPattern("interferenceManager.requests", results)
+
+    busReads = findPattern("membus0.reads_per_cpu", results)
+    busEntryLatSum = findPattern("interferenceManager.latency_bus_entry", results)
+    busServiceLatSum = findPattern("interferenceManager.latency_bus_service", results)
+    busQueueLatSumMid = findPattern("interferenceManager.latency_bus_queue", results)
+    busQueueLatSumMax = findPattern("interferenceManager.latency_bus_queue", results, True)
+
+    perfModel.setBusLatencies(busServiceLatSum / busReads,
+                              busEntryLatSum / busReads)    
+
+    perfModel.computeBusQueueFunction((busQueueLatSumMid / busReads, 0.25),
+                                      (busQueueLatSumMax / busReads, 0.99))
 
     accesses = 0
     misses = 0
