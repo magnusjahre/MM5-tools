@@ -34,3 +34,6 @@ def computeDistributionAverage(distribution):
         
     return float(wsum) / float(samples)
     
+def computePercError(estimate, actual):
+    err = (float(estimate) - float(actual)) / float(actual)
+    return err*100

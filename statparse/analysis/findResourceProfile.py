@@ -14,6 +14,7 @@ import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
 import statparse.printResults as printres
 from statparse.printResults import printData, numberToString
+from statparse.analysis import computePercError
 import optcomplete
 import statparse.metrics as metrics
 
@@ -34,8 +35,6 @@ class PerformanceModel:
     def __init__(self, debugPrint, functype):
         self.alpha = 0
         self.missRate = 0.0
-        
-        self.busTransLat = 0.0
         self.beta = 0.0
         
         self.mlp = 0.0
@@ -82,7 +81,7 @@ class PerformanceModel:
         if self.printDebug:
             print "-- Got bus queue latency estimate "+str(queueLatEst)
 
-        busLatency = self.beta + self.busTransLat + queueLatEst
+        busLatency = self.beta + queueLatEst
 
         if self.printDebug:
             print "-- Estimating average bus latency to "+str(busLatency)
@@ -132,7 +131,6 @@ class PerformanceModel:
         
     def setBusLatencies(self, busTransfer, busEntry):
         self.beta = busTransfer + busEntry
-        self.busTransLat = busTransfer
     
     def setCycleVals(self, stallCycles, totalCycles, totalMemLat):
         self.computeCycles = totalCycles - stallCycles
@@ -423,6 +421,8 @@ def handleMultibenchmark(index, opts):
     allprofiles = {}
     allBmWays = {}
     allBmUtils = {}
+    allModels = {}
+    lastutil = []
     
     for benchmark in specnames:
         
@@ -432,6 +432,7 @@ def handleMultibenchmark(index, opts):
         allWays, allUtils, profile = gatherPerformanceProfile(results)
         
         allUtils = convertUtilList(allUtils)
+        lastutil = allUtils
         
         printTable(allWays, allUtils, profile, opts, "profile-data-"+benchmark+".txt")
         if opts.plot:
@@ -441,9 +442,44 @@ def handleMultibenchmark(index, opts):
         allprofiles[benchmark] = profile
         allBmWays[benchmark] = allWays
         allBmUtils[benchmark] = allUtils
-            
-    optimalPartitions = findOptimalPartitions(allprofiles, allBmWays, allBmUtils, opts)
-    printPartitions(optimalPartitions, opts)
+        
+        if opts.validateModel:
+            actual, model = buildModel(benchmark, results, opts, allUtils, allWays, profile, "profile-error-plot-"+benchmark+".pdf")
+            allModels[benchmark] = (actual, model)
+    
+    if not opts.validateModel:
+        optimalPartitions = findOptimalPartitions(allprofiles, allBmWays, allBmUtils, opts)
+        printPartitions(optimalPartitions, opts)
+    else:
+        printModelAccuracy(lastutil, allModels, opts)
+
+def printModelAccuracy(utils, allModels, opts):
+    lines = []
+
+    header = [""]
+    just = [True]
+    for u in utils:
+        header.append(numberToString(u, opts.decimals))
+        just.append(False)
+    lines.append(header)
+    
+    bms = allModels.keys()
+    bms.sort()
+    
+    for bm in bms:
+        line = [bm]
+        actual, model = allModels[bm]
+        assert len(actual) == len(utils)
+        assert len(model) == len(utils)
+        for i in range(len(utils)):
+            line.append(numberToString(computePercError(model[i], actual[i]), opts.decimals))
+        lines.append(line)
+    
+    print
+    print "Performance model percentage error"
+    print
+    printData(lines, just, sys.stdout, opts.decimals)
+    
 
 def printPartitions(optimalPartitions, opts):
     
@@ -504,7 +540,7 @@ def findPattern(patstring, results, maxBW = False):
     assert len(configRes) == 1
     return results.noPatResults[configRes[0]]
 
-def buildModel(benchmark, results, opts, allUtils, allWays, profile):
+def buildModel(benchmark, results, opts, allUtils, allWays, profile, plotfilename=""):
     perfModel = PerformanceModel(opts.debugModel, opts.queueLatFunction)
     
     perfModel.setCycleVals(findPattern("interferenceManager.cpu_stall_cycles", results),
@@ -514,26 +550,32 @@ def buildModel(benchmark, results, opts, allUtils, allWays, profile):
     perfModel.committedInstructions = findPattern("detailedCPU0.COM:count", results)
     perfModel.sharedMemSysReqs = findPattern("interferenceManager.requests", results)
 
-    busReads = findPattern("membus0.reads_per_cpu", results)
+    busReads = float(findPattern("membus0.reads_per_cpu", results))
     busEntryLatSum = findPattern("interferenceManager.latency_bus_entry", results)
     busServiceLatSum = findPattern("interferenceManager.latency_bus_service", results)
     busQueueLatSumMid = findPattern("interferenceManager.latency_bus_queue", results)
     busQueueLatSumMax = findPattern("interferenceManager.latency_bus_queue", results, True)
 
-    perfModel.setBusLatencies(busServiceLatSum / busReads,
-                              busEntryLatSum / busReads)    
+    perfModel.setBusLatencies(float(busServiceLatSum) / busReads,
+                              float(busEntryLatSum) / busReads)    
 
-    perfModel.computeBusQueueFunction((busQueueLatSumMid / busReads, 0.25),
-                                      (busQueueLatSumMax / busReads, 0.99))
+    perfModel.computeBusQueueFunction((float(busQueueLatSumMid) / busReads, 0.25),
+                                      (float(busQueueLatSumMax) / busReads, 0.99))
 
     accesses = 0
     misses = 0
     for b in range(4):
-        accesses += findPattern("SharedCache"+str(b)+".accesses_per_cpu", results)
-        misses += findPattern("SharedCache"+str(b)+".misses_per_cpu", results)
+        accesses += findPattern("SharedCache"+str(b)+".read_accesses", results)
+        misses += findPattern("SharedCache"+str(b)+".read_misses", results)
     perfModel.missRate = float(misses) / float(accesses)
 
-    alpha = findPattern("interferenceManager.avg_round_trip_latency", results) - (findPattern("interferenceManager.avg_latency_bus_entry", results) + findPattern("interferenceManager.avg_latency_bus_queue", results) + findPattern("interferenceManager.avg_latency_bus_service", results)) 
+    avgBusLatency = findPattern("interferenceManager.avg_latency_bus_entry", results) + findPattern("interferenceManager.avg_latency_bus_queue", results) + findPattern("interferenceManager.avg_latency_bus_service", results)
+    alpha = findPattern("interferenceManager.avg_round_trip_latency", results) - avgBusLatency 
+
+    if opts.debugModel:
+        print "Removing avg bus latency "+str(avgBusLatency)
+        print "Measured bus requests "+str(busReads)+", miss rate "+str(perfModel.missRate)
+        print "Computed avg bus lat is "+str(perfModel.missRate * (float(busServiceLatSum+busQueueLatSumMid+busEntryLatSum)/busReads))
     
     perfModel.alpha = alpha
     
@@ -548,9 +590,13 @@ def buildModel(benchmark, results, opts, allUtils, allWays, profile):
     for i in range(len(allUtils)):
         predictions.append(perfModel.estimateIPC(allUtils[i]))
     
-    plotLines([allUtils, allUtils],
-              [profile[cacheIndex], predictions],
-              legendTitles=["Actual", "Model"])
+    if opts.plot:
+        plotLines([allUtils, allUtils],
+                  [profile[cacheIndex], predictions],
+                  legendTitles=["Actual", "Model"],
+                  filename=plotfilename)
+        
+    return (profile[cacheIndex], predictions)
     
 
 def handleSingleBenchmark(benchmark, index, opts):
@@ -568,11 +614,31 @@ def handleSingleBenchmark(benchmark, index, opts):
     
     printTable(allWays, allUtils, profile, opts)
 
-    if opts.plot:
+    if opts.plot and not opts.validateModel:
         doPlot(benchmark, allWays, allUtils, profile, filename=opts.plotFile)
     
     if opts.validateModel:
-        buildModel(benchmark, results, opts, allUtils, allWays, profile)
+        actual, model = buildModel(benchmark, results, opts, allUtils, allWays, profile)
+        printAccuracy(allUtils, actual, model, opts)
+        
+def printAccuracy(allUtils, actual, model, opts):
+    
+    assert len(allUtils) == len(actual)
+    assert len(actual) == len(model)
+    
+    lines =[ ["Util", "Actual", "Model", "% err"]]
+    for i in range(len(allUtils)):
+        line = []
+        line.append(numberToString(allUtils[i], opts.decimals))
+        line.append(numberToString(actual[i], opts.decimals))
+        line.append(numberToString(model[i], opts.decimals))
+        line.append(numberToString(computePercError(model[i],actual[i]), opts.decimals))
+                
+        lines.append(line)
+        
+    print
+    printData(lines, [True, False, False, False], sys.stdout, opts.decimals)
+        
 
 def doPlot(title, allWays, allUtils, profile, filename = ""):
     
@@ -620,8 +686,6 @@ def main():
         benchmark = args[0]+"0"
         handleSingleBenchmark(benchmark, index, opts)
     else:
-        if opts.validateModel:
-            fatal("Model validation only supported for single benchmarks")
         handleMultibenchmark(index, opts)
 
 if __name__ == '__main__':
