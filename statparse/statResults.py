@@ -758,7 +758,7 @@ class StatResults():
             outdict[statkey] = {}
             for config in self.results[statkey]:
                 distrib = self.results[statkey][config]
-                configKey = config.toString()
+                configKey = str(config)
                 outdict[statkey][configKey] = distrib
              
         print >> outfile, ""
