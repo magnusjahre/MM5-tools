@@ -66,7 +66,7 @@ class PerformanceModel:
         expectedStallTime = avgMemLat * self.mlp * self.sharedMemSysReqs
         
         if self.printDebug:
-            print "-- Avg memory latency "+str(avgMemLat)+" and mlp "+str(self.mlp)+" gives stall time "+str(expectedStallTime)
+            print "-- Avg memory latency "+str(avgMemLat)+", mlp "+str(self.mlp)+" and "+str(self.sharedMemSysReqs)+" requests gives stall time "+str(expectedStallTime)
         
         ipc = self.committedInstructions / (self.computeCycles + expectedStallTime)
         
