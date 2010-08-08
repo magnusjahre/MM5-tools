@@ -10,7 +10,7 @@ import os
 import glob
 
 benchmarks = [("400", "perlbench"),
-              ("401", "bzip2")
+              ("401", "bzip2"),
               ("403", "gcc"),
               ("429", "mcf"),
               ("445", "gobmk"),
