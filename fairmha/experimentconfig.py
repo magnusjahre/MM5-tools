@@ -4,6 +4,7 @@ import deterministic_fw_wls as workloads
 import copy
 
 specnames = ['gzip', 'vpr', 'gcc', 'mcf', 'crafty', 'parser', 'eon', 'perlbmk', 'gap', 'bzip', 'twolf', 'wupwise', 'swim', 'mgrid', 'applu', 'galgel', 'art', 'equake', 'facerec', 'ammp', 'lucas', 'fma3d', 'sixtrack' ,'apsi', 'mesa', 'vortex1']
+spec2006names = ['s6-bzip2', 's6-gcc', 's6-mcf', 's6-gobmk', 's6-hmmer', 's6-sjeng', 's6-libquantum', 's6-h264ref', 's6-omnetpp', 's6-astar', 's6-specrand', 's6-bwaves', 's6-gamess', 's6-milc', 's6-zeusmp', 's6-gromacs', 's6-cactusADM', 's6-leslie3d', 's6-namd', 's6-dealII', 's6-soplex', 's6-povray', 's6-calculix', 's6-gemsFDTD', 's6-tonto', 's6-lbm', 's6-wrf', 's6-sphinx3']
 
 class ExperimentConfiguration:
     
@@ -38,6 +39,10 @@ class ExperimentConfiguration:
     singleVarArgNames = {}
     
     specBenchmarks = [] 
+    
+    SUITE_ALL = 0
+    SUITE_2000 = 1
+    SUITE_2006 = 2
     
     def __init__(self, _root, _binaryPath, _configPath):
         self.binaryPath = _root +"/"+_binaryPath
@@ -95,11 +100,21 @@ class ExperimentConfiguration:
             else:
                 self.workloads[np].append("fair"+str(i))
         
-    def registerBenchmarks(self, memAddrParts):
-        self.registerBenchmarksByName(self.specBenchmarks, memAddrParts)
+    def registerBenchmarks(self, memAddrParts, suite=SUITE_ALL):
+        if suite == self.SUITE_2000:
+            self.registerBenchmarksByName(specnames, memAddrParts)
+        elif suite == self.SUITE_2006:
+            self.registerBenchmarksByName(spec2006names, memAddrParts)
+        else:
+            bms = []
+            for b in specnames:
+                bms.append(b)
+            for b in spec2006names:
+                bms.append(b)
+            self.registerBenchmarksByName(bms, memAddrParts)
     
     def registerBenchmarksByName(self, bmnames, memAddrParts):
-        """ Argumets:
+        """ Arguments:
                 bmnames, list: names of spec benchmarks with 0 suffix, e.g ['ammp0', 'mesa0']
                 memAddrParts, list: a list of the memory system to use, e.g. [4, 8]
         """
