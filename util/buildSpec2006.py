@@ -103,8 +103,12 @@ def copyFiles(specroot, number, name, opts):
     
     basedir = specroot+"/benchspec/CPU2006/"+number+"."+name+"/"
     
-    print "-- Copying binary"
-    shutil.copy(basedir+"build/build_base_mar31a.0000/"+name, ".")
+    copyname = name
+    if name == "sphinx3":
+        copyname = "sphinx_livepretend"
+
+    print "-- Copying binary "+copyname
+    shutil.copy(basedir+"build/build_base_mar31a.0000/"+copyname, ".")
     
     target = "input/"+number+"."+name+"/"
     
