@@ -331,7 +331,7 @@ class ExperimentConfiguration:
         command = self.binaryPath
         for a in args:
             command += " "+a
-        command += " "+self.configPath+" &"
+        command += " "+self.configPath+" &> simoutput.txt &"
         
         return command
     
