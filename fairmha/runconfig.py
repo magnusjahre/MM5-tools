@@ -1,210 +1,187 @@
-#!/usr/bin/python
+#!/usr/bin/python    
 
 import sys
 import popen2
 import os
-import re
-import time
 import pbsconfig
-
-SLEEP_TIME = 1*60
+import platform
+import re
+from optparse import OptionParser
 
 PROJECT_NUM = "nn4650k"
 PBS_DIR_NAME = "pbsfiles"
 
-ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
-walltime = {1:10, 4:60, 8:168, 16:168}          # in hours
-perProcMem = {1:2, 4:2, 8:2, 16:4} # in GB
+class ComputerParams:
 
-finPattern = re.compile("End Simulation Statistics")
-
-bmroot = os.getenv("BMROOT")
-if bmroot == None:
-    print "Envirionment variable BMROOT not set. Quitting..."
-    sys.exit(-1)
-
-
-def getHeader(np):
-
-    lines = []
-
-    lines.append("#!/bin/bash")
-    lines.append("#PBS -N m5sim")
-    lines.append("#PBS -lwalltime="+str(walltime[np])+":00:00")
-    lines.append("#PBS -m a")
-    #lines.append("#PBS -q default")
-    lines.append("#PBS -j oe")
-
-    lines.append("#PBS -lnodes=1:ppn="+str(ppn[np])+",pvmem="+str(perProcMem[np])+"gb,pmem="+str(perProcMem[np])+"gb")
-    lines.append("#PBS -A "+str(PROJECT_NUM))
-
-    header = ""
-    for l in lines:
-        header += l+"\n"
-
-    return header+"\n"
-
-def commit_command(fileID, cmd, cnt, fcnt, np):
-
-    
-    flushed = False
-    if globals()["current_cpu_count"] != np:
-        if latest_commands != []:
-            flush_commands(fcnt)
-            flushed = True
-        globals()["current_cpu_count"] = np
-        globals()["command_counter"] = 0
-
-    # check if directory contains an experiment that has completed successfully
-    if os.path.exists(fileID):
-        resfilename = fileID+"/"+fileID+".txt"
-        if os.path.exists(resfilename):
-            resfile = open(resfilename)
-            finRes = finPattern.findall(resfile.read())
-            resfile.close()
-            
-            if finRes != []:
-                print "Experiment exists, skipping "+fileID
-                return False
+    def __init__(self):
         
-        os.rename(fileID, "error_"+fileID)
+        compname = platform.node()
         
-    os.mkdir(fileID)
-    print 'Created an experiment directory for '+fileID
-
-    latest_commands.append((fileID, cmd))
-
-    if cnt == ppn[np]-1:
-        flush_commands(fcnt)
-        flushed = True
-        globals()["command_counter"] = 0
-    else:
-        globals()["command_counter"] += 1
-
-    return flushed
-
-
-def flush_commands(fcnt):
-
-    output = open(pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs','w')
-    output.write(getHeader(current_cpu_count))
-    
-    print >> output, "cd /local/work"
-    # print >> output, "rm -Rf jahre"
-    print >> output, "mkdir jahre"
-    print >> output, "cd jahre"
-    
-    for fileID, command in latest_commands:
-
-        print >> output, "mkdir "+fileID
-        print >> output, "cd "+fileID
-        print >> output, 'echo '+command+'\n\n'
-        print >> output, command + '\n\n'
+        if re.search("stallo", compname):
+            info("Stallo run detected...")
+            self.ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
+            self.walltime = {1:10, 4:60, 8:168, 16:168}         # in hours
         
-        print >> output, "cd .."
-    
-    
-    print >> output, "wait"
-    print >> output, ""
-
-    for fileID, command in latest_commands:
-        print >> output, 'cp '+fileID+'/*.txt '+fileID+'/*.bb '+pbsconfig.experimentpath+'/'+fileID
-        print >> output, 'rm -Rf '+fileID+'\n'
-        # print >> output, 'cp -r '+fileID+'/* '+pbsconfig.experimentpath+'/'+fileID+'\n'
-
-    # print >> output, "cd .."
-    # print >> output, "rm -Rf jahre"
-
-    del latest_commands[:]
-
-    # Finish file
-    output.close()
-    
-    print "Attempting to submit file "+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs'
-    results = popen2.popen3('qsub '+pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(fcnt)+'.pbs')
-    print results[0].read()
-    print results[2].read()
-    
-
-current_cpu_count = -1 
-latest_commands = []
-
-count = 0
-command_counter = 0
-file_counter = 0
-
-os.mkdir(pbsconfig.experimentpath+"/"+PBS_DIR_NAME)
-
-for commandline,param in pbsconfig.commandlines:
-
-    fileID = pbsconfig.get_unique_id(param)
+        elif re.search("kongull", compname):
+            info("Kongull run detected...")
+            self.ppn = {1:12, 4:12, 8:12, 16:6}                    # processes per node
+            self.walltime = {1:10, 4:60, 8:168, 16:168}         # in hours
             
-    incFile = commit_command(fileID, commandline, command_counter, file_counter, pbsconfig.get_np(param))
-    if incFile:
-        file_counter += 1
-    count = count + 1
-
-if latest_commands != []:
-    flush_commands(file_counter)
-    file_counter += 1
-    command_counter = 0
-
-print "Submitted "+str(count)+" experiments in "+str(file_counter)+" files"
-
-if not pbsconfig.isDone():
-
-    ticksPattern = re.compile("sim_ticks.*")
-    comInstPattern = re.compile(".*COM:count.*")
-    idPattern = re.compile("[0-9]+")
-
-    print
-    print "Suspending before attempting to issue single program mode experiments at "+time.strftime("%H:%M, %d. %b")
-    time.sleep(SLEEP_TIME)
-
-    while not pbsconfig.isDone():
-        print
-        print "Checking for experiments that can be submitted at "+time.strftime("%H:%M, %d. %b")
-
-        for cmd,params in pbsconfig.commandlines:
-            resID = pbsconfig.get_unique_id(params)
-            wl = pbsconfig.get_workload(params)
-            filename = resID+"/"+resID+".txt"
-            
-            text = ""
-            try:
-                file = open(filename)
-                text = file.read()
-                file.close()
-            except:
-                pass
-            
-            if text != "" and pbsconfig.not_started(wl, params):
-                compRes = finPattern.findall(text)
-                if compRes != []:
-                    icounts = comInstPattern.findall(text)
-                    # make sure the simulator has finished printing the results
-                    if len(icounts) == pbsconfig.get_np(params): 
-                        print "Experiment with wl "+wl+" has finished, adding new experiments"
-                        for icount in icounts:
-                            id = int(idPattern.findall(icount.split()[0])[0])
-                            cnt = int(icount.split()[1])
-                        
-                            cmd, singleParams = pbsconfig.getSPMCommand(wl, params, id, cnt)
-                            expID = pbsconfig.get_unique_id(singleParams)
+        else:
+            info("No HPC cluster detected, using fallback values...")
+            self.ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
+            self.walltime = {1:10, 4:60, 8:168, 16:168}         # in hours
+        
+        self.perProcMem = {1:2, 4:2, 8:2, 16:4}             # in GB
     
-                            incFile = commit_command(expID, cmd, command_counter, file_counter, 1)
-                            if incFile:
-                                file_counter += 1
-                            count = count + 1
+    def getPPN(self, np):
+        return str(self.ppn[np])
+    
+    def getWalltime(self, np):
+        return str(self.walltime[np])
+    
+    def getPerProcMem(self, np):
+        return str(self.perProcMem[np])
 
-        print "Suspending..."
-        time.sleep(SLEEP_TIME)
+class M5Command:
+    
+    def __init__(self, cmd, id):
+        self.cmd = cmd
+        self.id = id
 
-    # all commands ready, check if we need to flush
-    if latest_commands != []:
-        flush_commands(file_counter)
-        file_counter += 1
-        command_counter = 0
+class BatchCommands:
+    
+    def __init__(self, compenv, opts):
+        
+        self.compenv = compenv
+        self.opts = opts
+        
+        self.commands = []
+        self.fileID = 0
+        self.issuedCommands = 0
+        self.currentNp = -1
+        
+    def addCommand(self, command, np):
+        
+        if self.currentNp == -1:
+            self.currentNp = np
+        elif self.currentNp != np:
+            info("New CPU count ("+str(self.currentNp)+" vs. "+str(np)+"), flushing commands...")
+            self.issueBatchJob()
+            self.currentNp = np
+        
+        assert len(self.commands) < self.compenv.ppn[self.currentNp]
+        self.commands.append(command)
+        
+        if len(self.commands) == self.compenv.ppn[self.currentNp]:
+            self.issueBatchJob()
+            assert len(self.commands) == 0 
+        
 
-    print "Finished submitting all "+str(count)+" experiments in "+str(file_counter)+" files"
-    print
+    def _getHeader(self):
+    
+        lines = []
+    
+        lines.append("#!/bin/bash")
+        lines.append("#PBS -N m5sim")
+        lines.append("#PBS -lwalltime="+self.compenv.getWalltime(self.currentNp)+":00:00")
+        lines.append("#PBS -m a")
+        #lines.append("#PBS -q default")
+        lines.append("#PBS -j oe")
+    
+        lines.append("#PBS -lnodes=1:ppn="+self.compenv.getPPN(self.currentNp)+",pvmem="+self.compenv.getPerProcMem(self.currentNp)+"gb,pmem="+self.compenv.getPerProcMem(self.currentNp)+"gb")
+        lines.append("#PBS -A "+str(PROJECT_NUM))
+    
+        header = ""
+        for l in lines:
+            header += l+"\n"
+    
+        return header+"\n"
+
+    def issueBatchJob(self):
+    
+        if self.commands == []:
+            return
+    
+        output = open(pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs','w')
+        output.write(self._getHeader())
+        
+        print >> output, "cd /local/work"
+        print >> output, "mkdir jahre"
+        print >> output, "cd jahre"
+        
+        for command in self.commands:
+    
+            print >> output, "mkdir "+command.id
+            print >> output, "cd "+command.id
+            print >> output, 'echo '+command.cmd+'\n\n'
+            print >> output, command.cmd + '\n\n'
+            
+            print >> output, "cd .."
+        
+            self.issuedCommands += 1
+        
+        print >> output, "wait"
+        print >> output, ""
+    
+        for command in self.commands:
+            print >> output, 'cp '+command.id+'/*.txt '+command.id+'/*.bb '+pbsconfig.experimentpath+'/'+command.id
+            print >> output, 'rm -Rf '+command.id+'\n'
+    
+        self.commands = []
+    
+        # Finish file
+        output.close()
+        
+        info("Attempting to submit file "+PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs')
+        
+        if not self.opts.dryrun:
+            results = popen2.popen3('qsub '+pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs')
+            print results[0].read()
+            print results[2].read()
+        else:
+            info("Dry-run, skipping...")
+        
+        self.fileID += 1
+
+def fatal(message):
+    print "FATAL: "+message
+    sys.exit()
+
+def info(message):
+    print "INFO: "+message
+
+def parseParams():
+    parser = OptionParser(usage="runconfig.py [options]")
+    
+    parser.add_option("--dry-run", action="store_true", dest="dryrun", default=False, help="Do not submit jobs to the cluster")
+    opts, args = parser.parse_args()
+    
+    if len(args) != 0:
+        fatal("runconfig.py takes no parameters")
+    
+    compenv = ComputerParams()
+    
+    return opts, compenv
+
+    
+def main():
+    
+    opts, computerEnv = parseParams()
+
+    try:    
+        os.mkdir(pbsconfig.experimentpath+"/"+PBS_DIR_NAME)
+    except:
+        fatal("Directory "+PBS_DIR_NAME+" exists, cannot continue")
+    
+    batchCommands = BatchCommands(computerEnv, opts)
+    for commandline, param in pbsconfig.commandlines:
+        command = M5Command(commandline,  pbsconfig.get_unique_id(param))
+        batchCommands.addCommand(command, pbsconfig.get_np(param))        
+    batchCommands.issueBatchJob()
+
+    print "Submitted "+str(batchCommands.issuedCommands)+" experiments in "+str(batchCommands.fileID)+" files"
+    
+
+if __name__ == '__main__':
+    main()
