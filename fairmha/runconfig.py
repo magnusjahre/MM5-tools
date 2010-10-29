@@ -1,38 +1,71 @@
 #!/usr/bin/python    
 
 import sys
-import popen2
+import subprocess
 import os
-import pbsconfig
 import platform
 import re
 from optparse import OptionParser
-
-PROJECT_NUM = "nn4650k"
+ 
 PBS_DIR_NAME = "pbsfiles"
 
 class ComputerParams:
-
-    def __init__(self):
+    
+    # Use queue = None to not set queue name in PBS file
+    #
+    # Memory requirements is in GB and walltime in hours
+    def __init__(self, opts):
         
         compname = platform.node()
         
+        self.queue = opts.queue
+        self.projectNum = None
+        self.perProcMem = {1:2, 4:2, 8:2, 16:4}
+        
         if re.search("stallo", compname):
             info("Stallo run detected...")
-            self.ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
-            self.walltime = {1:10, 4:60, 8:168, 16:168}         # in hours
+            self.ppn = {1:8, 4:8, 8:8, 16:4}
+            self.walltime = {1:10, 4:60, 8:168, 16:168}
+            self.projectNum = "nn4650k"
         
         elif re.search("kongull", compname):
             info("Kongull run detected...")
-            self.ppn = {1:12, 4:12, 8:12, 16:6}                    # processes per node
-            self.walltime = {1:10, 4:60, 8:168, 16:168}         # in hours
+            self.ppn = {1:12, 4:12, 8:12, 16:6}
+            self.walltime = {1:10, 4:60, 8:168, 16:168}
             
         else:
             info("No HPC cluster detected, using fallback values...")
-            self.ppn = {1:8, 4:8, 8:8, 16:4}                    # processes per node
-            self.walltime = {1:10, 4:60, 8:168, 16:168}         # in hours
+            self.ppn = {1:8, 4:8, 8:8, 16:4}
+            self.walltime = {1:10, 4:60, 8:168, 16:168}
+            
+        if opts.walltime != 0:
+            info("Setting all walltime limits to provided value "+str(opts.walltime))
+            for key in self.walltime:
+                self.walltime[key] = opts.walltime
+                    
+    
+    def getHeader(self, np):
+    
+        lines = []
+    
+        lines.append("#!/bin/bash")
+        lines.append("#PBS -N m5sim")
+        lines.append("#PBS -lwalltime="+self.getWalltime(np)+":00:00")
+        lines.append("#PBS -m a")
+        if self.queue != None:
+            lines.append("#PBS -q "+self.queue)
+        lines.append("#PBS -j oe")
+    
+        lines.append("#PBS -lnodes=1:ppn="+self.getPPN(np)+",pvmem="+self.getPerProcMem(np)+"gb,pmem="+self.getPerProcMem(np)+"gb")
         
-        self.perProcMem = {1:2, 4:2, 8:2, 16:4}             # in GB
+        if self.projectNum != None:
+            lines.append("#PBS -A "+self.projectNum)
+    
+        header = ""
+        for l in lines:
+            header += l+"\n"
+    
+        return header+"\n"
     
     def getPPN(self, np):
         return str(self.ppn[np])
@@ -77,46 +110,21 @@ class BatchCommands:
             self.issueBatchJob()
             assert len(self.commands) == 0 
         
-
-    def _getHeader(self):
-    
-        lines = []
-    
-        lines.append("#!/bin/bash")
-        lines.append("#PBS -N m5sim")
-        lines.append("#PBS -lwalltime="+self.compenv.getWalltime(self.currentNp)+":00:00")
-        lines.append("#PBS -m a")
-        #lines.append("#PBS -q default")
-        lines.append("#PBS -j oe")
-    
-        lines.append("#PBS -lnodes=1:ppn="+self.compenv.getPPN(self.currentNp)+",pvmem="+self.compenv.getPerProcMem(self.currentNp)+"gb,pmem="+self.compenv.getPerProcMem(self.currentNp)+"gb")
-        lines.append("#PBS -A "+str(PROJECT_NUM))
-    
-        header = ""
-        for l in lines:
-            header += l+"\n"
-    
-        return header+"\n"
-
     def issueBatchJob(self):
     
         if self.commands == []:
             return
     
-        output = open(pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs','w')
-        output.write(self._getHeader())
-        
-        print >> output, "cd /local/work"
-        print >> output, "mkdir jahre"
-        print >> output, "cd jahre"
+        runfilepath = PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs'
+    
+        output = open(runfilepath,'w')
+        output.write(self.compenv.getHeader(self.currentNp))
         
         for command in self.commands:
-    
+
             print >> output, "mkdir "+command.id
             print >> output, "cd "+command.id
-            print >> output, 'echo '+command.cmd+'\n\n'
             print >> output, command.cmd + '\n\n'
-            
             print >> output, "cd .."
         
             self.issuedCommands += 1
@@ -124,21 +132,14 @@ class BatchCommands:
         print >> output, "wait"
         print >> output, ""
     
-        for command in self.commands:
-            print >> output, 'cp '+command.id+'/*.txt '+command.id+'/*.bb '+pbsconfig.experimentpath+'/'+command.id
-            print >> output, 'rm -Rf '+command.id+'\n'
-    
         self.commands = []
     
-        # Finish file
         output.close()
         
-        info("Attempting to submit file "+PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs')
+        info("Attempting to submit file "+runfilepath)
         
         if not self.opts.dryrun:
-            results = popen2.popen3('qsub '+pbsconfig.experimentpath+'/'+PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs')
-            print results[0].read()
-            print results[2].read()
+            subprocess.call(['qsub', runfilepath])
         else:
             info("Dry-run, skipping...")
         
@@ -155,12 +156,14 @@ def parseParams():
     parser = OptionParser(usage="runconfig.py [options]")
     
     parser.add_option("--dry-run", action="store_true", dest="dryrun", default=False, help="Do not submit jobs to the cluster")
+    parser.add_option("--queue", action="store", dest="queue", default=None, help="PBS queue to submit jobs to")
+    parser.add_option("--walltime", action="store", type="int", dest="walltime", default=0, help="PBS walltime limit in hours")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
         fatal("runconfig.py takes no parameters")
     
-    compenv = ComputerParams()
+    compenv = ComputerParams(opts)
     
     return opts, compenv
 
@@ -169,8 +172,13 @@ def main():
     
     opts, computerEnv = parseParams()
 
+    if not os.path.exists("pbsconfig.py"):
+        fatal("Cannot find file pbsconfig.py in current directory")
+
+    pbsconfig = __import__("pbsconfig")
+
     try:    
-        os.mkdir(pbsconfig.experimentpath+"/"+PBS_DIR_NAME)
+        os.mkdir(PBS_DIR_NAME)
     except:
         fatal("Directory "+PBS_DIR_NAME+" exists, cannot continue")
     
