@@ -56,10 +56,13 @@ class ComputerParams:
             lines.append("#PBS -q "+self.queue)
         lines.append("#PBS -j oe")
     
-        lines.append("#PBS -lnodes=1:ppn="+self.getPPN(np)+",pvmem="+self.getPerProcMem(np)+"gb,pmem="+self.getPerProcMem(np)+"gb")
+        lines.append("#PBS -lnodes=1:ppn="+self.getPPN(np)+",pvmem="+self.getPerProcMem(np)+"gb")
         
         if self.projectNum != None:
             lines.append("#PBS -A "+self.projectNum)
+
+        lines.append("")
+        lines.append("cd "+os.getcwd())
     
         header = ""
         for l in lines:
