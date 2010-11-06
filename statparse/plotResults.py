@@ -447,3 +447,28 @@ def plotImage(image, **kwargs):
     
     plt.show()
     
+def plotHistogram(data, **kwargs):
+    import matplotlib.pyplot as plt
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    bins = 10
+    if "bins" in kwargs:
+        bins = kwargs["bins"]
+
+    ax.hist(data, bins=bins)
+    
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"])
+    ax.set_ylabel('Frequency')
+    ax.grid(True)  
+    
+    if "filename" in kwargs:
+        if kwargs["filename"] != "":
+            plt.savefig(kwargs["filename"], type="pdf")
+            return
+    
+    plt.show()
+    
+    plt.show()
