@@ -10,6 +10,7 @@ def parseArgs():
 
     parser.add_option("--numbins", action="store", dest="numbins", default=10, type="int", help="The number of bins to divide the data into")
     parser.add_option("--plotfile", action="store", dest="plotfile", default="", type="string", help="Write the histogram plot to this file")
+    parser.add_option("--title", action="store", dest="title", default="", type="string", help="Title of the plot")
     
     opts, args = parser.parse_args()
 
@@ -45,7 +46,8 @@ def main():
     plotHistogram(times,
                   bins=opts.numbins,
                   filename=opts.plotfile,
-                  xlabel='Time (seconds)')
+                  xlabel='Time (seconds)',
+                  title=opts.title)
     
 
 if __name__ == '__main__':

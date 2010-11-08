@@ -464,11 +464,13 @@ def plotHistogram(data, **kwargs):
     ax.set_ylabel('Frequency')
     ax.grid(True)  
     
+    if "title" in kwargs:
+        if kwargs["title"] != "":
+            ax.set_title(kwargs["title"])
+    
     if "filename" in kwargs:
         if kwargs["filename"] != "":
             plt.savefig(kwargs["filename"], type="pdf")
             return
-    
-    plt.show()
     
     plt.show()
