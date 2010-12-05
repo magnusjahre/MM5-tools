@@ -6,6 +6,7 @@ from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
 from statparse.plotResults import plotImage, plotLines
 from fairmha.experimentconfig import specnames
+from fairmha.experimentconfig import spec2006names
 from deterministic_fw_wls import getBms, workloads, getWorkloads
 from statparse.tracefile import isFloat
 from resourcePartition import ResourcePartition
@@ -136,6 +137,11 @@ class PerformanceModel:
         self.computeCycles = totalCycles - stallCycles
         self.mlp = float(stallCycles) / float(totalMemLat)
         
+def getAllSPECNames():
+    allSPECNames = specnames
+    for n in spec2006names:
+        allSPECNames.append(n)
+    return allSPECNames
 
 def parseArgs():
     parser = OptionParser(usage="findResourceProfile.py [options] [benchmark]")
@@ -157,7 +163,10 @@ def parseArgs():
     parser.add_option("--queue-lat-function", action="store", dest="queueLatFunction", default="pow", help="Bus queue latency estimation function type (pow or lin)")
     
 
-    optcomplete.autocomplete(parser, optcomplete.ListCompleter(specnames))
+
+    allSPECNames = getAllSPECNames()
+
+    optcomplete.autocomplete(parser, optcomplete.ListCompleter(allSPECNames))
     opts, args = parser.parse_args()
 
     if len(args) > 1:
@@ -168,13 +177,13 @@ def parseArgs():
         sys.exit(0)
     
     if len(args) == 1:
-        if args[0] not in specnames:
+        if args[0] not in allSPECNames:
             print
             print fatal("Unknown SPEC benchmark "+args[0])
             print
     
     if opts.listBenchmarks:
-        names = specnames[:]
+        names = allSPECNames[:]
         names.sort()
         print
         print "SPEC Benchmark Names"
@@ -424,12 +433,16 @@ def handleMultibenchmark(index, opts):
     allModels = {}
     lastutil = []
     
-    for benchmark in specnames:
+    for benchmark in getAllSPECNames():
         
         print "Processing "+benchmark 
         
-        results = doSearch(benchmark+"0", index, opts)
+        results = doSearch(benchmark, index, opts)
         allWays, allUtils, profile = gatherPerformanceProfile(results)
+        
+        if allUtils == []:
+            print "No results found, skipping"
+            continue
         
         allUtils = convertUtilList(allUtils)
         lastutil = allUtils
