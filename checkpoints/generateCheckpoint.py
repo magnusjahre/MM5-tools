@@ -68,6 +68,8 @@ def printParameters(np, wl, memsys, simpoint, fw):
         print "Simpoint number:              "+str(simpoint)
     print
 
+def isInputFile(path):
+
 def copyCheckpointFiles(destination, opts):
     
     otherResFiles = ["res*txt", "config.ini", "config.py", "config.out"]
@@ -78,6 +80,8 @@ def copyCheckpointFiles(destination, opts):
     pbsconfig = __import__("pbsconfig")  
     for cmd, params in pbsconfig.commandlines:
         expdir = pbsconfig.get_unique_id(params)
+        
+        print "Processing directory "+expdir
         
         np = pbsconfig.get_np(params)
         assert np == 1
@@ -92,7 +96,11 @@ def copyCheckpointFiles(destination, opts):
         
         
         parts = params["MEMORY-ADDRESS-PARTS"]
-        simpoint = params["USE-SIMPOINT"]
+        
+        if "USE-SIMPOINT" in params:
+            simpoint = params["USE-SIMPOINT"]
+        else:
+            simpoint = -1
         
         
         resultfiles = []
@@ -112,27 +120,28 @@ def copyCheckpointFiles(destination, opts):
             if filename not in resultfiles:
                 checkpointfiles.append(filename)
         
-        assert chkptDir in checkpointfiles
-        
-        destinationPath = destination+"/"+chkptDir 
-        if os.path.exists(destinationPath):
-            print "Destination directory "+destinationPath+" exists, skipping"
+        if chkptDir not in checkpointfiles:
+            print "ERROR: experiment directory "+expdir+" does not contain a checkpoint, skipping"
         else:
-            print "Copying from "+expdir+" to "+destinationPath
-            os.mkdir(destinationPath)
-            print "Copying checkpoint..."
-            shutil.copy(expdir+"/"+chkptDir+"/m5.cpt", destinationPath)
-            for file in checkpointfiles:
-                filepath = expdir+"/"+file
-                if file != chkptDir:
-                    if not os.path.islink(filepath):
-                        print "Copying file "+filepath
-                        if os.path.isdir(filepath):
-                            shutil.copytree(filepath, destinationPath+"/"+file)
+            destinationPath = destination+"/"+chkptDir 
+            if os.path.exists(destinationPath):
+                print "Destination directory "+destinationPath+" exists, skipping"
+            else:
+                print "Copying from "+expdir+" to "+destinationPath
+                os.mkdir(destinationPath)
+                print "Copying checkpoint..."
+                shutil.copy(expdir+"/"+chkptDir+"/m5.cpt", destinationPath)
+                for file in checkpointfiles:
+                    filepath = expdir+"/"+file
+                    if file != chkptDir:
+                        if not os.path.islink(filepath):
+                            print "Copying file "+filepath
+                            if os.path.isdir(filepath):
+                                shutil.copytree(filepath, destinationPath+"/"+file)
+                            else:
+                                shutil.copy(filepath, destinationPath)
                         else:
-                            shutil.copy(filepath, destinationPath)
-                    else:
-                        print "Skipping symlink "+filepath
+                            print "Skipping symlink "+filepath
                     
         
     return 0

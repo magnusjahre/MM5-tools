@@ -683,7 +683,7 @@ def main():
         print "done!"
 
     if len(args) > 0:
-        benchmark = args[0]+"0"
+        benchmark = args[0]
         handleSingleBenchmark(benchmark, index, opts)
     else:
         handleMultibenchmark(index, opts)
