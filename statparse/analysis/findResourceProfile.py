@@ -138,7 +138,7 @@ class PerformanceModel:
         self.mlp = float(stallCycles) / float(totalMemLat)
         
 def getAllSPECNames():
-    allSPECNames = specnames
+    allSPECNames = specnames[:]
     for n in spec2006names:
         allSPECNames.append(n)
     return allSPECNames
@@ -151,6 +151,7 @@ def parseArgs():
     parser.add_option("--simpoint", action="store", dest="simpoint", type="int", default=-1, help="Only provide results for this simpoint value")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot results in heatmap")
     parser.add_option("--list-benchmarks", action="store_true", dest="listBenchmarks", default=False, help="Print a list of the benchmark names")
+    parser.add_option("--find-optimal-part", action="store_true", dest="findOptPart", default=False, help="Find optimal partitions")
     parser.add_option("--optimal-part-np", action="store", type="int", dest="optPartNP", default=4, help="Find optimal partitions for this core count")
     parser.add_option("--max-ways", action="store", type="int", dest="maxWays", default=16, help="Total number of ways available")
     parser.add_option("--max-bandwidth", action="store", type="float", dest="maxBW", default=1.0, help="Total bandwidth available")
@@ -161,6 +162,7 @@ def parseArgs():
     parser.add_option("--validate-model", action="store_true", dest="validateModel", default=False, help="Validate the bandwidth model")
     parser.add_option("--debug-model", action="store_true", dest="debugModel", default=False, help="Print debug info for performance model")
     parser.add_option("--queue-lat-function", action="store", dest="queueLatFunction", default="pow", help="Bus queue latency estimation function type (pow or lin)")
+    parser.add_option("--greyscale", action="store_true", dest="greyscale", default=False, help="Create grayscale heatmaps")
     
 
 
@@ -449,7 +451,7 @@ def handleMultibenchmark(index, opts):
         
         printTable(allWays, allUtils, profile, opts, "profile-data-"+benchmark+".txt")
         if opts.plot:
-            doPlot(benchmark, allWays, allUtils, profile, "profile-plot-"+benchmark+".pdf")
+            doPlot(benchmark, allWays, allUtils, profile, opts.greyscale, "profile-plot-"+benchmark+".pdf")
 
         assert benchmark not in allprofiles
         allprofiles[benchmark] = profile
@@ -459,11 +461,12 @@ def handleMultibenchmark(index, opts):
         if opts.validateModel:
             actual, model = buildModel(benchmark, results, opts, allUtils, allWays, profile, "profile-error-plot-"+benchmark+".pdf")
             allModels[benchmark] = (actual, model)
-    
-    if not opts.validateModel:
+     
+    if opts.findOptPart:
         optimalPartitions = findOptimalPartitions(allprofiles, allBmWays, allBmUtils, opts)
         printPartitions(optimalPartitions, opts)
-    else:
+    
+    if opts.validateModel:
         printModelAccuracy(lastutil, allModels, opts)
 
 def printModelAccuracy(utils, allModels, opts):
@@ -628,7 +631,7 @@ def handleSingleBenchmark(benchmark, index, opts):
     printTable(allWays, allUtils, profile, opts)
 
     if opts.plot and not opts.validateModel:
-        doPlot(benchmark, allWays, allUtils, profile, filename=opts.plotFile)
+        doPlot(benchmark, allWays, allUtils, profile, opts.greyscale, filename=opts.plotFile)
     
     if opts.validateModel:
         actual, model = buildModel(benchmark, results, opts, allUtils, allWays, profile)
@@ -653,7 +656,7 @@ def printAccuracy(allUtils, actual, model, opts):
     printData(lines, [True, False, False, False], sys.stdout, opts.decimals)
         
 
-def doPlot(title, allWays, allUtils, profile, filename = ""):
+def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
     
     yrangestr = "-0.5,"+str(len(allWays)-0.5)
     xrangestr = "-0.5,"+str(len(allUtils)-0.5)
@@ -669,7 +672,8 @@ def doPlot(title, allWays, allUtils, profile, filename = ""):
               yrange=yrangestr,
               xrange=xrangestr,
               zrange=zrangestr,
-              filename=filename)
+              filename=filename,
+              greyscale=doGreyscale)
 
 def main():
     opts,args = parseArgs()

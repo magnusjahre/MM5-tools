@@ -384,12 +384,19 @@ def plotLines(xvalues, yvalues, **kwargs):
 def plotImage(image, **kwargs):
     
     import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
     import numpy as np
+
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
-    plt.imshow(image, origin="lower")
+    colormap = None
+    if "greyscale" in kwargs:
+        if kwargs["greyscale"]:
+            colormap = cm.gray
+    
+    plt.imshow(image, origin="lower", cmap=colormap)
     plt.grid(True)
     cbar = plt.colorbar()
     
