@@ -28,6 +28,25 @@ from math import log
 ERRVAL = 0.0
 USE_CACHE_WAYS = 16
 
+class BMClass:
+    BM_NONE = 0
+    BM_CACHE = 1
+    BM_BW = 2
+    BM_BOTH = 3
+    
+    def __init__(self, type):
+        self.type = type
+        
+    def __str__(self):
+        if self.type == self.BM_BW:
+            return "Bandwidth"
+        if self.type == self.BM_CACHE:
+            return "Cache"
+        if self.type == self.BM_BOTH:
+            return "Both"
+        
+        return "None"
+
 class PerformanceModel:
     
     FUNC_LIN = 0
@@ -163,6 +182,10 @@ def parseArgs():
     parser.add_option("--debug-model", action="store_true", dest="debugModel", default=False, help="Print debug info for performance model")
     parser.add_option("--queue-lat-function", action="store", dest="queueLatFunction", default="pow", help="Bus queue latency estimation function type (pow or lin)")
     parser.add_option("--greyscale", action="store_true", dest="greyscale", default=False, help="Create grayscale heatmaps")
+    
+    parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
+    parser.add_option("--bw-threshold", action="store", dest="bwthreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as bandwidth sensitive (Default: 10%)")
+    parser.add_option("--cache-threshold", action="store", dest="cachethreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as cache sensitive (Default: 10%)")
     
 
 
@@ -421,6 +444,54 @@ def findOptimalPartitions(bmprofiles, bmways, bmutils, opts):
         
     return optimalPartitions
 
+def classify(profiles, opts):
+    cacheConfigs = len(profiles)
+    bwConfigs = len(profiles[0])
+    
+    cacheRatiosSum = 0.0
+    for i in range(bwConfigs):
+        ratio = profiles[0][i] / profiles[cacheConfigs-1][i]
+        cacheRatiosSum += ratio
+    cacheRatioAvg = cacheRatiosSum / float(bwConfigs)
+    
+    bwRatioSum = 0.0
+    for i in range(cacheConfigs):
+        ratio = profiles[i][0] / profiles[i][bwConfigs-1]
+        bwRatioSum += ratio
+    bwRatioAvg = bwRatioSum / float(cacheConfigs)
+    
+    if (1.0 - bwRatioAvg) > opts.bwthreshold and (1.0 - cacheRatioAvg) > opts.cachethreshold:
+        return BMClass(BMClass.BM_BOTH)
+    if (1.0 - bwRatioAvg) > opts.bwthreshold:
+        return BMClass(BMClass.BM_BW)    
+    if (1.0 - cacheRatioAvg) > opts.cachethreshold:
+        return BMClass(BMClass.BM_CACHE)
+    
+    return BMClass(BMClass.BM_NONE)
+
+def printClassification(classification):
+    print
+    print "Benchmark classification"
+    print
+    
+    for c in classification:
+        print c+": ",
+        for bm in classification[c]:
+            print bm,
+        print
+
+def generateWorkloads(allprofiles, opts):
+    
+    classification = {}
+    
+    for bm in allprofiles:
+        cl = classify(allprofiles[bm], opts)
+        
+        if str(cl) not in classification:
+            classification[str(cl)] = []
+        classification[str(cl)].append(bm)
+    
+    printClassification(classification)
 
 def handleMultibenchmark(index, opts):
     
@@ -468,6 +539,9 @@ def handleMultibenchmark(index, opts):
     
     if opts.validateModel:
         printModelAccuracy(lastutil, allModels, opts)
+        
+    if opts.genwl:
+        generateWorkloads(allprofiles, opts)
 
 def printModelAccuracy(utils, allModels, opts):
     lines = []
