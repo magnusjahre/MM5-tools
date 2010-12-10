@@ -20,6 +20,7 @@ import optcomplete
 import statparse.metrics as metrics
 
 import pickle
+import random
 
 import os
 import sys
@@ -39,13 +40,13 @@ class BMClass:
         
     def __str__(self):
         if self.type == self.BM_BW:
-            return "Bandwidth"
+            return "bw"
         if self.type == self.BM_CACHE:
-            return "Cache"
+            return "cache"
         if self.type == self.BM_BOTH:
-            return "Both"
+            return "both"
         
-        return "None"
+        return "none"
 
 class PerformanceModel:
     
@@ -186,6 +187,8 @@ def parseArgs():
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
     parser.add_option("--bw-threshold", action="store", dest="bwthreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as bandwidth sensitive (Default: 10%)")
     parser.add_option("--cache-threshold", action="store", dest="cachethreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as cache sensitive (Default: 10%)")
+    parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=10, help="The number of workloads to generate of each type (Default: 10)")
+    parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pcl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
     
 
 
@@ -480,6 +483,57 @@ def printClassification(classification):
             print bm,
         print
 
+class Workload:
+    
+    def __init__(self):
+        self.benchmarks = []
+    
+    def addBenchmark(self, bm):
+        self.benchmarks.append(bm)
+        
+    def containsBenchmark(self, bm):
+        if bm in self.benchmarks:
+            return True
+        return False
+    
+    def getNumBms(self):
+        return len(self.benchmarks)
+
+    def __str__(self):
+        out = ""
+        for b in self.benchmarks:
+            out += " "+b
+        return out
+
+def findWorkload(bms, np, opts):
+    wl = Workload()
+    
+    if len(bms) < np:
+        print "WARNING: too few benchmarks to generate workload for "+str(np)+" cores"
+        return None 
+    
+    while wl.getNumBms() < np:
+        index = random.randint(0, len(bms)-1)
+        if wl.containsBenchmark(bms[index]):
+            continue
+        wl.addBenchmark(bms[index])
+    return wl
+
+def printWorkloads(wls, opts):
+    
+    outfile = open(opts.wlfile, "w")
+    pickle.dump(wls, outfile)
+    outfile.close()
+    
+    if not opts.quiet:
+        for np in wls:
+            print
+            print str(np)+" core workloads:"
+            print
+            for cn in wls[np]:
+                for w in wls[np][cn]:
+                    print cn, str(w)
+
 def generateWorkloads(allprofiles, opts):
     
     classification = {}
@@ -491,7 +545,24 @@ def generateWorkloads(allprofiles, opts):
             classification[str(cl)] = []
         classification[str(cl)].append(bm)
     
-    printClassification(classification)
+    if not opts.quiet:
+        printClassification(classification)
+    
+    workloads = {}
+    random.seed(56)
+    
+    for np in [4,8,16]:
+        workloads[np] = {}
+        for classname in classification:
+            workloads[np][classname] = []
+            for i in range(opts.numWls):
+                newwl = findWorkload(classification[classname], np, opts)
+                if newwl == None:
+                    break
+                workloads[np][classname].append(newwl) 
+    
+    printWorkloads(workloads, opts)
+    
 
 def handleMultibenchmark(index, opts):
     
