@@ -36,18 +36,19 @@ class Workloads:
 
     def __init__(self):
         
+        #FIXME: get path in better way
         infile = open("/home/jahre/workspace/m5sim-tools/workloadfiles/typewls.pkl")
         self.typedwls = pickle.load(infile)
         infile.close()
         
         self.fairwls = deterministic_fw_wls.workloads
 
-    def getWorkload(self, type, np, name):
-        if type == self.FAIR_WL:
-            assert False, "Fair workload recovery not implemented"
-            
-        elif type == self.TYPED_WL:
-            assert False, "Typed workload recovery not impl"
-            
-        raise Exception("Unknown workload type")
+    def getWorkload(self, name, np):    
+        raise Exception("getWorkload() not implemented")
+    
+    def getWorkloads(self, np):
+        raise Exception("getWorkloads() not implemented")
+
+    def getBms(self, wl, np, appendZero = False):
+        raise Exception("getBms() not implemented")
         

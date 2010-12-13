@@ -42,13 +42,13 @@ class BMClass:
         
     def __str__(self):
         if self.type == self.BM_BW:
-            return "bw"
+            return "b"
         if self.type == self.BM_CACHE:
-            return "cache"
+            return "c"
         if self.type == self.BM_BOTH:
-            return "both"
+            return "a"
         
-        return "none"
+        return "n"
 
 class PerformanceModel:
     
@@ -190,7 +190,7 @@ def parseArgs():
     parser.add_option("--bw-threshold", action="store", dest="bwthreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as bandwidth sensitive (Default: 10%)")
     parser.add_option("--cache-threshold", action="store", dest="cachethreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as cache sensitive (Default: 10%)")
     parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=10, help="The number of workloads to generate of each type (Default: 10)")
-    parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pcl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
+    parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pkl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
     
 
 
