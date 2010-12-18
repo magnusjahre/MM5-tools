@@ -13,14 +13,14 @@ class ComputerParams:
     
     # Use queue = None to not set queue name in PBS file
     #
-    # Memory requirements is in GB and walltime in hours
+    # Memory requirements is in MB and walltime in hours
     def __init__(self, opts):
         
         compname = platform.node()
         
         self.queue = opts.queue
         self.projectNum = None
-        self.perProcMem = {1:2, 4:2, 8:2, 16:4}
+        self.perProcMem = {1:1984, 4:1984, 8:1984, 16:4032}
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
@@ -56,7 +56,7 @@ class ComputerParams:
             lines.append("#PBS -q "+self.queue)
         lines.append("#PBS -j oe")
     
-        lines.append("#PBS -lnodes=1:ppn="+self.getPPN(np)+",pvmem="+self.getPerProcMem(np)+"gb")
+        lines.append("#PBS -lnodes=1:ppn="+self.getPPN(np)+",pvmem="+self.getPerProcMem(np)+"mb")
         
         if self.projectNum != None:
             lines.append("#PBS -A "+self.projectNum)

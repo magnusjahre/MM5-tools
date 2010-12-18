@@ -1,7 +1,9 @@
 
 import sys
-import deterministic_fw_wls as workloads
 import copy
+
+from workloadfiles.workloads import Workloads
+workloads = Workloads() 
 
 specnames = ['gzip0', 'vpr0', 'gcc0', 'mcf0', 'crafty0', 'parser0', 'eon0', 'perlbmk0', 'gap0', 'bzip0', 'twolf0', 'wupwise0', 'swim0', 'mgrid0', 'applu0', 'galgel0', 'art0', 'equake0', 'facerec0', 'ammp0', 'lucas0', 'fma3d0', 'sixtrack0' ,'apsi0', 'mesa0', 'vortex10']
 spec2006names = ['s6-bzip2', 's6-gcc', 's6-mcf', 's6-gobmk', 's6-hmmer', 's6-sjeng', 's6-libquantum', 's6-h264ref', 's6-omnetpp', 's6-astar', 's6-bwaves', 's6-gamess', 's6-milc', 's6-zeusmp', 's6-gromacs', 's6-cactusADM', 's6-leslie3d', 's6-namd', 's6-dealII', 's6-soplex', 's6-povray', 's6-calculix', 's6-gemsFDTD', 's6-tonto', 's6-lbm', 's6-sphinx3', 's6-wrf']
@@ -79,18 +81,15 @@ class ExperimentConfiguration:
         assert argument not in self.variableSingleCoreArguments
         self.variableSingleCoreArguments[argument] = values
     
-    def registerWorkload(self, np, firstnum, lastnum):
+    def registerWorkload(self, np):
         
         assert np not in self.workloads
-        self.workloads[np] = []
-        
-        for i in range(firstnum, lastnum+1):
-            if i < 10:
-                self.workloads[np].append("fair0"+str(i))
-            else:
-                self.workloads[np].append("fair"+str(i))
+        self.workloads[np] = workloads.getWorkloads(np)
                 
     def registerWorkloadRange(self, np, ids):
+        
+        assert False, "registerWorkloadRange is deprecated"
+        
         assert np not in self.workloads
         self.workloads[np] = []
         
