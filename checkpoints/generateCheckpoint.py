@@ -11,7 +11,9 @@ import copyResFiles
 import checkpoints
 
 import simpoints.simpoints as simpoints
-import deterministic_fw_wls as workloads
+
+from workloadfiles.workloads import Workloads
+workloads = Workloads()
 
 def parseAargs():
     parser = OptionParser(usage="generateCheckpoint.py ")
@@ -45,16 +47,22 @@ def createCheckpointsFromExperiment():
 
 def buildPossibleParams():
     
-    nps = [4, 8, 16]
-    memsys = ["CrossbarBased", "RingBased"]
+    # TODO: provide more robust implementation
+    
+    #nps = [4, 8, 16]
+    #memsys = ["CrossbarBased", "RingBased"]
+    nps = [4]
+    memsys = ["RingBased"]
     fw = -1
     
     params = []
     for np in nps:
         for wl in workloads.getWorkloads(np):
             for mem in memsys:
-                for simpoint in range(simpoints.maxk):
-                    params.append([np, wl, mem, simpoint, fw])
+                #for simpoint in range(simpoints.maxk):
+                #    params.append([np, wl, mem, simpoint, fw])
+                params.append([np, wl, mem, -1, fw])
+    print params
     return params
 
 def printParameters(np, wl, memsys, simpoint, fw):
@@ -67,8 +75,6 @@ def printParameters(np, wl, memsys, simpoint, fw):
     if simpoint != -1:
         print "Simpoint number:              "+str(simpoint)
     print
-
-def isInputFile(path):
 
 def copyCheckpointFiles(destination, opts):
     

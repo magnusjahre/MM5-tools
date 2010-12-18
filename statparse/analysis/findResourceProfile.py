@@ -189,8 +189,9 @@ def parseArgs():
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
     parser.add_option("--bw-threshold", action="store", dest="bwthreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as bandwidth sensitive (Default: 10%)")
     parser.add_option("--cache-threshold", action="store", dest="cachethreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as cache sensitive (Default: 10%)")
-    parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=10, help="The number of workloads to generate of each type (Default: 10)")
+    parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=5, help="The number of workloads to generate of each type (Default: 10)")
     parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pkl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
+    parser.add_option("--allow-reuse", action="store_true", dest="allowReuse", default=False, help="Allow a benchmark to used more than once in a workload")
     
 
 
@@ -488,13 +489,13 @@ def printClassification(classification):
 def findWorkload(bms, np, opts):
     wl = Workload()
     
-    if len(bms) < np:
+    if len(bms) < np and (not opts.allowReuse):
         print "WARNING: too few benchmarks to generate workload for "+str(np)+" cores"
         return None 
     
     while wl.getNumBms() < np:
         index = random.randint(0, len(bms)-1)
-        if wl.containsBenchmark(bms[index]):
+        if (not opts.allowReuse) and wl.containsBenchmark(bms[index]):
             continue
         wl.addBenchmark(bms[index])
     return wl

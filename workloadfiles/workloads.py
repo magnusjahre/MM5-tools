@@ -6,6 +6,10 @@ Created on Dec 12, 2010
 
 import pickle
 import deterministic_fw_wls
+import os
+
+def makeTypeTitle(type, num):
+    return "t-"+type+"-"+str(num)
 
 class Workload:
     
@@ -36,19 +40,46 @@ class Workloads:
 
     def __init__(self):
         
-        #FIXME: get path in better way
-        infile = open("/home/jahre/workspace/m5sim-tools/workloadfiles/typewls.pkl")
+        infile = open(self._findPickleFile("workloadfiles/typewls.pkl"))
         self.typedwls = pickle.load(infile)
         infile.close()
         
         self.fairwls = deterministic_fw_wls.workloads
+        
+        self.workloadnames = {}
+        for np in self.typedwls:
+            self.workloadnames[np] = []
+            for type in self.typedwls[np]:
+                for i in range(len(self.typedwls[np][type])):
+                    self.workloadnames[np].append(makeTypeTitle(type, i))
+            for wlname in deterministic_fw_wls.getWorkloads(np):
+                self.workloadnames[np].append(wlname)
 
-    def getWorkload(self, name, np):    
-        raise Exception("getWorkload() not implemented")
-    
+    def _findPickleFile(self, relpath):
+        pypath = os.getenv("PYTHONPATH")
+        if pypath == None:
+            raise Exception("PYTHONPATH not found")
+        
+        pathentries = pypath.split(":")
+        for e in pathentries:
+            testpath = e+"/"+relpath
+            if os.path.exists(testpath):
+                return testpath
+        
+        raise Exception("Pickled workloadfile not found in PYTHONPATH")
+
     def getWorkloads(self, np):
-        raise Exception("getWorkloads() not implemented")
+        return self.workloadnames[np]
 
     def getBms(self, wl, np, appendZero = False):
-        raise Exception("getBms() not implemented")
+        if wl.startswith("t-"):
+            return self.getTypedBms(np, wl)
+        return deterministic_fw_wls.getBms(wl, np, appendZero)
         
+    def getTypedBms(self, np, name):
+        try:
+            prefix, type, num = name.split("-")
+        except:
+            raise Exception("Malformed typed benchmark name: "+str(name))
+        
+        return self.typedwls[np][type][int(num)].benchmarks

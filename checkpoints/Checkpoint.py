@@ -6,8 +6,10 @@ import glob
 
 import IniFile
 import checkpoints
-import deterministic_fw_wls as workloads
 import struct
+
+from workloadfiles.workloads import Workloads
+workloads = Workloads()
 
 from m5test.M5Command import M5Command
 
@@ -71,6 +73,7 @@ def mergeFiles(outfile, files):
             cpuID += 1
 
 def prerequisiteFilesExist(workload, np, memsys, simpoint):
+    print workload, np, memsys, simpoint
     curWorkload = workloads.getBms(workload, np, True)
     for bm in curWorkload:
         checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm, simpoint)
