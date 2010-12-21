@@ -110,6 +110,7 @@ def main():
     
     print "done!"
     
+    shutil.copy("pbsconfig.py", resdir)
     
     while resfiles != [] or alonefiles != []:
         print "Checking for finished experiments..."
@@ -126,8 +127,6 @@ def main():
     
         print "Sleeping"
         time.sleep(sleeptime)
-    
-    shutil.copy("pbsconfig.py", resdir)
     
     print "All results copied!"
         

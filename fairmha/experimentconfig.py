@@ -3,6 +3,7 @@ import sys
 import copy
 
 from workloadfiles.workloads import Workloads
+import workloadfiles
 workloads = Workloads() 
 
 specnames = ['gzip0', 'vpr0', 'gcc0', 'mcf0', 'crafty0', 'parser0', 'eon0', 'perlbmk0', 'gap0', 'bzip0', 'twolf0', 'wupwise0', 'swim0', 'mgrid0', 'applu0', 'galgel0', 'art0', 'equake0', 'facerec0', 'ammp0', 'lucas0', 'fma3d0', 'sixtrack0' ,'apsi0', 'mesa0', 'vortex10']
@@ -81,10 +82,13 @@ class ExperimentConfiguration:
         assert argument not in self.variableSingleCoreArguments
         self.variableSingleCoreArguments[argument] = values
     
-    def registerWorkload(self, np):
+    def registerWorkload(self, np, type=None):
+        
+        if type == None:
+            type = workloadfiles.workloads.ALL
         
         assert np not in self.workloads
-        self.workloads[np] = workloads.getWorkloads(np)
+        self.workloads[np] = workloads.getWorkloads(np, type)
                 
     def registerWorkloadRange(self, np, ids):
         

@@ -8,6 +8,10 @@ import pickle
 import deterministic_fw_wls
 import os
 
+ALL = 0
+FAIR_WL = 1
+TYPED_WL = 2
+
 def makeTypeTitle(type, num):
     return "t-"+type+"-"+str(num)
 
@@ -35,9 +39,6 @@ class Workload:
 
 class Workloads:
 
-    FAIR_WL = 0
-    TYPED_WL = 1
-
     def __init__(self):
         
         infile = open(self._findPickleFile("workloadfiles/typewls.pkl"))
@@ -47,13 +48,20 @@ class Workloads:
         self.fairwls = deterministic_fw_wls.workloads
         
         self.workloadnames = {}
+        self.randomwlnames = {}
+        self.typedwlnames = {}
         for np in self.typedwls:
             self.workloadnames[np] = []
+            self.randomwlnames[np] = []
+            self.typedwlnames[np] = []
+            
             for type in self.typedwls[np]:
                 for i in range(len(self.typedwls[np][type])):
                     self.workloadnames[np].append(makeTypeTitle(type, i))
+                    self.typedwlnames[np].append(makeTypeTitle(type, i))
             for wlname in deterministic_fw_wls.getWorkloads(np):
                 self.workloadnames[np].append(wlname)
+                self.randomwlnames[np].append(wlname)
 
     def _findPickleFile(self, relpath):
         pypath = os.getenv("PYTHONPATH")
@@ -68,8 +76,15 @@ class Workloads:
         
         raise Exception("Pickled workloadfile not found in PYTHONPATH")
 
-    def getWorkloads(self, np):
-        return self.workloadnames[np]
+    def getWorkloads(self, np, type = ALL):
+        if type == ALL:
+            return self.workloadnames[np]
+        elif type == TYPED_WL:
+            return self.typedwlnames[np]
+        elif type == FAIR_WL:
+            return self.randomwlnames[np]
+        
+        raise Exception("Unknown workload type in workloads.getWorkloads()")
 
     def getBms(self, wl, np, appendZero = False):
         if wl.startswith("t-"):
