@@ -93,7 +93,10 @@ def getWorkloads(np):
     return wls
 
 def getBms(wl,np, appendZero = False):
-    num = int(wl.replace("fair",""))
+    try:
+        num = int(wl.replace("fair",""))
+    except:
+        raise Exception("Malformed workload "+wl+" in deterministic_fw_wls getBms()")
     bms = workloads[np][num][0]
     if appendZero:
         newbms = []

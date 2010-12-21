@@ -1,7 +1,9 @@
 
 import re
-import deterministic_fw_wls as workloads
 import cPickle
+
+from workloadfiles.workloads import Workloads
+workloads = Workloads()
 
 from statparse.experimentConfiguration import ExperimentConfiguration
 
@@ -68,9 +70,8 @@ class StatfileIndex():
                 
                 self.configurations.append(expConf)
                 configIDs.append(expConf.experimentID)
-                
-            self._parseFile(statsfilename, configIDs)
-        
+            
+            self._parseFile(statsfilename, configIDs)        
         else:
             expConf = ExperimentConfiguration(np, params, wlOrBm)
             self.configurations.append(expConf)

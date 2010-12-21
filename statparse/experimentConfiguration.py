@@ -1,6 +1,8 @@
 
-import deterministic_fw_wls as workloads
 from statparse import stringToType
+
+from workloadfiles.workloads import Workloads
+workloads = Workloads()
 
 __metaclass__ = type
 
@@ -200,7 +202,8 @@ class ExperimentConfiguration:
         retindex = -1
         for i in range(len(bms)):
             if bms[i] == self.benchmark:
-                assert retindex == -1
+                if retindex != -1:
+                    raise Exception("Benchmark "+bms[i]+" occurs more than once in the workload")
                 retindex = i
         
         return retindex

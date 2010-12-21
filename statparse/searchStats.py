@@ -198,11 +198,12 @@ def createFileIndex(opts, args):
                     try:
                         index.addFile(filepath, orderpath, np, wlOrBm, varparams)
                     except Exception as e:
-                        print "Parsing failed for experment "+str(np)+", "+wlOrBm
+                        print "Parsing failed for experiment "+str(np)+", "+wlOrBm
                         print "Message: "+str(e)
-                else:
-                    if not opts.quiet:
-                        print "WARNING: file "+filepath+" does not exist"
+                        if opts.showStackTrace:
+                            print "Stacktrace:"
+                            traceback.print_exc(file=sys.stdout)
+                            print
                 curConfigNum += 1
         
         if not opts.quiet:

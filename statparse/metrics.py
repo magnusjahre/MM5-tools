@@ -1,6 +1,8 @@
 import simpoints.simpoints as simpoints
 import experimentConfiguration
-import deterministic_fw_wls as workloads
+
+from workloadfiles.workloads import Workloads
+workloads = Workloads()
 
 __metaclass__ = type
 

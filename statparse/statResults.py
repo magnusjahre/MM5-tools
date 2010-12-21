@@ -6,7 +6,9 @@ import printResults
 
 import sys
 import simpoints.simpoints as simpoints
-import deterministic_fw_wls as workloads
+
+from workloadfiles.workloads import Workloads
+workloads = Workloads()
 
 from experimentConfiguration import ExperimentConfiguration
 
