@@ -127,6 +127,7 @@ class BatchCommands:
 
             print >> output, "mkdir "+command.id
             print >> output, "cd "+command.id
+            print >> output, "rm -Rf *" # take care of restarts
             print >> output, command.cmd + '\n\n'
             print >> output, "cd .."
         
