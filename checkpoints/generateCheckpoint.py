@@ -12,13 +12,17 @@ import checkpoints
 
 import simpoints.simpoints as simpoints
 
-from workloadfiles.workloads import Workloads
-workloads = Workloads()
+import workloadfiles.workloads as wlmod
+workloads = wlmod.Workloads()
+
+from m5test.M5Command import M5Command
 
 def parseAargs():
     parser = OptionParser(usage="generateCheckpoint.py ")
     
-    parser.add_option("--from-experiment", action="store_true", dest="fromExp", default="", help="Use workload table and pbsconfig.py to generate checkpoints")
+    parser.add_option("--from-experiment", action="store_true", dest="fromExp", default=False, help="Use workload table and pbsconfig.py to generate checkpoints")
+    parser.add_option("--test-checkpoints", action="store_true", dest="test", default=False, help="Check that M5 starts with all generated simpoints")
+    parser.add_option("--test-size", action="store", dest="siminsts", type="int", default=1000, help="The number of instructions to simulate for (DEFAULT 1000)")
     
     parser.add_option("--copy-checkpoint-files", action="store", dest="checkpointDestination", default="", help="Copy checkpoints and simulator files to directory")
     
@@ -44,6 +48,27 @@ def createCheckpointsFromExperiment():
             print "Files needed for np "+str(np)+", workload "+wl+", memsys "+mem+" and simpoint "+str(simpoint)+" not found"
             print "Skipping..."
     return 0
+
+def testCheckpoints(siminsts):
+    
+    testID = 0
+    
+    for b in wlmod.getAllBenchmarks():
+        m5cmd = M5Command()
+        m5cmd.setUpTest(b, 1, "RingBased", 1)
+        m5cmd.setArgument("MEMORY-BUS-SCHEDULER", "RDFCFS") 
+        m5cmd.setArgument("USE-CHECKPOINT", ".")
+        m5cmd.setArgument("SIMINSTS", siminsts)
+        m5cmd.setExpectedComInsts(siminsts)
+        
+        success = m5cmd.run(testID, "detailedCPU.*COM:count.*", False)
+        
+        if success:
+            print b, "started successfully"
+        else:
+            print b, "FAILED!"
+            
+        testID += 1
 
 def buildPossibleParams():
     
@@ -177,6 +202,9 @@ def main():
         
     if opts.convertCheckpointFile != "":
         sys.exit(convertCheckpointFile(opts.convertCheckpointFile))
+    
+    if opts.test:
+        sys.exit(testCheckpoints(opts.siminsts))
     
     simpoint = -1
     printParameters(opts.np, opts.workload, opts.memsys, simpoint, opts.fwinsts)

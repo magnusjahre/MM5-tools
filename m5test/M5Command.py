@@ -28,6 +28,9 @@ class M5Command():
         self.setArgument("MEMORY-SYSTEM", memsys)
         self.setArgument("MEMORY-BUS-CHANNELS", channels)
         self.setArgument("BENCHMARK", bm)
+        if np == 1:
+            self.setArgument("MEMORY-ADDRESS-PARTS", 4)
+            self.setArgument("MEMORY-ADDRESS-OFFSET", 0)
 
         self.statsfilename = "m5stats.txt"
         self.setArgument("STATSFILE", self.statsfilename)
