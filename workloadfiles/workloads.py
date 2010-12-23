@@ -15,6 +15,16 @@ TYPED_WL = 2
 def makeTypeTitle(type, num):
     return "t-"+type+"-"+str(num)
 
+def parseTypeString(typestr):
+    if typestr == "all":
+        return ALL
+    if typestr == "fair":
+        return FAIR_WL
+    if typestr == "typed":
+        return TYPED_WL
+    
+    raise Exception("Unknown workload type "+typestr+", candidates are all, fair and typed")
+
 class Workload:
     
     def __init__(self):
@@ -36,6 +46,15 @@ class Workload:
         for b in self.benchmarks:
             out += " "+b
         return out
+
+class UnknownWorkloadException(Exception):
+    
+    def __init__(self, message):
+        self.message = message
+        
+    def __str__(self):
+        return self.message    
+     
 
 class Workloads:
 
@@ -62,6 +81,13 @@ class Workloads:
             for wlname in deterministic_fw_wls.getWorkloads(np):
                 self.workloadnames[np].append(wlname)
                 self.randomwlnames[np].append(wlname)
+                
+        self.workloadwidth = 10
+        self.benchmarkwidth = 15 
+
+    def setColumnWidth(self, wlwidth, bmwidth):
+        self.workloadwidth = wlwidth
+        self.benchmarkwidth = bmwidth
 
     def _findPickleFile(self, relpath):
         pypath = os.getenv("PYTHONPATH")
@@ -89,7 +115,10 @@ class Workloads:
     def getBms(self, wl, np, appendZero = False):
         if wl.startswith("t-"):
             return self.getTypedBms(np, wl)
-        return deterministic_fw_wls.getBms(wl, np, appendZero)
+        elif wl.startswith("fair"):
+            return deterministic_fw_wls.getBms(wl, np, appendZero)
+        
+        raise UnknownWorkloadException("Unknown workload "+wl)
         
     def getTypedBms(self, np, name):
         try:
@@ -98,3 +127,26 @@ class Workloads:
             raise Exception("Malformed typed benchmark name: "+str(name))
         
         return self.typedwls[np][type][int(num)].benchmarks
+
+    def printBms(self, wl, np):
+        bms = self.getBms(wl, np) 
+        print wl.ljust(self.workloadwidth),
+        for b in bms:
+            print b.ljust(self.benchmarkwidth),
+        print
+
+    def printWorkloads(self, np, type = ALL):
+        print "Workload".ljust(self.workloadwidth),
+        for p in range(np):
+            print ("CPU "+str(p)).ljust(self.benchmarkwidth),
+        print
+            
+        printnames = self.workloadnames[np]
+        if type == FAIR_WL:
+            printnames = self.randomwlnames[np]
+        elif type == TYPED_WL:
+            printnames = self.typedwlnames[np]
+            
+        for w in printnames:
+            self.printBms(w, np)
+            
