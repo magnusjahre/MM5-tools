@@ -18,6 +18,12 @@ TYPED_WL = 2
 def makeTypeTitle(type, num):
     return "t-"+type+"-"+str(num)
 
+def getTypeIDFromTitle(title):
+    try:
+        return title.split("-")[1]
+    except:
+        raise Exception("Typed workload parse error on workload "+str(title))
+
 def parseTypeString(typestr):
     if typestr == "all":
         return ALL
@@ -160,4 +166,13 @@ class Workloads:
             
         for w in printnames:
             self.printBms(w, np)
-            
+        
+    def getWorkloadsByType(self, np, wltype):
+        if wltype not in self.typedwls[np]:
+            raise Exception("Workload subtype "+str(wltype)+" does not exist, candidates are "+str(self.typedwls[np].keys()))
+        
+        names = []
+        for i in range(len(self.typedwls[np][wltype])):
+            names.append(makeTypeTitle(wltype, i))
+        
+        return names

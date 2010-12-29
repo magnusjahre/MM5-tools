@@ -89,6 +89,13 @@ class ExperimentConfiguration:
         
         assert np not in self.workloads
         self.workloads[np] = workloads.getWorkloads(np, type)
+
+    def registerWorkloadByType(self, np, wltype):
+        if np not in self.workloads:
+            self.workloads[np] = []
+        
+        for t in workloads.getWorkloadsByType(np, wltype):
+            self.workloads[np].append(t)
                 
     def registerWorkloadRange(self, np, ids):
         
