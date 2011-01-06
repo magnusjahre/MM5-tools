@@ -16,8 +16,33 @@ import statparse.printResults as printres
 
 ERRVAL = "N/A"
 
+class ProfileResult:
+    
+    def __init__(self, xstat, xnames, ystat, ynames):
+        self.xnames = xnames
+        self.ynames = ynames
+        self.xstat = xstat
+        self.ystat = ystat
+        
+        self.xmap = {}
+        self.ymap = {}
+        self.profile = []
+        
+        for y in range(len(self.ynames)):
+            self.profile.append([ERRVAL for i in self.xnames])
+            self.ymap[self.ynames[y]] = y
+        
+        for x in range(len(self.xnames)):
+            self.xmap[self.xnames[x]] = x 
+                
+    def addResult(self, xname, yname, value):
+        self.profile[self.ymap[yname]][self.xmap[xname]] = value
+        
+    def getResult(self, xname, yname):
+        return self.profile[self.ymap[yname]][self.xmap[xname]] 
+
 def parseArgs():
-    parser = OptionParser(usage="getProfile.py [options] statistic-pattern")
+    parser = OptionParser(usage="getProfile.py [options] statistic-pattern [statistic-pattern]")
 
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Print the results as a heat map")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Suppress output")
@@ -26,12 +51,12 @@ def parseArgs():
 
     opts, args = parser.parse_args()
     
-    if len(args) != 1:
+    if len(args) == 0 or len(args) > 2:
         print "Command line error..."
         print "Usage : "+parser.usage
         sys.exit(-1)
     
-    return opts,args[0]
+    return opts, args
 
 def doSearch(pattern, benchmark, index, opts):
     searchConfig = expconfig.buildMatchAllConfig()
@@ -44,63 +69,70 @@ def doSearch(pattern, benchmark, index, opts):
     results.plainSearch(pattern)
     return results
 
-def getProfile(benchmark, opts, pattern, pbsconfigobj, index):
+def getProfile(benchmark, opts, pattern, pbsconfigobj, index, pattern2 = None):
     
     results = doSearch(pattern, benchmark, index, opts)
     
-    if results.matchingConfigs == []:
-        fatal("No results found, check your pattern and benchmark name")
+    if results.noPatResults == {}:
+        fatal("No results found, for pattern "+pattern+" and benchmark "+benchmark)
+    
+    if pattern2 != None:
+        results2 = doSearch(pattern2, benchmark, index, opts)
+        if results2.noPatResults == {}:
+            fatal("No results found, for pattern "+pattern2+" and benchmark "+benchmark)
+            
     
     keys = pbsconfigobj.variableSimulatorArguments.keys()
     if len(keys) != 2:
         fatal("This script handles exactly two variable arguments in the pbsconfig file")
-    
-    if not opts.quiet:
-        print 
-        print "Column key is "+keys[0]
-        print "Row key is "+keys[1]
-        print
-    
+        
     searchConfig = expconfig.buildMatchAllConfig()
+    
     xargs = pbsconfigobj.variableSimulatorArguments[keys[0]]
     yargs = pbsconfigobj.variableSimulatorArguments[keys[1]]
+    profile = ProfileResult(keys[0], xargs, keys[1], yargs)
     
-    profile = [ [ERRVAL for j in range(len(xargs))] for i in range(len(yargs))]
-    
-    for x in range(len(xargs)):
-        for y in range(len(yargs)):
-            searchConfig.parameters[keys[0]] = xargs[x]
-            searchConfig.parameters[keys[1]] = yargs[y]
+    for y in yargs:
+        for x in xargs:
+            searchConfig.parameters[keys[0]] = x
+            searchConfig.parameters[keys[1]] = y
             
             configRes = procres.filterConfigurations(results.matchingConfigs, searchConfig)
+            if pattern2 != None:
+                configRes2 = procres.filterConfigurations(results2.matchingConfigs, searchConfig)
             
             if(len(configRes) > 1):
                 fatal("Multiple results for benchmark "+str(benchmark)+", pattern must be refined")
             elif len(configRes) == 0:
                 continue
             
-            profile[x][y] = results.noPatResults[configRes[0]]
-    
-    return keys[0], xargs, keys[1], yargs, profile
+            if pattern2 != None:
+                res = float(results.noPatResults[configRes[0]]) / float(results2.noPatResults[configRes2[0]])
+            else:
+                res = results.noPatResults[configRes[0]]
+            
+            profile.addResult(x, y, res)
 
-def printTable(xargs, yargs, profile, opts, outfilename = ""):
+    return profile
+
+def printTable(profile, opts, outfilename = ""):
     
     header = [""]
-    for x in xargs:
+    for x in profile.xnames:
         header.append(printres.numberToString(x, opts.decimals))
     
     textarray = []
     textarray.append(header)
     
-    for x in range(len(xargs)):
-        line = [printres.numberToString(yargs[x], opts.decimals)]
-        for y in range(len(yargs)):
-            line.append(printres.numberToString(profile[x][y], opts.decimals))
+    for y in profile.ynames:
+        line = [printres.numberToString(y, opts.decimals)]
+        for x in profile.xnames:
+            line.append(printres.numberToString(profile.getResult(x,y), opts.decimals))
     
         textarray.append(line)
     
     just = [True]
-    for i in range(len(xargs)):
+    for i in profile.xnames:
         just.append(False)
         
     if outfilename != "":
@@ -113,19 +145,19 @@ def printTable(xargs, yargs, profile, opts, outfilename = ""):
     if outfilename != "":
         outfile.close() 
 
-def doPlot(benchmark, xname, xargs, yname, yargs, pattern, profile, filename = ""):
+def doPlot(benchmark, pattern, profile, filename = ""):
     
-    yrangestr = "-0.5,"+str(len(xargs)-0.5)
-    xrangestr = "-0.5,"+str(len(yargs)-0.5)
-    zrangestr = "0,"+str(max(max(profile)))
+    yrangestr = "-0.5,"+str(len(profile.xnames)-0.5)
+    xrangestr = "-0.5,"+str(len(profile.ynames)-0.5)
+    zrangestr = "0,"+str(max(max(profile.profile)))
     
-    plotImage(profile,
-              xlabel=xname,
-              ylabel=yname,
+    plotImage(profile.profile,
+              xlabel=profile.xstat,
+              ylabel=profile.ystat,
               zlabel=pattern,
               title=benchmark,
-              xticklabels=xargs,
-              yticklabels=yargs,
+              xticklabels=profile.xnames,
+              yticklabels=profile.ynames,
               yrange=yrangestr,
               xrange=xrangestr,
               zrange=zrangestr,
@@ -134,7 +166,13 @@ def doPlot(benchmark, xname, xargs, yname, yargs, pattern, profile, filename = "
 
 def main():
     
-    opts,pattern = parseArgs()
+    opts,args = parseArgs()
+    
+    pattern = args[0]
+    if len(args) == 2:
+        pattern2 = args[1]
+    else:
+        pattern2 = None
     
     if not os.path.exists("index-all.pkl"):
         print fatal("Index file does not exist")
@@ -156,12 +194,22 @@ def main():
         print "done!"
 
     if opts.benchmark != "":
-        xname, xargs, yname, yargs, profile = getProfile(opts.benchmark, opts, pattern, pbsconfigobj, index)
-        printTable(xargs, yargs, profile, opts)
+        profile = getProfile(opts.benchmark, opts, pattern, pbsconfigobj, index, pattern2)
+        printTable(profile, opts)
         if opts.plot:
-            doPlot(opts.benchmark, xname, xargs, yname, yargs, pattern, profile)
+            doPlot(opts.benchmark, pattern, profile)
     else:
-        fatal("multibenchmark not impl")
+        if 1 not in pbsconfigobj.workloads:
+            fatal("Cannot find any single core experiments in configuration file")
+        
+        for bm in pbsconfigobj.workloads[1]:
+            if not opts.quiet:
+                print "Processing "+bm
+            profile = getProfile(bm, opts, pattern, pbsconfigobj, index, pattern2)
+            printTable(profile, opts, "profile-data-"+bm+".txt")
+            if opts.plot:
+                doPlot(bm, pattern, profile, "profile-plot-"+bm+".pdf")
+            
 
 if __name__ == '__main__':
     main()
