@@ -4,6 +4,7 @@ import sys
 import os
 
 from optparse import OptionParser
+import optcomplete
 
 from statparse.util import fatal, warn
 from statparse.statfileParser import StatfileIndex
@@ -13,6 +14,7 @@ from statparse.plotResults import plotImage
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
 import statparse.printResults as printres
+import re
 
 ERRVAL = "N/A"
 
@@ -46,8 +48,12 @@ def parseArgs():
 
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Print the results as a heat map")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Suppress output")
+    parser.add_option("--vector-dist", action="store_true", dest="vectorDist", default=False, help="The pattern identifies a Vector Distribution")
+    parser.add_option("--index-file", action="store", dest="indexfile", default="index-all", help="Use a different index file")
     parser.add_option("--benchmark", action="store", dest="benchmark", default="", help="Only print profile for given benchmark")
     parser.add_option("--decimals", action="store", dest="decimals", default=2, type="int", help="Number of decimals to print")
+
+    optcomplete.autocomplete(parser)
 
     opts, args = parser.parse_args()
     
@@ -69,14 +75,73 @@ def doSearch(pattern, benchmark, index, opts):
     results.plainSearch(pattern)
     return results
 
+def cleanDistributionKeys(distribution):
+    removekeys = ["max_value", "min_value", "overflows", "samples"]
+    for k in removekeys:
+        if k in distribution:
+            distribution.remove(k)
+    return distribution
+
+def getIDFromStatNames(names):
+    map = {}
+    for n in names:
+        val = re.search("([0-9]+).dist", n)
+        if not val:
+            fatal("Pattern "+n+" does not have the expected format")
+        id = int(val.group(1))
+        map[id] = n
+    return map
+
+def doDistVectorSearch(pattern, benchmark, index, opts):
+    searchConfig = expconfig.buildMatchAllConfig()
+    searchConfig.benchmark = benchmark
+    results = StatResults(index,
+                          searchConfig,
+                          False,
+                          opts.quiet)
+    
+    searchRes = results.searchForPatterns([pattern])
+    print
+    idStatMap = getIDFromStatNames(searchRes.keys())
+    
+    xnames = sorted(idStatMap.keys())
+    results.plainSearch(idStatMap[xnames[0]])
+    if len(results.matchingConfigs) != 1:
+        fatal("0 or more than one config matched the pattern")
+    ynames = sorted(cleanDistributionKeys(results.noPatResults[results.matchingConfigs[0]].keys()))
+    profile = ProfileResult("", xnames, "", ynames)
+    
+    for id in xnames:
+        results.plainSearch(idStatMap[id])
+        if len(results.matchingConfigs) != 1:
+            fatal("0 or more than one config matched the pattern")
+            
+        dist = results.noPatResults[results.matchingConfigs[0]]
+        keys = sorted(cleanDistributionKeys(dist.keys()))
+        
+        assert len(keys) == len(ynames)
+        for i in range(len(keys)):
+            assert keys[i] == ynames[i]
+        
+        for k in ynames:
+            profile.addResult(id, k, dist[k])
+        
+    return profile
+
 def getProfile(benchmark, opts, pattern, pbsconfigobj, index, pattern2 = None):
     
-    results = doSearch(pattern, benchmark, index, opts)
+    if opts.vectorDist:
+        if pattern2 != None:
+            warn("Distribution vector parsing, second statistic pattern ignored...")
+        return doDistVectorSearch(pattern, benchmark, index, opts)
+    else:
+        results = doSearch(pattern, benchmark, index, opts)
     
     if results.noPatResults == {}:
         fatal("No results found, for pattern "+pattern+" and benchmark "+benchmark)
     
     if pattern2 != None:
+
         results2 = doSearch(pattern2, benchmark, index, opts)
         if results2.noPatResults == {}:
             fatal("No results found, for pattern "+pattern2+" and benchmark "+benchmark)
@@ -147,8 +212,8 @@ def printTable(profile, opts, outfilename = ""):
 
 def doPlot(benchmark, pattern, profile, filename = ""):
     
-    yrangestr = "-0.5,"+str(len(profile.xnames)-0.5)
-    xrangestr = "-0.5,"+str(len(profile.ynames)-0.5)
+    yrangestr = "-0.5,"+str(len(profile.ynames)-0.5)
+    xrangestr = "-0.5,"+str(len(profile.xnames)-0.5)
     zrangestr = "0,"+str(max(max(profile.profile)))
     
     plotImage(profile.profile,
@@ -173,32 +238,40 @@ def main():
         pattern2 = args[1]
     else:
         pattern2 = None
-    
-    if not os.path.exists("index-all.pkl"):
-        print fatal("Index file does not exist")
         
     if not os.path.exists("pbsconfig.py"):
-        print fatal("pbsconfig.py not found")
+        if not opts.vectorDist:
+            print fatal("pbsconfig.py not found")
+        pbsconfigobj = None
+    else:
+        pbsconfigmodule = __import__("pbsconfig")
+        pbsconfigobj = pbsconfigmodule.config
 
-    pbsconfigmodule = __import__("pbsconfig")
-    pbsconfigobj = pbsconfigmodule.config
+    if not os.path.exists(opts.indexfile+".pkl"): 
+        print fatal("Index file does not exist")
+    
 
     if not opts.quiet:
         print
         print "Retrieving profile..."
         print
-        print "Loading index... ",
+        print "Loading index "+str(opts.indexfile)+"...",
         sys.stdout.flush()
-    index = StatfileIndex("index-all")
+    index = StatfileIndex(opts.indexfile)
     if not opts.quiet:
         print "done!"
 
+    
     if opts.benchmark != "":
         profile = getProfile(opts.benchmark, opts, pattern, pbsconfigobj, index, pattern2)
         printTable(profile, opts)
         if opts.plot:
             doPlot(opts.benchmark, pattern, profile)
     else:
+        
+        if pbsconfigobj == None:
+            fatal("pbsconfig.py file needed for multi-benchmark analysis, specify the --benchmark option if you want single benchmark analysis")
+        
         if 1 not in pbsconfigobj.workloads:
             fatal("Cannot find any single core experiments in configuration file")
         
