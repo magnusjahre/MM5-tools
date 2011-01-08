@@ -481,3 +481,36 @@ def plotHistogram(data, **kwargs):
             return
     
     plt.show()
+
+def plotBrokenBarchart(data, **kwargs):
+    
+    import matplotlib.pyplot as plt
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    yval = 0.5
+    for list in data:        
+        ax.broken_barh(list, (yval+0.1, 0.8), facecolors='blue')
+        yval += 1
+    
+    ax.grid(True)
+    
+    if "xlabel" in kwargs:
+        if kwargs["xlabel"] != "none":
+            ax.set_xlabel(kwargs["xlabel"], size="large")
+    
+    if "ylabel" in kwargs:
+        if kwargs["ylabel"] != "none":
+            ax.set_ylabel(kwargs["ylabel"], size="large")
+    
+    if "title" in kwargs:
+        if kwargs["title"] != "":
+            ax.set_title(kwargs["title"])
+    
+    if "filename" in kwargs:
+        if kwargs["filename"] != "":
+            plt.savefig(kwargs["filename"], type="pdf")
+            return
+    
+    plt.show()
