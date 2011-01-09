@@ -58,14 +58,15 @@ class M5Command():
         
         return commandstr
             
-    def run(self, testnum, completedInstPat, doInstCheck = True):
+    def run(self, testnum, completedInstPat, verbose, doInstCheck = True):
         
         if not os.path.exists(self.binary):
             raise Exception("m5 binary not found, provided path is "+self.binary)
         
         cmd = self.getCommandline()
         
-        print "Command line: "+cmd
+        if verbose:
+            print "Command line: "+cmd
         
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
@@ -87,21 +88,22 @@ class M5Command():
                     error = True
         
         
-        if not error:
-            print (str(testnum)+": "+str(self.bmName)).ljust(40)+"Test passed!".rjust(20)
-        else:
-            print (str(testnum)+": "+str(self.bmName)).ljust(40)+"Test failed!".rjust(20)
-            
-            file = open("test"+str(testnum)+".output", "w")
-            if doInstCheck:
-                file.write("Committed instructions\n\n")
-                file.write(str(comInsts)+"\n\n")
-            file.write("Command line\n\n")
-            file.write(cmd+"\n\n")
-            file.write("Program output\n\n")
-            file.write(out)
-            file.close()
-            
+        if verbose:
+            if not error:
+                print (str(testnum)+": "+str(self.bmName)).ljust(40)+"Test passed!".rjust(20)
+            else:
+                print (str(testnum)+": "+str(self.bmName)).ljust(40)+"Test failed!".rjust(20)
+                
+                file = open("test"+str(testnum)+".output", "w")
+                if doInstCheck:
+                    file.write("Committed instructions\n\n")
+                    file.write(str(comInsts)+"\n\n")
+                file.write("Command line\n\n")
+                file.write(cmd+"\n\n")
+                file.write("Program output\n\n")
+                file.write(out)
+                file.close()
+                
         sys.stdout.flush()
 
         return not error

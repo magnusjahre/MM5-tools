@@ -12,24 +12,29 @@ class MSHROccupancy:
     def __init__(self, filename, numMshrs):
         self.data = [[] for i in range(numMshrs)]
         
-        file = open(filename)
-        file.readline()
-        
         self.requests = 0
         
-        for line in file:
-            d = line.split(";")
-            if(len(d) != 4):
-                fatal("Unknown file format")
-            id = int(d[1])
-            allocAt = int(d[2])
-            duration = int(d[3])
-            if id >= numMshrs:
-                fatal("Got MSHR with id "+str(id)+" but only "+str(numMshrs)+" indicated by --mshrs parameter")
-            self.data[id].append( (allocAt, duration) )
+        if filename != "":
+            file = open(filename)
+            file.readline()
             
-            self.oldestCycle = int(d[0])
-            self.requests += 1
+            for line in file:
+                d = line.split(";")
+                if(len(d) != 4):
+                    fatal("Unknown file format")
+                id = int(d[1])
+                allocAt = int(d[2])
+                duration = int(d[3])
+                if id >= numMshrs:
+                    fatal("Got MSHR with id "+str(id)+" but only "+str(numMshrs)+" indicated by --mshrs parameter")
+                self.data[id].append( (allocAt, duration) )
+                
+                self.oldestCycle = int(d[0])
+                self.requests += 1
+    
+    def addEntry(self, mshrID, allocAt, duration):
+        self.requests += 1
+        self.data[mshrID].append( (allocAt, duration) )
     
     def getOldestEntry(self):
         oldest = 100000000000

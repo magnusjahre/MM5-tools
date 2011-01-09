@@ -2,26 +2,26 @@
 
 import sys
 import os
+import shutil
 
 from optparse import OptionParser
-from statparse.util import fatal
 from visualizeMSHROccupancy import MSHROccupancy
 from statparse.analysis import computePercError
 from m5test.M5Command import M5Command
-import shutil
+from workloadfiles.workloads import getAllBenchmarks
 
 MAX_MSHRS = 16
 
 def parseArgs():
-    parser = OptionParser(usage="validateSourceThrotModel.py [options] benchmark ticks")
+    parser = OptionParser(usage="validateSourceThrotModel.py [options] ticks [benchmark]")
 
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Print the results as a heat map")
     parser.add_option("--reduced-mshrs", action="store", dest="redmshrs", default=16, type="int", help="The number of MSHRs used to generate the reduce file")
     parser.add_option("--min-request-interval", action="store", dest="interval", default=0, type="int", help="The minimum request interval used to generate the reduce file")
-
+    parser.add_option("--width", action="store", dest="width", default=18, type="int", help="The width of each column in print")
     opts, args = parser.parse_args()
     
-    if len(args) != 2:
+    if len(args) < 1 and len(args) > 2:
         print "Command line error..."
         print "Usage : "+parser.usage
         sys.exit(-1)
@@ -44,11 +44,12 @@ def findApplicableMSHR(mshrlist, at):
     return minindex
 
 def estimateReduction(maxdata, opts):
+    
+    estimate = MSHROccupancy("", opts.redmshrs)
+    
     occupiedTo = [0 for i in range(opts.redmshrs)]
-    
-    requestsExecuted = 0
-    
     lastRequestExecAt = 0
+    
     while not maxdata.isEmpty():
         allocAt, duration = maxdata.getOldestEntry()
         mshrID = findApplicableMSHR(occupiedTo, allocAt)
@@ -62,11 +63,12 @@ def estimateReduction(maxdata, opts):
         else:
             occupiedTo[mshrID] = occupiedTo[mshrID] + duration 
         
-        requestsExecuted += 1
-        if occupiedTo[mshrID] >= maxdata.oldestCycle:
-            return requestsExecuted
+        estimate.addEntry(mshrID, occupiedTo[mshrID]-duration, duration)
         
-    fatal("More requests in reduced files, this must be wrong!")
+        if occupiedTo[mshrID] >= maxdata.oldestCycle:
+            return estimate
+        
+    return estimate
 
 def runM5(dir, benchmark, ticks, basemshrs, requestInterval):
     if os.path.exists(dir):
@@ -83,7 +85,7 @@ def runM5(dir, benchmark, ticks, basemshrs, requestInterval):
     cmd.setArgument("SIMULATETICKS", ticks)
     cmd.setArgument("DO-MSHR-TRACE", True)
     
-    cmd.run(0, "", False)
+    cmd.run(0, "", False, False)
     
     os.chdir("..")
 
@@ -97,20 +99,51 @@ def generateTraces(benchmark, ticks, opts):
     
     return defaultdirname+"/PrivateL2Cache0MSHRAllocatedTrace.txt", reducedirname+"/PrivateL2Cache0MSHRAllocatedTrace.txt" 
 
+def processBenchmark(benchmark, ticks, opts):
+    maxfile, redfile = generateTraces(benchmark, ticks, opts)
+    
+    if os.path.exists(maxfile):
+        maxdata = MSHROccupancy(maxfile, MAX_MSHRS)
+        reddata = MSHROccupancy(redfile, opts.redmshrs)
+        
+        estimate = estimateReduction(maxdata, opts)
+    
+        return maxdata, reddata, estimate
+    return None,None,None
+
 def main():
     opts, args = parseArgs()
     
-    maxfile, redfile = generateTraces(args[0], args[1], opts)
+    if len(args) == 1:
+        for t in ["Benchmark","Max requests", "Reduced requests", "Estimate", "Error"]:
+            print t.ljust(opts.width),
+        print 
+        for n in getAllBenchmarks():
+            maxdata, reddata, estimate = processBenchmark(n, args[0], opts)
+            if maxdata != None:
+                error = "N/A"
+                if reddata.requests != 0:
+                    error = str(computePercError(estimate.requests, reddata.requests))+" %"
+                
+                print str(n).ljust(opts.width),
+                print str(maxdata.requests).ljust(opts.width),
+                print str(reddata.requests).ljust(opts.width),
+                print str(estimate.requests).ljust(opts.width),
+                print str(error).ljust(opts.width)
+            else:
+                print str(n).ljust(opts.width)+"Error..."
+            sys.stdout.flush()
+    else:
+        maxdata, reddata, estimate = processBenchmark(args[1], args[0], opts)
+        
+        print "Full requests:              "+str(maxdata.requests)
+        print "Measured reduced requests:  "+str(reddata.requests)
+        print "Estimated reduced requests: "+str(estimate.requests)
+        if reddata.requests != 0:
+            print "Error:                      "+str(computePercError(estimate.requests, reddata.requests))+" %"
     
-    maxdata = MSHROccupancy(maxfile, MAX_MSHRS)
-    reddata = MSHROccupancy(redfile, opts.redmshrs)
-    
-    requestEstimate = estimateReduction(maxdata, opts)
-    
-    print "Full requests:              "+str(maxdata.requests)
-    print "Measured reduced requests:  "+str(reddata.requests)
-    print "Estimated reduced requests: "+str(requestEstimate)
-    print "Error:                      "+str(computePercError(requestEstimate, reddata.requests))+" %"
+        if opts.plot:
+            estimate.plot(args[0]+" Estimate", "")
 
 if __name__ == '__main__':
     main()
