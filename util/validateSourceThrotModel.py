@@ -7,14 +7,16 @@ from optparse import OptionParser
 from statparse.util import fatal
 from visualizeMSHROccupancy import MSHROccupancy
 from statparse.analysis import computePercError
+from m5test.M5Command import M5Command
+import shutil
 
 MAX_MSHRS = 16
 
 def parseArgs():
-    parser = OptionParser(usage="validateSourceThrotModel.py [options] max-file reduced-file")
+    parser = OptionParser(usage="validateSourceThrotModel.py [options] benchmark ticks")
 
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Print the results as a heat map")
-    parser.add_option("--reduced-mshrs", action="store", dest="redmshrs", default=4, type="int", help="The number of MSHRs used to generate the reduce file")
+    parser.add_option("--reduced-mshrs", action="store", dest="redmshrs", default=16, type="int", help="The number of MSHRs used to generate the reduce file")
     parser.add_option("--min-request-interval", action="store", dest="interval", default=0, type="int", help="The minimum request interval used to generate the reduce file")
 
     opts, args = parser.parse_args()
@@ -23,12 +25,6 @@ def parseArgs():
         print "Command line error..."
         print "Usage : "+parser.usage
         sys.exit(-1)
-    
-    if not os.path.exists(args[0]):
-        fatal("File "+args[0]+" does not exist")
-    
-    if not os.path.exists(args[1]):
-        fatal("File "+args[1]+" does not exist")
     
     return opts, args
 
@@ -52,25 +48,62 @@ def estimateReduction(maxdata, opts):
     
     requestsExecuted = 0
     
+    lastRequestExecAt = 0
     while not maxdata.isEmpty():
         allocAt, duration = maxdata.getOldestEntry()
         mshrID = findApplicableMSHR(occupiedTo, allocAt)
+        
+        if allocAt < (lastRequestExecAt + opts.interval):
+            allocAt = lastRequestExecAt + opts.interval
+        lastRequestExecAt = allocAt
+        
         if occupiedTo[mshrID] < allocAt:
             occupiedTo[mshrID] = allocAt + duration
         else:
             occupiedTo[mshrID] = occupiedTo[mshrID] + duration 
-            
+        
         requestsExecuted += 1
-        if occupiedTo[mshrID] > maxdata.oldestCycle:
+        if occupiedTo[mshrID] >= maxdata.oldestCycle:
             return requestsExecuted
         
     fatal("More requests in reduced files, this must be wrong!")
 
+def runM5(dir, benchmark, ticks, basemshrs, requestInterval):
+    if os.path.exists(dir):
+        shutil.rmtree(dir)
+    os.mkdir(dir)
+    
+    os.chdir(dir)
+    cmd = M5Command()
+    cmd.setUpTest(benchmark, 1, "RingBased", 1)
+    cmd.setArgument("USE-CHECKPOINT", "/home/jahre/newchk")
+    cmd.setArgument("MEMORY-BUS-SCHEDULER", "RDFCFS")
+    cmd.setArgument("BASEMSHRS", basemshrs)
+    cmd.setArgument("MIN-REQUEST-INTERVAL", requestInterval)
+    cmd.setArgument("SIMULATETICKS", ticks)
+    cmd.setArgument("DO-MSHR-TRACE", True)
+    
+    cmd.run(0, "", False)
+    
+    os.chdir("..")
+
+def generateTraces(benchmark, ticks, opts):
+    
+    defaultdirname = "red-exp-default"
+    reducedirname = "red-exp-reduced"  
+    
+    runM5(defaultdirname, benchmark, ticks, MAX_MSHRS, 0)
+    runM5(reducedirname, benchmark, ticks, opts.redmshrs, opts.interval)
+    
+    return defaultdirname+"/PrivateL2Cache0MSHRAllocatedTrace.txt", reducedirname+"/PrivateL2Cache0MSHRAllocatedTrace.txt" 
+
 def main():
     opts, args = parseArgs()
     
-    maxdata = MSHROccupancy(args[0], MAX_MSHRS)
-    reddata = MSHROccupancy(args[1], opts.redmshrs)
+    maxfile, redfile = generateTraces(args[0], args[1], opts)
+    
+    maxdata = MSHROccupancy(maxfile, MAX_MSHRS)
+    reddata = MSHROccupancy(redfile, opts.redmshrs)
     
     requestEstimate = estimateReduction(maxdata, opts)
     
