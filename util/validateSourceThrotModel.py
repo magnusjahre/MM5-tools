@@ -54,7 +54,7 @@ def estimateReduction(maxdata, opts):
         allocAt, duration = maxdata.getOldestEntry()
         mshrID = findApplicableMSHR(occupiedTo, allocAt)
         
-        if allocAt < (lastRequestExecAt + opts.interval):
+        if opts.interval > 0 and allocAt < (lastRequestExecAt + opts.interval):
             allocAt = lastRequestExecAt + opts.interval
         lastRequestExecAt = allocAt
         
