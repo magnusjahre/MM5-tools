@@ -76,7 +76,7 @@ def buildPossibleParams():
     
     #nps = [4, 8, 16]
     #memsys = ["CrossbarBased", "RingBased"]
-    nps = [4]
+    nps = [2, 4]
     memsys = ["RingBased"]
     fw = -1
     
@@ -87,7 +87,6 @@ def buildPossibleParams():
                 #for simpoint in range(simpoints.maxk):
                 #    params.append([np, wl, mem, simpoint, fw])
                 params.append([np, wl, mem, -1, fw])
-    print params
     return params
 
 def printParameters(np, wl, memsys, simpoint, fw):

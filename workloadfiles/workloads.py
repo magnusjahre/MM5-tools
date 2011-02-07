@@ -95,9 +95,10 @@ class Workloads:
                 for i in range(len(self.typedwls[np][type])):
                     self.workloadnames[np].append(makeTypeTitle(type, i))
                     self.typedwlnames[np].append(makeTypeTitle(type, i))
-            for wlname in deterministic_fw_wls.getWorkloads(np):
-                self.workloadnames[np].append(wlname)
-                self.randomwlnames[np].append(wlname)
+            if np in deterministic_fw_wls.workloads:
+                for wlname in deterministic_fw_wls.getWorkloads(np):
+                    self.workloadnames[np].append(wlname)
+                    self.randomwlnames[np].append(wlname)
                 
         self.workloadwidth = 10
         self.benchmarkwidth = 15 
