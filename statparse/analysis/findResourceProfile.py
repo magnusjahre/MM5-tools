@@ -532,7 +532,7 @@ def generateWorkloads(allprofiles, opts):
     workloads = {}
     random.seed(56)
     
-    for np in [4,8,16]:
+    for np in [2,4,8,16]:
         workloads[np] = {}
         for classname in classification:
             workloads[np][classname] = []
