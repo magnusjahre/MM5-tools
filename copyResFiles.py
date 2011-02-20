@@ -34,6 +34,7 @@ resultfiles = ["interconnect*.txt",
                "bbv_outfile.bb",
                "statsDumpOrder.txt",
                "missBandwidthPolicy*.txt",
+               "globalPolicy*.txt",
                "detailedCPU*IPCTrace.txt",
                "*-bmout.txt"]
 
