@@ -53,7 +53,10 @@ class M5Command():
     def getCommandline(self):
         commandstr = self.binary
         for arg in self.arguments:
-            commandstr += " -E"+arg+"="+str(self.arguments[arg])
+            if arg.startswith("--"):
+                commandstr += " "+arg+"="+str(self.arguments[arg])
+            else:
+                commandstr += " -E"+arg+"="+str(self.arguments[arg])
         commandstr += " "+self.configfile
         
         return commandstr
