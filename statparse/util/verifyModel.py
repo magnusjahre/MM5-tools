@@ -6,12 +6,16 @@ import shutil
 from optparse import OptionParser
 from m5test.M5Command import M5Command
 from util.inifile import IniFile
+from statparse.printResults import numberToString
+from statparse.printResults import printData
+from statparse.analysis import computePercError
 
 def parseArgs():
     parser = OptionParser(usage="verifyModel.py [options] workload np")
 
     parser.add_option("--period", action="store", type="int", dest="period", default=2**20, help="The period size for the scheme")
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Verbose output")
+    parser.add_option("--decimals", action="store", type="int", dest="decimals", default=4, help="Number of decimals in prints")
     
     opts, args = parser.parse_args()
     
@@ -76,6 +80,27 @@ def runVerify(estimates, wl, np, opts):
     
     return IniFile("verify/throttling-data-dump.txt")
 
+def computeArrivalRateAccuracy(estimate, verifydata, np, opts):
+    titles = ["", "Goal", "Result", "Error (%)"]
+    textarray = [titles]
+    for i in range(np):
+        line = []
+        line.append(str(i))
+        
+        goalval = estimate.data["optimal-arrival-rates"][i]
+        line.append(numberToString(goalval,opts.decimals))
+        
+        resultingArrivalRate = float(verifydata.data["requests"][i]) / float(opts.period)
+        
+        line.append(numberToString(resultingArrivalRate, opts.decimals))
+        
+        line.append(numberToString(computePercError(resultingArrivalRate, goalval), opts.decimals))
+        
+        textarray.append(line)
+        
+    leftjust = [True, False, False, False]
+    printData(textarray, leftjust, sys.stdout, opts.decimals)
+
 def main():
     opts, args = parseArgs()
     wl = args[0]
@@ -98,6 +123,10 @@ def main():
     print "Verify returned values: "
     verdata.dump()
     
+    print
+    print "Arrival rate offset:"
+    print
+    computeArrivalRateAccuracy(estimates, verdata, np, opts)
 
 if __name__ == '__main__':
     main()
