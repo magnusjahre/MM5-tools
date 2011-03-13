@@ -56,7 +56,25 @@ def runScheme(wl, np, opts):
     return IniFile("scheme/throttling-data-dump.txt")
 
 def runVerify(estimates, wl, np, opts):
-    pass
+    extraArgs = []
+    
+    extraArgs.append( ("AGG-MSHR-MLP-EST", True) )
+    extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
+    extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
+    extraArgs.append( ("SIMULATETICKS", opts.period+1000) )
+    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period) )
+    extraArgs.append( ("--ModelThrottlingPolicy.verify", True) ) 
+    
+    statkeyname = "optimal-arrival-rates"
+    argstr = str(estimates.data[statkeyname][0])
+    for cpuid in range(1, np):
+        argstr += ","+str(estimates.data[statkeyname][cpuid])
+    
+    extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
+    
+    runM5("verify", wl, np, extraArgs, opts.verbose)
+    
+    return IniFile("verify/throttling-data-dump.txt")
 
 def main():
     opts, args = parseArgs()
@@ -75,8 +93,10 @@ def main():
     
     print 
     print "Running verification..."
-    runVerify(estimates, wl, np, opts)
+    verdata = runVerify(estimates, wl, np, opts)
     
+    print "Verify returned values: "
+    verdata.dump()
     
 
 if __name__ == '__main__':

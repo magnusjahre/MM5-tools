@@ -12,6 +12,7 @@ class IniFile:
         for line in file:
             try:
                 key, cpuid, val = line.split("=")
+                cpuid = int(cpuid)
             except:
                 raise Exception("Unknown format on line: "+line)
             
