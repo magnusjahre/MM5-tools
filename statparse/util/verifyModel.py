@@ -17,6 +17,8 @@ def parseArgs():
 
     parser.add_option("--period", action="store", type="int", dest="period", default=2**20, help="The period size for the scheme")
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Verbose output")
+    parser.add_option("--trace-mshrs", action="store_true", dest="traceMSHRs", default=False, help="Write a trace file of the MSHR occupancy which can be visualized with the visualizeMSHRs.py script")
+    parser.add_option("--trace-arrival-rates", action="store_true", dest="traceArrivalRate", default=False, help="Write tracefiles for the arrival rates which can be visualized with the plotTrace.py script")
     parser.add_option("--decimals", action="store", type="int", dest="decimals", default=6, help="Number of decimals in prints")
     parser.add_option("--outfilename", action="store", dest="outfilename", default="model-accuracy-trace.txt", help="Model accuracy output file")
     
@@ -58,6 +60,9 @@ def runScheme(wl, np, opts):
     extraArgs.append( ("SIMULATETICKS", opts.period+1000) )
     extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
     
+    if opts.traceMSHRs:
+        extraArgs.append( ("DO-MSHR-TRACE", True) )
+    
     runM5("scheme", wl, np, extraArgs, opts.verbose)
     
     return IniFile("scheme/throttling-data-dump.txt")
@@ -70,7 +75,13 @@ def runVerify(estimates, wl, np, opts):
     extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
     extraArgs.append( ("SIMULATETICKS", opts.period+1000) )
     extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period) )
-    extraArgs.append( ("--ModelThrottlingPolicy.verify", True) ) 
+    extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
+    
+    if opts.traceMSHRs:
+        extraArgs.append( ("DO-MSHR-TRACE", True) ) 
+        
+    if opts.traceArrivalRate:
+        extraArgs.append( ("DO-ARRIVAL-RATE-TRACE", True) )
     
     statkeyname = "optimal-arrival-rates"
     argstr = str(estimates.data[statkeyname][0])
