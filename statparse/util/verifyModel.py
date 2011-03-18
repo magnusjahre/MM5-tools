@@ -67,14 +67,16 @@ def runScheme(wl, np, opts):
     
     return IniFile("scheme/throttling-data-dump.txt")
 
-def runVerify(estimates, wl, np, opts):
+def runVerify(estimates, wl, np, opts, cpuID):
     extraArgs = []
+    
+    testPeriod = estimates.data["optimal-periods"][cpuID]
+    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", testPeriod) )
+    extraArgs.append( ("SIMULATETICKS", testPeriod+1000) )
     
     extraArgs.append( ("AGG-MSHR-MLP-EST", True) )
     extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
     extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
-    extraArgs.append( ("SIMULATETICKS", opts.period+1000) )
-    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period) )
     extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
     
     if opts.traceMSHRs:
@@ -90,9 +92,13 @@ def runVerify(estimates, wl, np, opts):
     
     extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
     
-    runM5("verify", wl, np, extraArgs, opts.verbose)
     
-    return IniFile("verify/throttling-data-dump.txt")
+    
+    dirname = "verify"+str(cpuid)
+    
+    runM5(dirname, wl, np, extraArgs, opts.verbose)
+    
+    return IniFile(dirname+"/throttling-data-dump.txt")
 
 def printArrivalRateAccuracy(estimate, verifydata, estkey, verkey, np, opts):
     titles = ["", "Goal", "Result", "Error (%)"]
@@ -129,8 +135,43 @@ def computeAccuracy(goaldata, verifydata, goalkey, verifykey, cpuID):
     
     acc = GoalAccuracy(cpuID, goalval, verval)
     return acc
+    
+class ModelAccuracy:
+    
+    def __init__(self, estimate, verdatalist, np, decimals):
+        self.estimates = estimate
+        self.verdata = verdatalist
+        self.np = np
+        self.decimals = decimals
+        self.percentageAccuracies = {}
         
-
+    def computeAccuracy(self):
+        self.percentageAccuracies["Arrival Rate Accuracy (%)"] = self._computePercAccuracyFromKeys("optimal-arrival-rates", "measured-request-rate")
+        self.percentageAccuracies["Committed Instruction Accuracy (%)"] = self._computePercAccuracyFromKeys("committed-instructions", "committed-instructions")
+        self.percentageAccuracies["Number of Requests Accuracy (%)"] = self._computePercAccuracyFromKeys("requests", "requests")
+    
+    def _computePercAccuracyFromKeys(self, estimatekey, verifykey):
+        estimatevals = [self.estimates.data[estimatekey][i] for i in range(self.np)]
+        verifyvals = [self.verdata[i].data[verifykey][i] for i in range(self.np)]
+        return [computePercError(estimatevals[i], verifyvals[i]) for i in range(self.np)]
+    
+    def dumpAccuracies(self):
+        titles = [""]
+        leftjust = [True]
+        for i in range(self.np):
+            titles.append("CPU "+str(i))
+            leftjust.append(False)
+            
+        textlines = [titles]
+        for k in sorted(self.percentageAccuracies):
+            line = [k]
+            assert len(self.percentageAccuracies[k]) == self.np
+            for d in self.percentageAccuracies[k]:
+                line.append(numberToString(d, self.decimals))
+            textlines.append(line)
+            
+        printData(textlines, leftjust, sys.stdout, self.decimals)
+    
 def runSingle(wl, np, opts):
     print
     print "Model Throttling Validation of workload "+wl+" with "+str(np)+" cores"
@@ -142,17 +183,28 @@ def runSingle(wl, np, opts):
     print "Scheme run returned values: "
     estimates.dump()
     
-    print 
-    print "Running verification..."
-    verdata = runVerify(estimates, wl, np, opts)
+    verdatalist = [None for i in range(np)]
     
-    print "Verify returned values: "
-    verdata.dump()
+    for i in range(np):
+        print 
+        print "Running verification for CPU "+str(i)
+        verdata = runVerify(estimates, wl, np, opts, i)
+        
+        print "Verify returned values: "
+        verdata.dump()
+        
+        print
+        print "Arrival rate offset:"
+        print
+        printArrivalRateAccuracy(estimates, verdata, "optimal-arrival-rates", "measured-request-rate", np, opts)
+        
+        verdatalist[i] = verdata
     
     print
-    print "Arrival rate offset:"
-    print
-    printArrivalRateAccuracy(estimates, verdata, "optimal-arrival-rates", "measured-request-rate", np, opts)
+    print "Result summary:"
+    result = ModelAccuracy(estimates, verdatalist, np, opts.decimals)
+    result.computeAccuracy()
+    result.dumpAccuracies()
 
 def printMultiRes(results, opts):
     titles = ["", "Goal", "Result", "Error (%)"]
