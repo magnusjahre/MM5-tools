@@ -144,16 +144,28 @@ class ModelAccuracy:
         self.np = np
         self.decimals = decimals
         self.percentageAccuracies = {}
+        self.keyToName = {}
         
     def computeAccuracy(self):
-        self.percentageAccuracies["Arrival Rate Accuracy (%)"] = self._computePercAccuracyFromKeys("optimal-arrival-rates", "measured-request-rate")
-        self.percentageAccuracies["Committed Instruction Accuracy (%)"] = self._computePercAccuracyFromKeys("committed-instructions", "committed-instructions")
-        self.percentageAccuracies["Number of Requests Accuracy (%)"] = self._computePercAccuracyFromKeys("requests", "requests")
+        self.percentageAccuracies["arrival-rate"] = self._computePercAccuracyFromKeys("optimal-arrival-rates", "measured-request-rate")
+        self.keyToName["arrival-rate"] = "Arrival Rate Accuracy (%)" 
+        
+        self.percentageAccuracies["com-inst"] = self._computePercAccuracyFromKeys("committed-instructions", "committed-instructions")
+        self.keyToName["com-inst"] = "Committed Instruction Accuracy (%)"
+        
+        self.percentageAccuracies["num-req"] = self._computePercAccuracyFromKeys("requests", "requests")
+        self.keyToName["num-req"] = "Number of Requests Accuracy (%)" 
     
     def _computePercAccuracyFromKeys(self, estimatekey, verifykey):
         estimatevals = [self.estimates.data[estimatekey][i] for i in range(self.np)]
         verifyvals = [self.verdata[i].data[verifykey][i] for i in range(self.np)]
-        return [computePercError(estimatevals[i], verifyvals[i]) for i in range(self.np)]
+        
+        retvals = ["N/A" for i in range(self.np)]
+        for i in range(self.np):
+            if verifyvals[i] != 0:
+                retvals[i] = computePercError(estimatevals[i], verifyvals[i])
+        
+        return retvals
     
     def dumpAccuracies(self):
         titles = [""]
@@ -164,7 +176,7 @@ class ModelAccuracy:
             
         textlines = [titles]
         for k in sorted(self.percentageAccuracies):
-            line = [k]
+            line = [self.keyToName[k]]
             assert len(self.percentageAccuracies[k]) == self.np
             for d in self.percentageAccuracies[k]:
                 line.append(numberToString(d, self.decimals))
@@ -206,17 +218,26 @@ def runSingle(wl, np, opts):
     result.computeAccuracy()
     result.dumpAccuracies()
 
-def printMultiRes(results, opts):
-    titles = ["", "Goal", "Result", "Error (%)"]
-    textarray = [titles]
+def printMultiRes(results, opts, np):
+    
+    titles = [""]
+    leftjust = [True]
+    titlesInited = False
+    textarray = [[]]
+    
     for wl in sorted(results.keys()):
-        for cpuid in sorted(results[wl].keys()):
-            line = [wl+"-"+str(cpuid), 
-                    numberToString(results[wl][cpuid].goalval, opts.decimals), 
-                    numberToString(results[wl][cpuid].verval, opts.decimals), 
-                    numberToString(results[wl][cpuid].accuracy, opts.decimals)]
+        for cpuid in range(np):
+            line = [wl+"-"+str(cpuid)] 
+            for k in sorted(results[wl].percentageAccuracies):
+                if not titlesInited:
+                    titles.append(results[wl].keyToName[k])
+                    leftjust.append(False)
+                line.append(numberToString(results[wl].percentageAccuracies[k][cpuid], opts.decimals))    
+            titlesInited = True
             textarray.append(line)
-    leftjust = [True, False, False, False]
+            
+    textarray[0] = titles
+
     outfile = open(opts.outfilename, "w")
     printData(textarray, leftjust, outfile, opts.decimals)
     outfile.close()
@@ -233,18 +254,21 @@ def runMulti(np, opts):
     
     for wl in wls.getWorkloads(np, TYPED_WL):
         goaldata = runScheme(wl, np, opts)
-        verdata = runVerify(goaldata, wl, np, opts)
+        verdatalist = [None for i in range(np)]
+        for i in range(np):
+            verdatalist[i] = runVerify(goaldata, wl, np, opts, i)
+        
+        print 
+        print wl
+        accuracyobj = ModelAccuracy(goaldata, verdatalist, np, opts.decimals)
+        accuracyobj.computeAccuracy()
+        accuracyobj.dumpAccuracies()
+        sys.stdout.flush()
         
         assert wl not in results
-        results[wl] = {}
+        results[wl] = accuracyobj
         
-        for i in range(np):
-            accuracy = computeAccuracy(goaldata, verdata, "optimal-arrival-rates", "measured-request-rate", i)
-            accuracy.dump(wl)
-            results[wl][i] = accuracy
-        sys.stdout.flush()
-            
-    printMultiRes(results, opts)
+    printMultiRes(results, opts, np)
 
 def main():
     opts, args = parseArgs()
