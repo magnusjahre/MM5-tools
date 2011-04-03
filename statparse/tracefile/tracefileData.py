@@ -371,4 +371,3 @@ class TracefileData():
     def getColumn(self, columnID):
         return self.data[columnID]
     
-    
