@@ -74,6 +74,9 @@ class ModelPlotData:
         
         plt.plot(self.xsearch, self.ysearch, 'o')
         
+        plt.xlabel("CPU 0")
+        plt.ylabel("CPU 1")
+        
         plt.show()
 
 def computeContours(modeldata, metric, opts):
