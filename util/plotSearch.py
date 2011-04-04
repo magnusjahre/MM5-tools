@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
 import sys
+import math
 from optparse import OptionParser
 from util.inifile import IniFile
 from statparse.tracefile.tracefileData import TracefileData
 
-import matplotlib.pyplot as plt 
-from matplotlib.pyplot import ylim
+import matplotlib.pyplot as plt
 
 def parseArgs():
     parser = OptionParser(usage="plotSearch.py [options] metric datafile searchfile")
@@ -14,7 +14,7 @@ def parseArgs():
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Verbose output")
     parser.add_option("--period", action="store", type="int", dest="period", default=2**20, help="The period size for the scheme")
     parser.add_option("--stepsize", action="store", type="int", dest="stepsize", default=1024, help="The granularity of the function plotting")
-    parser.add_option("--numconts", action="store", type="int", dest="numconts", default=15, help="The number of contour lines to draw")
+    parser.add_option("--resolution", action="store", type="float", dest="resolution", default=0.05, help="The distance between the contour lines")
     
     opts, args = parser.parse_args()
     
@@ -64,8 +64,12 @@ class ModelPlotData:
         self.ysearch = searchTrace.getColumn(yid)
     
     def plot(self):
+        
+        maxz = math.ceil(max(max(self.zvals)))
+        contourvals = [float(i)*self.opts.resolution for i in range(0, int(math.ceil(maxz/self.opts.resolution)))]
+        
         plt.figure()
-        cs = plt.contour(self.xvals, self.yvals,self.zvals, self.opts.numconts)
+        cs = plt.contour(self.xvals, self.yvals, self.zvals, contourvals)
         plt.clabel(cs, inline=1, fontsize=10)
         
         plt.plot(self.xvals, self.constraintvals)
@@ -87,9 +91,13 @@ def computeContours(modeldata, metric, opts):
     data.yvals = range(1,2*opts.period,opts.stepsize)
     data.zvals = []
     
-    for x in data.xvals:
+    print "Resource allocation border values:"
+    print "CPU 0: ", computeFunctionVal(metric, modeldata, modeldata.data["alone-cycles"][0], 2*opts.period-modeldata.data["alone-cycles"][0])
+    print "CPU 1: ", computeFunctionVal(metric, modeldata, modeldata.data["alone-cycles"][1], 2*opts.period-modeldata.data["alone-cycles"][1])
+    
+    for y in data.yvals:
         curline = []
-        for y in data.yvals:
+        for x in data.xvals:
             curline.append(computeFunctionVal(metric, modeldata, x, y))
         data.zvals.append(curline)
     
