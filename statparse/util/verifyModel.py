@@ -87,14 +87,12 @@ def runVerify(estimates, wl, np, opts, cpuID):
     
     statkeyname = "optimal-arrival-rates"
     argstr = str(estimates.data[statkeyname][0])
-    for cpuid in range(1, np):
-        argstr += ","+str(estimates.data[statkeyname][cpuid])
+    for i in range(1, np):
+        argstr += ","+str(estimates.data[statkeyname][i])
     
     extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
     
-    
-    
-    dirname = "verify"+str(cpuid)
+    dirname = "verify"+str(cpuID)
     
     runM5(dirname, wl, np, extraArgs, opts.verbose)
     
