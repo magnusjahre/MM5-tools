@@ -20,23 +20,23 @@ class ComputerParams:
         
         self.queue = opts.queue
         self.projectNum = None
-        self.perProcMem = {1:2304, 4:2304, 8:2304, 16:4032}
+        self.perProcMem = {1:2304, 2:2304, 4:2304, 8:2304, 16:4032}
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
-            self.ppn = {1:6, 4:6, 8:6, 16:4}
-            self.walltime = {1:10, 4:60, 8:168, 16:168}
+            self.ppn = {1:6, 2:6, 4:6, 8:6, 16:4}
+            self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             self.projectNum = "nn4650k"
         
         elif re.search("kongull", compname):
             info("Kongull run detected...")
-            self.ppn = {1:10, 4:10, 8:10, 16:6}
-            self.walltime = {1:10, 4:60, 8:168, 16:168}
+            self.ppn = {1:10, 2:10, 4:10, 8:10, 16:6}
+            self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             
         else:
             info("No HPC cluster detected, using fallback values...")
-            self.ppn = {1:8, 4:8, 8:8, 16:4}
-            self.walltime = {1:10, 4:60, 8:168, 16:168}
+            self.ppn = {1:8, 2:8, 4:8, 8:8, 16:4}
+            self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             
         if opts.walltime != 0:
             info("Setting all walltime limits to provided value "+str(opts.walltime))
