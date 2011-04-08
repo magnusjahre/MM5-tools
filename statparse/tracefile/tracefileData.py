@@ -133,7 +133,7 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             except:
                 raise Exception("Y file id or y column id out of range")     
             xvalues.append(xColValues[yFileID])
-            legendTitles.append(tracefiles[yFileID].headers[yColID])
+            legendTitles.append(str(yFileID)+":"+tracefiles[yFileID].headers[yColID])
             
         plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel)
 
