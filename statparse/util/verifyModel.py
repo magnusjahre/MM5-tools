@@ -56,12 +56,15 @@ def runScheme(wl, np, opts):
     extraArgs.append( ("AGG-MSHR-MLP-EST", True) )
     extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
     extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
-    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period) )
-    extraArgs.append( ("SIMULATETICKS", opts.period+1000) )
+    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period+2) )
+    extraArgs.append( ("SIMULATETICKS", opts.period) )
     extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
     
     if opts.traceMSHRs:
         extraArgs.append( ("DO-MSHR-TRACE", True) )
+    
+    if opts.traceArrivalRate:
+        extraArgs.append( ("DO-ARRIVAL-RATE-TRACE", True) )
     
     runM5("scheme", wl, np, extraArgs, opts.verbose)
     
@@ -70,10 +73,10 @@ def runScheme(wl, np, opts):
 def runVerify(estimates, wl, np, opts, cpuID):
     extraArgs = []
     
-    testPeriod = estimates.data["optimal-periods"][cpuID]
-    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", testPeriod) )
-    extraArgs.append( ("SIMULATETICKS", testPeriod+1000) )
-    
+    optPeriod = estimates.data["optimal-periods"][cpuID]
+    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", optPeriod+2) )
+    extraArgs.append( ("SIMULATETICKS", optPeriod) )
+
     extraArgs.append( ("AGG-MSHR-MLP-EST", True) )
     extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
     extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
@@ -97,6 +100,36 @@ def runVerify(estimates, wl, np, opts, cpuID):
     runM5(dirname, wl, np, extraArgs, opts.verbose)
     
     return IniFile(dirname+"/throttling-data-dump.txt")
+
+def runBaseline(estimates, wl, np, opts, cpuID):
+    extraArgs = []
+    
+    comInstructions = estimates.data["committed-instructions"][cpuID]
+    extraArgs.append( ("SIMINSTS", comInstructions) )
+    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period*np) )
+    
+    extraArgs.append( ("AGG-MSHR-MLP-EST", True) )
+    extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
+    extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
+    extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
+    
+    if opts.traceArrivalRate:
+        extraArgs.append( ("DO-ARRIVAL-RATE-TRACE", True) )
+    
+    if opts.traceMSHRs:
+        extraArgs.append( ("DO-MSHR-TRACE", True) ) 
+        
+    if opts.traceArrivalRate:
+        extraArgs.append( ("DO-ARRIVAL-RATE-TRACE", True) )
+    
+    dirname = "alone"+str(cpuID)
+    
+    wls = Workloads()
+    bms = wls.getBms(wl, np, True)
+    runM5(dirname, bms[cpuID], 1, extraArgs, opts.verbose)
+    
+    return IniFile(dirname+"/throttling-data-dump.txt")
+    
 
 def printArrivalRateAccuracy(estimate, verifydata, estkey, verkey, np, opts):
     titles = ["", "Goal", "Result", "Error (%)"]
@@ -152,11 +185,21 @@ class ModelAccuracy:
         self.keyToName["com-inst"] = "Committed Instruction Accuracy (%)"
         
         self.percentageAccuracies["num-req"] = self._computePercAccuracyFromKeys("requests", "requests")
-        self.keyToName["num-req"] = "Number of Requests Accuracy (%)" 
+        self.keyToName["num-req"] = "Number of Requests Accuracy (%)"
+        
+        self.percentageAccuracies["met-val"] = self._computePercAccuracyFromKeys("opt-metric-value", "cur-metric-value")
+        self.keyToName["met-val"] = "Metric Value Estimate Error (%)" 
     
     def _computePercAccuracyFromKeys(self, estimatekey, verifykey):
-        estimatevals = [self.estimates.data[estimatekey][i] for i in range(self.np)]
-        verifyvals = [self.verdata[i].data[verifykey][i] for i in range(self.np)]
+        if len(self.estimates.data[estimatekey].keys()) > 1:
+            estimatevals = [self.estimates.data[estimatekey][i] for i in range(self.np)]
+        else:
+            estimatevals = [self.estimates.data[estimatekey][self.estimates.NO_CPU_KEY] for i in range(self.np)]
+            
+        if len(self.verdata[i].data[verifykey].keys()) > 1:
+            verifyvals = [self.verdata[i].data[verifykey][i] for i in range(self.np)]
+        else:
+            verifyvals = [self.verdata[i].data[verifykey][self.verdata[i].NO_CPU_KEY] for i in range(self.np)]
         
         retvals = ["N/A" for i in range(self.np)]
         for i in range(self.np):
@@ -215,6 +258,14 @@ def runSingle(wl, np, opts):
     result = ModelAccuracy(estimates, verdatalist, np, opts.decimals)
     result.computeAccuracy()
     result.dumpAccuracies()
+
+    for i in range(np):
+        print 
+        print "Running verification for CPU "+str(i)
+        baselinedata = runBaseline(estimates, wl, np, opts, i)
+        
+        print "Verify returned values: "
+        baselinedata.dump()
 
 def printMultiRes(results, opts, np):
     
