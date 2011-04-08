@@ -4,6 +4,8 @@ from statparse import stringToType
 
 class IniFile:
     
+    NO_CPU_KEY = "SYSTEM"
+    
     def __init__(self, filename):
         
         self.data = {}
@@ -11,8 +13,13 @@ class IniFile:
         file = open(filename)
         for line in file:
             try:
-                key, cpuid, val = line.split("=")
-                cpuid = int(cpuid)
+                splitted = line.split("=")
+                if len(splitted) == 3:
+                    key, cpuid, val = splitted
+                    cpuid = int(cpuid)
+                else:
+                    key, val = splitted
+                    cpuid = self.NO_CPU_KEY
             except:
                 raise Exception("Unknown format on line: "+line)
             
