@@ -19,6 +19,7 @@ def parseArgs():
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Verbose output")
     parser.add_option("--trace-mshrs", action="store_true", dest="traceMSHRs", default=False, help="Write a trace file of the MSHR occupancy which can be visualized with the visualizeMSHRs.py script")
     parser.add_option("--trace-arrival-rates", action="store_true", dest="traceArrivalRate", default=False, help="Write tracefiles for the arrival rates which can be visualized with the plotTrace.py script")
+    parser.add_option("--throttle-policy", action="store", type="string", dest="throttlingPolicy", default="token", help="The throttling policy to use to enforce bandwidth allocations")
     parser.add_option("--decimals", action="store", type="int", dest="decimals", default=6, help="Number of decimals in prints")
     parser.add_option("--outfilename", action="store", dest="outfilename", default="model-accuracy-trace.txt", help="Model accuracy output file")
     
@@ -31,14 +32,17 @@ def parseArgs():
     
     return opts,args
 
-def runM5(dir, workload, np, otherArgs, verbose):
+def runM5(dir, workload, np, otherArgs, verbose, isSingle=False):
     if os.path.exists(dir):
         shutil.rmtree(dir)
     os.mkdir(dir)
     
     os.chdir(dir)
     cmd = M5Command()
-    cmd.setUpTest(workload, np, "RingBased", 1)
+    if isSingle:
+        cmd.setUpTest(workload, 1, "RingBased", 1, np)
+    else:
+        cmd.setUpTest(workload, np, "RingBased", 1)
     cmd.setArgument("USE-CHECKPOINT", "/home/jahre/newchk")
     cmd.setArgument("MEMORY-BUS-SCHEDULER", "RDFCFS")
     
@@ -62,7 +66,7 @@ def runScheme(wl, np, opts):
     
     if opts.traceMSHRs:
         extraArgs.append( ("DO-MSHR-TRACE", True) )
-    
+
     if opts.traceArrivalRate:
         extraArgs.append( ("DO-ARRIVAL-RATE-TRACE", True) )
     
@@ -81,6 +85,7 @@ def runVerify(estimates, wl, np, opts, cpuID):
     extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
     extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
     extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
+    extraArgs.append( ("CACHE-THROTLING-POLICY", opts.throttlingPolicy) )
     
     if opts.traceMSHRs:
         extraArgs.append( ("DO-MSHR-TRACE", True) ) 
@@ -126,7 +131,7 @@ def runBaseline(estimates, wl, np, opts, cpuID):
     
     wls = Workloads()
     bms = wls.getBms(wl, np, True)
-    runM5(dirname, bms[cpuID], 1, extraArgs, opts.verbose)
+    runM5(dirname, bms[cpuID], np, extraArgs, opts.verbose, True)
     
     return IniFile(dirname+"/throttling-data-dump.txt")
     
@@ -224,6 +229,60 @@ class ModelAccuracy:
             textlines.append(line)
             
         printData(textlines, leftjust, sys.stdout, self.decimals)
+
+class ResultElement:
+    
+    def __init__(self, valFromTest, actualVal):
+        self.valFromTest = valFromTest
+        self.actualVal = actualVal
+    
+    def accuracy(self):
+        return computePercError(self.valFromTest, self.actualVal)
+        
+    def __str__(self):
+        return "Test: "+str(self.valFromTest)+", Actual: "+str(self.actualVal)+", Error: "+str(self.accuracy())+" %"
+
+class SystemAccuracy:
+    
+    def __init__(self, estimates, verdatalist, baselinelist, np, decimals):
+        self.np = np
+        self.decimals = decimals        
+        
+        self.estimates = estimates
+        self.verdatalist = verdatalist
+        self.baselinelist = baselinelist
+        
+        self.results = []
+    
+    def computeAccuracies(self):
+        
+        self.accuracies = {}
+        
+        self.accuracies["Metric"] = ["N/A" for i in range(self.np)]
+        estimate = self.estimates.data["opt-metric-value"][self.estimates.NO_CPU_KEY]
+        for i in range(self.np):
+            actual = self.verdatalist[i].data["cur-metric-value"][self.estimates.NO_CPU_KEY]
+            self.accuracies["Metric"][i] = ResultElement(estimate, actual)
+            
+        self.accuracies["Estimate Alone Cycles"] = ["N/A" for i in range(self.np)]
+        for i in range(self.np):
+            estimate = self.estimates.data["alone-cycles"][i]
+            actual = self.baselinelist[i].data["ticks"][0]
+            self.accuracies["Estimate Alone Cycles"][i] = ResultElement(estimate, actual)
+            
+        self.accuracies["Scheme Alone Cycles"] = ["N/A" for i in range(self.np)]
+        for i in range(self.np):
+            estimate = self.verdatalist[i].data["alone-cycles"][i]
+            actual = self.baselinelist[i].data["ticks"][0]
+            self.accuracies["Scheme Alone Cycles"][i] = ResultElement(estimate, actual) 
+            
+    
+    def dumpAccuracies(self):
+        for k in self.accuracies:
+            print
+            print k
+            for i in range(self.np):
+                print str(i)+": "+str(self.accuracies[k][i])
     
 def runSingle(wl, np, opts):
     print
@@ -259,13 +318,19 @@ def runSingle(wl, np, opts):
     result.computeAccuracy()
     result.dumpAccuracies()
 
+    baselinelist = []
     for i in range(np):
         print 
         print "Running verification for CPU "+str(i)
         baselinedata = runBaseline(estimates, wl, np, opts, i)
+        baselinelist.append(baselinedata)
         
         print "Verify returned values: "
         baselinedata.dump()
+        
+    systemres = SystemAccuracy(estimates, verdatalist, baselinelist, np, opts.decimals)
+    systemres.computeAccuracies()
+    systemres.dumpAccuracies()
 
 def printMultiRes(results, opts, np):
     

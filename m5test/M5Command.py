@@ -23,13 +23,13 @@ class M5Command():
     def __init__(self):
         self.arguments = {}
 
-    def setUpTest(self, bm, np, memsys, channels):
+    def setUpTest(self, bm, np, memsys, channels, parts=4):
         self.setArgument("NP", np)
         self.setArgument("MEMORY-SYSTEM", memsys)
         self.setArgument("MEMORY-BUS-CHANNELS", channels)
         self.setArgument("BENCHMARK", bm)
         if np == 1:
-            self.setArgument("MEMORY-ADDRESS-PARTS", 4)
+            self.setArgument("MEMORY-ADDRESS-PARTS", parts)
             self.setArgument("MEMORY-ADDRESS-OFFSET", 0)
 
         self.statsfilename = "m5stats.txt"
