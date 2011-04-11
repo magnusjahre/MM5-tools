@@ -275,7 +275,6 @@ class SystemAccuracy:
             estimate = self.verdatalist[i].data["alone-cycles"][i]
             actual = self.baselinelist[i].data["ticks"][0]
             self.accuracies["Scheme Alone Cycles"][i] = ResultElement(estimate, actual) 
-            
     
     def dumpAccuracies(self):
         for k in self.accuracies:
@@ -332,6 +331,29 @@ def runSingle(wl, np, opts):
     systemres.computeAccuracies()
     systemres.dumpAccuracies()
 
+    printMetrics(estimates, verdatalist, baselinelist, np, opts)
+
+def printMetrics(estimates, verdatalist, baselinelist, np, opts):
+    sharedIPC = [float(estimates.data["committed-instructions"][i]) / float(opts.period) for i in range(np)]
+    aloneIPC = [float(baselinelist[i].data["committed-instructions"][0]) / float(baselinelist[i].data["ticks"][0]) for i in range(np)]
+    
+    sumIPC = 0.0
+    for i in range(np):
+        sumIPC += (sharedIPC[i]/aloneIPC[i])
+        
+    print
+    print "Actual System Throughput is "+str(sumIPC)
+        
+    for i in range(np):
+        sharedIPC = [float(verdatalist[i].data["committed-instructions"][j]) / float(verdatalist[i].data["ticks"][j]) for j in range(np)]
+        
+        verSumIPC = 0.0
+        for j in range(np):
+            verSumIPC += (sharedIPC[j]/aloneIPC[j])
+            
+        print "Verify "+str(i)+" System Throughput is "+str(verSumIPC)
+    print
+        
 def printMultiRes(results, opts, np):
     
     titles = [""]
