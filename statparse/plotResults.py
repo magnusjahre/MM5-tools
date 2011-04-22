@@ -322,8 +322,6 @@ def plotLines(xvalues, yvalues, **kwargs):
     
     import matplotlib.pyplot as plt
     
-    markers = ['b.-', 'g+-', 'r*-', 'co-', 'mv-']
-    
     if len(xvalues) != len(yvalues):
         raise Exception("We need a set of x values for each set of y values")
     
@@ -332,10 +330,9 @@ def plotLines(xvalues, yvalues, **kwargs):
     
     lines = []
     for id in range(len(xvalues)):
-        line = ax.plot(xvalues[id], yvalues[id], markers[id])
+        line = ax.plot(xvalues[id], yvalues[id])
         lines.append(line)
         id += 1
-        assert id < len(markers)
     
     if "cols" in kwargs:
         cols = kwargs["cols"]

@@ -337,19 +337,24 @@ def printMetrics(estimates, verdatalist, baselinelist, np, opts):
     sharedIPC = [float(estimates.data["committed-instructions"][i]) / float(opts.period) for i in range(np)]
     aloneIPC = [float(baselinelist[i].data["committed-instructions"][0]) / float(baselinelist[i].data["ticks"][0]) for i in range(np)]
     
+    print
     sumIPC = 0.0
     for i in range(np):
-        sumIPC += (sharedIPC[i]/aloneIPC[i])
+        speedup = (sharedIPC[i]/aloneIPC[i])
+        print "CPU "+str(i)+" estimate: shared "+str(sharedIPC[i])+", alone "+str(aloneIPC[i])+", speedup "+str(speedup)
+        sumIPC += speedup
         
-    print
     print "Actual System Throughput is "+str(sumIPC)
         
     for i in range(np):
         sharedIPC = [float(verdatalist[i].data["committed-instructions"][j]) / float(verdatalist[i].data["ticks"][j]) for j in range(np)]
-        
+    
+        print    
         verSumIPC = 0.0
         for j in range(np):
-            verSumIPC += (sharedIPC[j]/aloneIPC[j])
+            speedup = (sharedIPC[j]/aloneIPC[j])
+            print "CPU "+str(j)+" actual:  shared "+str(sharedIPC[j])+", alone "+str(aloneIPC[j])+", speedup "+str(speedup)
+            verSumIPC += speedup
             
         print "Verify "+str(i)+" System Throughput is "+str(verSumIPC)
     print

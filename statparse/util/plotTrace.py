@@ -5,6 +5,7 @@ import os
 from optparse import OptionParser
 from statparse.tracefile.tracefileData import TracefileData
 import statparse.tracefile.tracefileData as tracefileModule
+import traceback
 
 def parseArgs():
     parser = OptionParser(usage="analyzeTrace.py [options] filename1 [filename2 ...]")
@@ -63,6 +64,7 @@ def main():
         except Exception as e:
             print "Plotting failed!"
             print "Error: "+str(e) 
+            traceback.print_exc()
         
 if __name__ == '__main__':
     main()
