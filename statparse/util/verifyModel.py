@@ -11,6 +11,7 @@ from statparse.printResults import printData
 from statparse.analysis import computePercError
 from workloadfiles.workloads import Workloads
 from workloadfiles.workloads import TYPED_WL
+from statparse.util import fatal
 
 def parseArgs():
     parser = OptionParser(usage="verifyModel.py [options] np [workload]")
@@ -20,6 +21,7 @@ def parseArgs():
     parser.add_option("--trace-mshrs", action="store_true", dest="traceMSHRs", default=False, help="Write a trace file of the MSHR occupancy which can be visualized with the visualizeMSHRs.py script")
     parser.add_option("--trace-arrival-rates", action="store_true", dest="traceArrivalRate", default=False, help="Write tracefiles for the arrival rates which can be visualized with the plotTrace.py script")
     parser.add_option("--throttle-policy", action="store", type="string", dest="throttlingPolicy", default="token", help="The throttling policy to use to enforce bandwidth allocations")
+    parser.add_option("--impl", action="store", type="string", dest="impl", default="nfq", help="The policy to use to enforce allocations (nfq or throttle)")
     parser.add_option("--decimals", action="store", type="int", dest="decimals", default=6, help="Number of decimals in prints")
     parser.add_option("--outfilename", action="store", dest="outfilename", default="model-accuracy-trace.txt", help="Model accuracy output file")
     
@@ -44,7 +46,6 @@ def runM5(dir, workload, np, otherArgs, verbose, isSingle=False):
     else:
         cmd.setUpTest(workload, np, "RingBased", 1)
     cmd.setArgument("USE-CHECKPOINT", "/home/jahre/newchk")
-    cmd.setArgument("MEMORY-BUS-SCHEDULER", "RDFCFS")
     
     for arg, val in otherArgs:
         cmd.setArgument(arg, val)
@@ -63,6 +64,15 @@ def runScheme(wl, np, opts):
     extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period+2) )
     extraArgs.append( ("SIMULATETICKS", opts.period) )
     extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
+    
+    if opts.impl == "throttle":
+        extraArgs.append( ("MEMORY-BUS-SCHEDULER", "RDFCFS") )
+        extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "throttle") )
+    elif opts.impl == "nfq":
+        extraArgs.append( ("MEMORY-BUS-SCHEDULER", "TNFQ") )
+        extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "nfq") )
+    else:
+        fatal("Unknown bandwidth allocation implementation policy")
     
     if opts.traceMSHRs:
         extraArgs.append( ("DO-MSHR-TRACE", True) )
@@ -87,18 +97,40 @@ def runVerify(estimates, wl, np, opts, cpuID):
     extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
     extraArgs.append( ("CACHE-THROTLING-POLICY", opts.throttlingPolicy) )
     
+
+    
     if opts.traceMSHRs:
         extraArgs.append( ("DO-MSHR-TRACE", True) ) 
         
     if opts.traceArrivalRate:
         extraArgs.append( ("DO-ARRIVAL-RATE-TRACE", True) )
     
-    statkeyname = "optimal-arrival-rates"
-    argstr = str(estimates.data[statkeyname][0])
-    for i in range(1, np):
-        argstr += ","+str(estimates.data[statkeyname][i])
+    if opts.impl == "throttle":
+        extraArgs.append( ("MEMORY-BUS-SCHEDULER", "RDFCFS") )
+        extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "throttle") )
+        
+        statkeyname = "optimal-arrival-rates"
+        argstr = str(estimates.data[statkeyname][0])
+        for i in range(1, np):
+            argstr += ","+str(estimates.data[statkeyname][i])
     
-    extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
+        extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
+        
+    elif opts.impl == "nfq":
+        statkeyname = "optimal-bw-shares"
+        argstr = str(estimates.data[statkeyname][0])
+        for i in range(1, np):
+            argstr += ","+str(estimates.data[statkeyname][i])
+        
+        
+        extraArgs.append( ("MEMORY-BUS-SCHEDULER", "TNFQ") )
+        extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "nfq") )
+        
+        extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
+    else:
+        fatal("Unknown bandwidth allocation implementation policy")
+    
+
     
     dirname = "verify"+str(cpuID)
     
@@ -117,6 +149,8 @@ def runBaseline(estimates, wl, np, opts, cpuID):
     extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
     extraArgs.append( ("MODEL-THROTLING-POLICY", "stp") )
     extraArgs.append( ("--ModelThrottlingPolicy.verify", True) )
+    extraArgs.append( ("MEMORY-BUS-SCHEDULER", "RDFCFS") )
+    extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "throttle") ) # not used, but required
     
     if opts.traceArrivalRate:
         extraArgs.append( ("DO-ARRIVAL-RATE-TRACE", True) )
