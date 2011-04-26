@@ -3,7 +3,9 @@ from statparse.printResults import createSortedParamList, paramsToString
 from statparse.tracefile.errorStatistics import ErrorStatistics
 from statparse.tracefile.tracefileData import TracefileData, computeErrors, MalformedTraceFileException
 
-import deterministic_fw_wls
+from workloadfiles.workloads import Workloads
+
+
 
 import sys
 import os
@@ -118,7 +120,8 @@ def getNpExperimentDirs(np):
     return experimentdirs, sortedParamStrs
 
 def getResultKey(wl, aloneCPUID, np, varparams):
-    bmNames = deterministic_fw_wls.getBms(wl, np, False)
+    wls = Workloads()
+    bmNames = wls.getBms(wl, np, False)
     
     prefix = wl+"-"
     postfix = str(aloneCPUID)+"-"+bmNames[aloneCPUID]
