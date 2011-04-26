@@ -37,8 +37,8 @@ def computeFunctionVal(metric, modeldata, x, y):
         print "Metric ANTT not implemented"
         sys.exit(-1)
     
-    val = modeldata.data["alone-cycles"][0] / (modeldata.data["beta"][0] + (modeldata.data["alpha"][0]/x))
-    val += modeldata.data["alone-cycles"][1] / (modeldata.data["beta"][1] + (modeldata.data["alpha"][1]/y))
+    val = modeldata.data["alone-cycles"][0] / (modeldata.data["beta"][0] + (modeldata.data["alpha"][0]*x))
+    val += modeldata.data["alone-cycles"][1] / (modeldata.data["beta"][1] + (modeldata.data["alpha"][1]*y))
     
     return val 
 
@@ -87,13 +87,19 @@ def computeContours(modeldata, metric, opts):
     
     data = ModelPlotData(opts)
     
-    data.xvals = range(1,2*opts.period,opts.stepsize)
-    data.yvals = range(1,2*opts.period,opts.stepsize)
+    axisvals = []
+    val = 0;
+    while val <= modeldata.data["max-bus-request-rate"][modeldata.NO_CPU_KEY]:
+        axisvals.append(val)
+        val += 0.0001
+    
+    data.xvals = axisvals
+    data.yvals = axisvals
     data.zvals = []
     
-    print "Resource allocation border values:"
-    print "CPU 0: ", computeFunctionVal(metric, modeldata, modeldata.data["alone-cycles"][0], 2*opts.period-modeldata.data["alone-cycles"][0])
-    print "CPU 1: ", computeFunctionVal(metric, modeldata, modeldata.data["alone-cycles"][1], 2*opts.period-modeldata.data["alone-cycles"][1])
+    #print "Resource allocation border values:"
+    #print "CPU 0: ", computeFunctionVal(metric, modeldata, modeldata.data["alone-cycles"][0], 2*opts.period-modeldata.data["alone-cycles"][0])
+    #print "CPU 1: ", computeFunctionVal(metric, modeldata, modeldata.data["alone-cycles"][1], 2*opts.period-modeldata.data["alone-cycles"][1])
     
     for y in data.yvals:
         curline = []
@@ -103,15 +109,15 @@ def computeContours(modeldata, metric, opts):
     
     data.constraintvals = []
     for x in data.xvals:
-        data.constraintvals.append(2*opts.period - x)
+        data.constraintvals.append(modeldata.data["max-bus-request-rate"][modeldata.NO_CPU_KEY] - x)
     
     data.xlimit = []
     for y in data.yvals:
-        data.xlimit.append(modeldata.data["alone-cycles"][1])
+        data.xlimit.append(modeldata.data["alone-req-rates"][1])
 
     data.ylimit = []
     for x in data.xvals:
-        data.ylimit.append(modeldata.data["alone-cycles"][0])
+        data.ylimit.append(modeldata.data["alone-req-rates"][0])
     
     return data
 

@@ -87,9 +87,8 @@ def runScheme(wl, np, opts):
 def runVerify(estimates, wl, np, opts, cpuID):
     extraArgs = []
     
-    optPeriod = estimates.data["optimal-periods"][cpuID]
-    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", optPeriod+2) )
-    extraArgs.append( ("SIMULATETICKS", optPeriod) )
+    extraArgs.append( ("MODEL-THROTLING-POLICY-PERIOD", opts.period+2) )
+    extraArgs.append( ("SIMULATETICKS", opts.period) )
 
     extraArgs.append( ("AGG-MSHR-MLP-EST", True) )
     extraArgs.append( ("MISS-BW-PERF-METHOD", "no-mlp") )
