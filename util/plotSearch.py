@@ -37,8 +37,11 @@ def computeFunctionVal(metric, modeldata, x, y):
         print "Metric ANTT not implemented"
         sys.exit(-1)
     
-    val = modeldata.data["alone-cycles"][0] / (modeldata.data["beta"][0] + (modeldata.data["alpha"][0]*x))
-    val += modeldata.data["alone-cycles"][1] / (modeldata.data["beta"][1] + (modeldata.data["alpha"][1]*y))
+    #val = modeldata.data["alone-cycles"][0] / (modeldata.data["beta"][0] + (modeldata.data["alpha"][0]*x))
+    #val += modeldata.data["alone-cycles"][1] / (modeldata.data["beta"][1] + (modeldata.data["alpha"][1]*y))
+    
+    val = (modeldata.data["alone-cycles"][0] * (1 + (modeldata.data["alpha"][0]*x))) / modeldata.data["beta"][0]
+    val += (modeldata.data["alone-cycles"][1] * (1 + (modeldata.data["alpha"][1]*y))) / modeldata.data["beta"][1]
     
     return val 
 
