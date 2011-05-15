@@ -36,7 +36,8 @@ resultfiles = ["interconnect*.txt",
                "missBandwidthPolicy*.txt",
                "globalPolicy*.txt",
                "detailedCPU*IPCTrace.txt",
-               "*-bmout.txt"]
+               "*-bmout.txt",
+               "membus*.txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
