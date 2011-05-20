@@ -71,6 +71,9 @@ def runScheme(wl, np, opts):
     elif opts.impl == "nfq":
         extraArgs.append( ("MEMORY-BUS-SCHEDULER", "TNFQ") )
         extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "nfq") )
+    elif opts.impl == "fixedbw":
+        extraArgs.append( ("MEMORY-BUS-SCHEDULER", "FBW") )
+        extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "fixedbw") )
     else:
         fatal("Unknown bandwidth allocation implementation policy")
     
@@ -115,15 +118,19 @@ def runVerify(estimates, wl, np, opts, cpuID):
     
         extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
         
-    elif opts.impl == "nfq":
+    elif opts.impl == "nfq" or opts.impl == "fixedbw":
         statkeyname = "optimal-bw-shares"
         argstr = str(estimates.data[statkeyname][0])
         for i in range(1, np):
             argstr += ","+str(estimates.data[statkeyname][i])
         
-        
-        extraArgs.append( ("MEMORY-BUS-SCHEDULER", "TNFQ") )
-        extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "nfq") )
+        if opts.impl == "nfq":
+            extraArgs.append( ("MEMORY-BUS-SCHEDULER", "TNFQ") )
+            extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "nfq") )
+        else:
+            extraArgs.append( ("MEMORY-BUS-SCHEDULER", "FBW") )
+            extraArgs.append( ("MODEL-THROTLING-IMPL-STRAT", "fixedbw") )
+            argstr += ","+str(estimates.data["uncontrollable-request-share"][estimates.NO_CPU_KEY])
         
         extraArgs.append( ("MODEL-THROTLING-POLICY-STATIC", argstr) )
     else:
