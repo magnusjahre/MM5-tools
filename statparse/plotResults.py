@@ -351,7 +351,7 @@ def plotLines(xvalues, yvalues, **kwargs):
             ax.set_ylabel(kwargs["ylabel"])
     
     if "legendTitles" in kwargs:
-        fig.legend(lines, kwargs["legendTitles"], "upper center", ncol=cols)
+        fig.legend(lines, kwargs["legendTitles"], "upper right", ncol=cols)
     
     if "xrange" in kwargs:
         if kwargs["xrange"] != "":
@@ -370,6 +370,9 @@ def plotLines(xvalues, yvalues, **kwargs):
             except:
                 raise Exception("Y range spec must be of type min,max")            
             ax.set_ylim( (float(minY), float(maxY))  )
+    
+    if "title" in kwargs:
+        ax.set_title(kwargs["title"], size="large")
     
     if "filename" in kwargs:
         if kwargs["filename"] != "":
