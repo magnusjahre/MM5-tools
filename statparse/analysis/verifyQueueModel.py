@@ -7,6 +7,7 @@ from optparse import OptionParser
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
 from statparse.plotResults import plotLines
+from math import sqrt
 import statparse.experimentConfiguration as expconfig 
 
 def parseArgs():
@@ -107,20 +108,25 @@ class BandwidthModel:
             ratemodel[i] = self.CPIinfL2 / (1 - (arrivalRate * modelConst) )
             
         return ratemodel
+    
+    def getLambda(self, id):
+        return self.busReads[id] / self.ticks[id]
+    
+    def getTsq(self, id, useLambda):
+        return self.busCycles[id] / (self.busReads[id] * useLambda) 
         
     def getSimpleModel(self):
         
         simplemodel = [0 for i in range(self.numConfigs)]
+         
+        calibrateLambda = self.getLambda(self.calibrateToID)
+        calibrateTsq = self.getTsq(self.calibrateToID, calibrateLambda)
         
-        calibrateT = self.busCycles[self.calibrateToID] / self.busReads[self.calibrateToID]
-        calibrateLambda = self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID]
-        
-        modelconst = calibrateLambda * self.overlap * calibrateT**2 * self.busReads[self.calibrateToID]
+        modelconst =  self.overlap * calibrateLambda * calibrateTsq * self.busReads[self.calibrateToID]
         
         for i in range(self.numConfigs):
             arrivalRate = self.busReads[i] / self.ticks[i]
-            arrivalRatio = calibrateLambda / arrivalRate 
-            print "Estimated bus time: "+str(arrivalRatio*modelconst)+", actual "+str(self.busCycles[i])
+            arrivalRatio = calibrateLambda / arrivalRate
             simplemodel[i] = self.CPIinfL2 + ((arrivalRatio*modelconst) / self.committedInstructions[i]) 
         
         return simplemodel
