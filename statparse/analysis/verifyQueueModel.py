@@ -112,21 +112,21 @@ class BandwidthModel:
     
     def getRatemodel(self):
         ratemodel = [0 for i in range(self.numConfigs)]
-#
-#        calibrateLambda = self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID]
-#        calibrateT = self.busCycles[self.calibrateToID] / self.busReads[self.calibrateToID]
-#        calibrateN = self.busCycles[self.calibrateToID] / self.ticks[self.calibrateToID]
-#
-#        print calibrateLambda, calibrateN, calibrateT
-#
-#        modelConst = (self.overlap * calibrateT**2 * self.busReads[self.calibrateToID]) / self.ticks[self.calibrateToID]
-#
-#        print modelConst
-#
-#        for i in range(self.numConfigs):
-#            arrivalRate = self.busReads[i] / self.ticks[i]
-#            ratemodel[i] = self.CPIinfL2 / (1 - (arrivalRate * modelConst) )
-            
+
+        calibrateLambda = self.getLambda(self.calibrateToID)
+        calibrateTsq = self.getTsq(self.calibrateToID, calibrateLambda)
+        
+        modelconst =  (self.overlap * calibrateLambda * calibrateTsq * self.busReads[self.calibrateToID]) / self.ticks[self.calibrateToID]
+        
+        print "modelconst is ", modelconst
+        
+        for i in range(self.numConfigs):
+            arrivalRate = self.busReads[i] / self.ticks[i]
+            arrivalRatio = calibrateLambda / arrivalRate 
+            print arrivalRatio
+            print (1 - arrivalRatio*modelconst), "should be", self.CPIinfL2 / (self.ticks[i] / self.committedInstructions[i])
+            ratemodel[i] = self.CPIinfL2 / (1 - arrivalRatio*modelconst)  
+        
         return ratemodel
     
     def getLambda(self, id):
