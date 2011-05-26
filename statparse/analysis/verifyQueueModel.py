@@ -85,27 +85,47 @@ class BandwidthModel:
     
     def getLiuModel(self):
         
+        fclk = 4.0*(10**9) #Hz
+        k = 64 # byte
+        B = 6.4 * 10**9 # Bps
+        
         liumodel = [0 for i in range(self.numConfigs)]
         
+        ma = (self.busReads[self.calibrateToID] *fclk) / self.ticks[self.calibrateToID]
         
+        modcons = (ma**2 * k**2) / (B**2)
+        
+        print "Expected w is "+str(modcons)
+        
+        for i in range(self.numConfigs):
+            arrivalRate = self.busReads[i] / self.ticks[i]
+            beta = arrivalRate / self.getLambda(self.calibrateToID)
+
+            betaSqInv = 1 / (beta**2)
+            
+            print "beta is "+str(beta)+", beta**2 is "+str(beta**2)+", 1/beta**2 is "+str(betaSqInv)
+            print "modcons is "+str(modcons)
+            
+            liumodel[i] = self.CPIinfL2 / (1 - modcons*betaSqInv)
+            
         return liumodel
     
     def getRatemodel(self):
         ratemodel = [0 for i in range(self.numConfigs)]
-
-        calibrateLambda = self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID]
-        calibrateT = self.busCycles[self.calibrateToID] / self.busReads[self.calibrateToID]
-        calibrateN = self.busCycles[self.calibrateToID] / self.ticks[self.calibrateToID]
-
-        print calibrateLambda, calibrateN, calibrateT
-
-        modelConst = (self.overlap * calibrateT**2 * self.busReads[self.calibrateToID]) / self.ticks[self.calibrateToID]
-
-        print modelConst
-
-        for i in range(self.numConfigs):
-            arrivalRate = self.busReads[i] / self.ticks[i]
-            ratemodel[i] = self.CPIinfL2 / (1 - (arrivalRate * modelConst) )
+#
+#        calibrateLambda = self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID]
+#        calibrateT = self.busCycles[self.calibrateToID] / self.busReads[self.calibrateToID]
+#        calibrateN = self.busCycles[self.calibrateToID] / self.ticks[self.calibrateToID]
+#
+#        print calibrateLambda, calibrateN, calibrateT
+#
+#        modelConst = (self.overlap * calibrateT**2 * self.busReads[self.calibrateToID]) / self.ticks[self.calibrateToID]
+#
+#        print modelConst
+#
+#        for i in range(self.numConfigs):
+#            arrivalRate = self.busReads[i] / self.ticks[i]
+#            ratemodel[i] = self.CPIinfL2 / (1 - (arrivalRate * modelConst) )
             
         return ratemodel
     
