@@ -113,7 +113,7 @@ class BandwidthModel:
 
         for i in range(self.numConfigs):
             numerator = self.overlap[self.calibrateToID]*self.busReads[self.calibrateToID]*self.ticks[i]
-            denom = self.ticks[self.calibrateToID]**2 * self.getMaxBW()
+            denom = self.ticks[self.calibrateToID]**2 * self.getCalibrateBW()
             
             ratemodel[i] = self.CPIinfL2 / (1 - (numerator/denom) )  
         
@@ -153,11 +153,11 @@ class BandwidthModel:
                   xlabel="Arrival Rate",
                   title=self.bmname)
 
-    def getMaxBW(self):
+    def getCalibrateBW(self):
         return self.busReads[self.calibrateToID] / self.busCycles[self.calibrateToID]
     
     def getAvgBusEstimate(self, id):
-        return (self.ticks[id] / self.ticks[self.calibrateToID]) * (1.0 / self.getMaxBW())
+        return (self.ticks[id] / self.ticks[self.calibrateToID]) * (1.0 / self.getCalibrateBW())
 
     def plotBus(self, opts):
         actualBusLat = [self.busCycles[i] / self.busReads[i] for i in range(self.numConfigs)]
