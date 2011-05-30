@@ -9,10 +9,14 @@ from statparse.statResults import StatResults
 from statparse.plotResults import plotLines
 from math import sqrt
 import statparse.experimentConfiguration as expconfig 
+from statparse.analysis import computePercError
+
+modelAlternatives = ["cpi", "bus"]
 
 def parseArgs():
     parser = OptionParser(usage="verifyQueueModel.py [options] benchmark")
     
+    parser.add_option("--metric", action="store", dest="metric", default="cpi", help="The metric to model (Alternatives: "+str(modelAlternatives)+")")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     
     opts, args = parser.parse_args()
@@ -70,9 +74,6 @@ class BandwidthModel:
         self.CPIinfL2 = (self.computeCycles + (self.noBusCycles[self.calibrateToID] * self.overlap)) / self.committedInstructions[self.calibrateToID]
         
         # TODO: may want to get bus writes as well
-        
-        print "Parameter arrival rates: "+str(self.arrivalRates)
-        print "Actual arrival rates:    "+str(sorted([self.busReads[i] / self.ticks[i] for i in range(self.numConfigs)]))
     
     def getBW(self, r):
         return float(r.parameters["MODEL-THROTLING-POLICY-STATIC"])
@@ -94,17 +95,12 @@ class BandwidthModel:
         ma = (self.busReads[self.calibrateToID] *fclk) / self.ticks[self.calibrateToID]
         
         modcons = (ma**2 * k**2) / (B**2)
-        
-        print "Expected w is "+str(modcons)
-        
+
         for i in range(self.numConfigs):
             arrivalRate = self.busReads[i] / self.ticks[i]
             beta = arrivalRate / self.getLambda(self.calibrateToID)
 
             betaSqInv = 1 / (beta**2)
-            
-            print "beta is "+str(beta)+", beta**2 is "+str(beta**2)+", 1/beta**2 is "+str(betaSqInv)
-            print "modcons is "+str(modcons)
             
             liumodel[i] = self.CPIinfL2 / (1 - modcons*betaSqInv)
             
@@ -118,13 +114,9 @@ class BandwidthModel:
         
         modelconst =  (self.overlap * calibrateLambda * calibrateTsq * self.busReads[self.calibrateToID]) / self.ticks[self.calibrateToID]
         
-        print "modelconst is ", modelconst
-        
         for i in range(self.numConfigs):
             arrivalRate = self.busReads[i] / self.ticks[i]
             arrivalRatio = calibrateLambda / arrivalRate 
-            print arrivalRatio
-            print (1 - arrivalRatio*modelconst), "should be", self.CPIinfL2 / (self.ticks[i] / self.committedInstructions[i])
             ratemodel[i] = self.CPIinfL2 / (1 - arrivalRatio*modelconst)  
         
         return ratemodel
@@ -143,7 +135,7 @@ class BandwidthModel:
         calibrateTsq = self.getTsq(self.calibrateToID, calibrateLambda)
         
         modelconst =  self.overlap * calibrateLambda * calibrateTsq * self.busReads[self.calibrateToID]
-        
+                
         for i in range(self.numConfigs):
             arrivalRate = self.busReads[i] / self.ticks[i]
             arrivalRatio = calibrateLambda / arrivalRate
@@ -165,9 +157,35 @@ class BandwidthModel:
                   xlabel="Arrival Rate",
                   title=self.bmname)
 
+    def getAvgBusEstimate(self, id):
+        bw = self.busReads[self.calibrateToID] / self.busCycles[self.calibrateToID]
+        return (self.ticks[id] / self.ticks[self.calibrateToID]) * (1.0 / bw)
+
+    def plotBus(self, opts):
+        actualBusLat = [self.busCycles[i] / self.busReads[i] for i in range(self.numConfigs)]
+        
+        estimateBusLat = [0 for i in range(self.numConfigs)]
+        for i in range(self.numConfigs):
+            estimateBusLat[i] = self.getAvgBusEstimate(i)
+            if not opts.quiet:
+                print "Bus latency estimate", estimateBusLat[i], \
+                      "actual", self.busCycles[i] / self.busReads[i], \
+                      "error", computePercError(estimateBusLat[i], self.busCycles[i] / self.busReads[i]), "%"
+        
+        plotLines([self.arrivalRates, self.arrivalRates],
+                  [actualBusLat, estimateBusLat],
+                  legendTitles = ["Actual", "Estimate"],
+                  ylabel="Average Bus Latency (Clock Cycles)",
+                  xlabel="Arrival Rate (Requests/Cycle)",
+                  title=self.bmname)
+
 def main():
     opts,args = parseArgs()
     bm = args[0]
+    
+    if opts.metric not in modelAlternatives:
+        print "ERROR: Unknown metric argument, alternatives are "+str(modelAlternatives)
+        return -1
     
     if not os.path.exists("pbsconfig.py"):
         print "ERROR: pbsconfig.py not found"
@@ -189,7 +207,11 @@ def main():
     results = StatResults(index, searchConfig, False, opts.quiet)
     
     curModel = BandwidthModel(bm, results)
-    curModel.plot(opts)
+    
+    if opts.metric == "cpi":
+        curModel.plot(opts)
+    elif opts.metric == "bus":
+        curModel.plotBus(opts)
 
 if __name__ == '__main__':
     main()
