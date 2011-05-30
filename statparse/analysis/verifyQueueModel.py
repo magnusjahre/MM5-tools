@@ -11,12 +11,13 @@ from math import sqrt
 import statparse.experimentConfiguration as expconfig 
 from statparse.analysis import computePercError
 
-modelAlternatives = ["cpi", "bus"]
+modelAlternatives = ["cpi", "bus", "overlap"]
 
 def parseArgs():
     parser = OptionParser(usage="verifyQueueModel.py [options] benchmark")
     
     parser.add_option("--metric", action="store", dest="metric", default="cpi", help="The metric to model (Alternatives: "+str(modelAlternatives)+")")
+    parser.add_option("--calibrate-to", action="store", type="int", dest="calibrateTo", default=-1, help="The configuration to calibrate the model against")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     
     opts, args = parser.parse_args()
@@ -40,7 +41,7 @@ class BandwidthModel:
     
     invalid  = "N/A"
 
-    def __init__(self, bmname, results):
+    def __init__(self, bmname, results, calTo):
         
         self.bmname = bmname
         
@@ -55,7 +56,8 @@ class BandwidthModel:
         for i in range(len(self.arrivalRates)):
             self.indexMap[self.arrivalRates[i]] = i
         self.numConfigs = len(self.indexMap)
-        self.calibrateToID = self.numConfigs-1
+        
+        self.calibrateToID = calTo
         
         # Store selected statistics
         self.committedInstructions = self.getStat("detailedCPU0.COM:count")
@@ -69,9 +71,9 @@ class BandwidthModel:
         
         self.avgBusServiceCycles = [self.busServiceCycles[i] / self.requests[i] for i in range(self.numConfigs)]
         
-        self.overlap = self.stallCycles[self.calibrateToID] / (self.busCycles[self.calibrateToID] + self.noBusCycles[self.calibrateToID])
+        self.overlap = [self.stallCycles[i] / (self.busCycles[i] + self.noBusCycles[i]) for i in range(self.numConfigs)]
         self.computeCycles = self.ticks[self.calibrateToID] - self.stallCycles[self.calibrateToID] 
-        self.CPIinfL2 = (self.computeCycles + (self.noBusCycles[self.calibrateToID] * self.overlap)) / self.committedInstructions[self.calibrateToID]
+        self.CPIinfL2 = (self.computeCycles + (self.noBusCycles[self.calibrateToID] * self.overlap[self.calibrateToID])) / self.committedInstructions[self.calibrateToID]
         
         # TODO: may want to get bus writes as well
     
@@ -109,15 +111,11 @@ class BandwidthModel:
     def getRatemodel(self):
         ratemodel = [0 for i in range(self.numConfigs)]
 
-        calibrateLambda = self.getLambda(self.calibrateToID)
-        calibrateTsq = self.getTsq(self.calibrateToID, calibrateLambda)
-        
-        modelconst =  (self.overlap * calibrateLambda * calibrateTsq * self.busReads[self.calibrateToID]) / self.ticks[self.calibrateToID]
-        
         for i in range(self.numConfigs):
-            arrivalRate = self.busReads[i] / self.ticks[i]
-            arrivalRatio = calibrateLambda / arrivalRate 
-            ratemodel[i] = self.CPIinfL2 / (1 - arrivalRatio*modelconst)  
+            numerator = self.overlap[self.calibrateToID]*self.busReads[self.calibrateToID]*self.ticks[i]
+            denom = self.ticks[self.calibrateToID]**2 * self.getMaxBW()
+            
+            ratemodel[i] = self.CPIinfL2 / (1 - (numerator/denom) )  
         
         return ratemodel
     
@@ -127,19 +125,17 @@ class BandwidthModel:
     def getTsq(self, id, useLambda):
         return self.busCycles[id] / (self.busReads[id] * useLambda) 
         
-    def getSimpleModel(self):
+    def getSimpleModel(self, opts):
         
         simplemodel = [0 for i in range(self.numConfigs)]
-         
-        calibrateLambda = self.getLambda(self.calibrateToID)
-        calibrateTsq = self.getTsq(self.calibrateToID, calibrateLambda)
-        
-        modelconst =  self.overlap * calibrateLambda * calibrateTsq * self.busReads[self.calibrateToID]
                 
         for i in range(self.numConfigs):
-            arrivalRate = self.busReads[i] / self.ticks[i]
-            arrivalRatio = calibrateLambda / arrivalRate
-            simplemodel[i] = self.CPIinfL2 + ((arrivalRatio*modelconst) / self.committedInstructions[i]) 
+            simplemodel[i] = self.CPIinfL2 + ((self.overlap[self.calibrateToID]*self.busReads[self.calibrateToID]*self.getAvgBusEstimate(i)) / self.committedInstructions[self.calibrateToID]) 
+            if not opts.quiet:
+                actual = self.ticks[i] / self.committedInstructions[i]
+                print "Simple CPI estimate", simplemodel[i], \
+                      "actual", actual, \
+                      "error", computePercError(simplemodel[i], actual), "%"
         
         return simplemodel
          
@@ -147,19 +143,21 @@ class BandwidthModel:
         actualCPI = [self.ticks[i] / self.committedInstructions[i] for i in range(self.numConfigs)]
         
         rateModel = self.getRatemodel()
-        liu = self.getLiuModel()
-        simple = self.getSimpleModel()
+        #liu = self.getLiuModel()
+        simple = self.getSimpleModel(opts)
         
-        plotLines([self.arrivalRates, self.arrivalRates, self.arrivalRates, self.arrivalRates],
-                  [actualCPI, rateModel, liu, simple],
-                  legendTitles = ["Actual CPI", "Rate Model", "Liu et al.", "Simple"],
+        plotLines([self.arrivalRates, self.arrivalRates, self.arrivalRates],
+                  [actualCPI, rateModel, simple],
+                  legendTitles = ["Actual CPI", "Rate Model", "Simple"],
                   ylabel="CPI",
                   xlabel="Arrival Rate",
                   title=self.bmname)
 
+    def getMaxBW(self):
+        return self.busReads[self.calibrateToID] / self.busCycles[self.calibrateToID]
+    
     def getAvgBusEstimate(self, id):
-        bw = self.busReads[self.calibrateToID] / self.busCycles[self.calibrateToID]
-        return (self.ticks[id] / self.ticks[self.calibrateToID]) * (1.0 / bw)
+        return (self.ticks[id] / self.ticks[self.calibrateToID]) * (1.0 / self.getMaxBW())
 
     def plotBus(self, opts):
         actualBusLat = [self.busCycles[i] / self.busReads[i] for i in range(self.numConfigs)]
@@ -176,6 +174,22 @@ class BandwidthModel:
                   [actualBusLat, estimateBusLat],
                   legendTitles = ["Actual", "Estimate"],
                   ylabel="Average Bus Latency (Clock Cycles)",
+                  xlabel="Arrival Rate (Requests/Cycle)",
+                  title=self.bmname)
+        
+    def plotOverlap(self, opts):
+        
+        if not opts.quiet:
+            for i in range(self.numConfigs):
+                print "Overlap estimate ", self.overlap[self.calibrateToID], \
+                      "actual", self.overlap[i], \
+                      "error", computePercError(self.overlap[self.calibrateToID], self.overlap[i]), "%"
+        
+        plotLines([self.arrivalRates, self.arrivalRates],
+                  [self.overlap, [self.overlap[self.calibrateToID] for i in range(self.numConfigs)]],
+                  legendTitles = ["Actual", "Estimate"],
+                  ylabel="Overlap",
+                  yrange="0,"+str(max(self.overlap)*1.05),
                   xlabel="Arrival Rate (Requests/Cycle)",
                   title=self.bmname)
 
@@ -206,12 +220,14 @@ def main():
     searchConfig.benchmark = bm
     results = StatResults(index, searchConfig, False, opts.quiet)
     
-    curModel = BandwidthModel(bm, results)
+    curModel = BandwidthModel(bm, results, opts.calibrateTo)
     
     if opts.metric == "cpi":
         curModel.plot(opts)
     elif opts.metric == "bus":
         curModel.plotBus(opts)
+    elif opts.metric == "overlap":
+        curModel.plotOverlap(opts)
 
 if __name__ == '__main__':
     main()
