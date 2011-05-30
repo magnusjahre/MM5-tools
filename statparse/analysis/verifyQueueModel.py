@@ -10,23 +10,79 @@ from statparse.plotResults import plotLines
 from math import sqrt
 import statparse.experimentConfiguration as expconfig 
 from statparse.analysis import computePercError
+from statparse.printResults import printData, numberToString
+
+import workloadfiles.workloads as wls
 
 modelAlternatives = ["cpi", "bus", "overlap"]
 
 def parseArgs():
-    parser = OptionParser(usage="verifyQueueModel.py [options] benchmark")
+    parser = OptionParser(usage="verifyQueueModel.py [options] [benchmark]")
     
-    parser.add_option("--metric", action="store", dest="metric", default="cpi", help="The metric to model (Alternatives: "+str(modelAlternatives)+")")
-    parser.add_option("--calibrate-to", action="store", type="int", dest="calibrateTo", default=-1, help="The configuration to calibrate the model against")
+    parser.add_option("--metric", action="store", dest="metric", default="cpi", help="The metric to model (Alternatives: " + str(modelAlternatives) + ")")
+    parser.add_option("--calibrate-to", action="store", type="int", dest="calibrateTo", default= -1, help="The configuration to calibrate the model against")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     
     opts, args = parser.parse_args()
-    if len(args) != 1:
+    if len(args) > 1:
         print "Command line error..."
-        print "Usage "+parser.usage
+        print "Usage " + parser.usage
         sys.exit(-1)
     
     return opts, args
+
+class ErrorMeasurement:
+    
+    def __init__(self, actual, estimate):
+        self.actual = actual
+        self.estimate = estimate
+        self.percerr = computePercError(estimate, actual)
+
+class ModelErrors:
+    
+    def __init__(self):
+        self.cpidata = {}
+        self.busdata = {}
+        self.overlapdata = {}
+        
+        self.arrivalRates = []
+        
+    def add(self, bwModel):
+        assert bwModel.bmname not in self.cpidata
+        assert bwModel.bmname not in self.busdata
+        assert bwModel.bmname not in self.overlapdata
+        
+        self.cpidata[bwModel.bmname] = bwModel.cpistats
+        self.busdata[bwModel.bmname] = bwModel.busstats
+        self.overlapdata[bwModel.bmname] = bwModel.overlapstats
+        
+        if self.arrivalRates == []:
+            self.arrivalRates = bwModel.arrivalRates
+        
+    def dump(self):
+        self.printPercErrorData("cpi-perc-err.txt", self.cpidata)
+        self.printPercErrorData("bus-perc-err.txt", self.busdata)
+        self.printPercErrorData("overlap-perc-err.txt", self.overlapdata)
+        
+    def printPercErrorData(self, filename, data):
+        lines = []
+        header = [""]
+        leftjust = [True]
+        for i in self.arrivalRates:
+            header.append(str(i))
+            leftjust.append(False)
+        lines.append(header)
+        
+        for bm in data:
+            line = [bm]
+            for e in data[bm]:
+                line.append(numberToString(e.percerr, 2))
+            lines.append(line)
+            
+        outfile = open(filename, "w")
+        printData(lines, leftjust, outfile, 2)
+        outfile.close()
+        
 
 class BandwidthModel:
     
@@ -39,7 +95,7 @@ class BandwidthModel:
                 "membus0.reads_per_cpu",
                 "interferenceManager.latency_bus_service"]
     
-    invalid  = "N/A"
+    invalidKey = "N/A"
 
     def __init__(self, bmname, results, calTo):
         
@@ -52,10 +108,20 @@ class BandwidthModel:
         for r in self.searchRes["detailedCPU0.COM:count"]:
             self.arrivalRates.append(self.getBW(r))
         self.arrivalRates.sort()
+        
+        if self.arrivalRates == []:
+            self.invalid = True
+            return
+        self.invalid = False
+        
         self.indexMap = {}
         for i in range(len(self.arrivalRates)):
             self.indexMap[self.arrivalRates[i]] = i
         self.numConfigs = len(self.indexMap)
+        
+        self.cpistats = [None for i in range(self.numConfigs)]
+        self.overlapstats = [None for i in range(self.numConfigs)]
+        self.busstats = [None for i in range(self.numConfigs)]
         
         self.calibrateToID = calTo
         
@@ -81,30 +147,30 @@ class BandwidthModel:
         return float(r.parameters["MODEL-THROTLING-POLICY-STATIC"])
     
     def getStat(self, key):
-        tmp = [self.invalid for i in range(len(self.arrivalRates))]
+        tmp = [self.invalidKey for i in range(len(self.arrivalRates))]
         for r in self.searchRes[key]:
             tmp[self.indexMap[self.getBW(r)]] = float(self.searchRes[key][r])
         return tmp
     
     def getLiuModel(self):
         
-        fclk = 4.0*(10**9) #Hz
+        fclk = 4.0 * (10 ** 9) #Hz
         k = 64 # byte
-        B = 6.4 * 10**9 # Bps
+        B = 6.4 * 10 ** 9 # Bps
         
         liumodel = [0 for i in range(self.numConfigs)]
         
-        ma = (self.busReads[self.calibrateToID] *fclk) / self.ticks[self.calibrateToID]
+        ma = (self.busReads[self.calibrateToID] * fclk) / self.ticks[self.calibrateToID]
         
-        modcons = (ma**2 * k**2) / (B**2)
+        modcons = (ma ** 2 * k ** 2) / (B ** 2)
 
         for i in range(self.numConfigs):
             arrivalRate = self.busReads[i] / self.ticks[i]
             beta = arrivalRate / self.getLambda(self.calibrateToID)
 
-            betaSqInv = 1 / (beta**2)
+            betaSqInv = 1 / (beta ** 2)
             
-            liumodel[i] = self.CPIinfL2 / (1 - modcons*betaSqInv)
+            liumodel[i] = self.CPIinfL2 / (1 - modcons * betaSqInv)
             
         return liumodel
     
@@ -112,10 +178,10 @@ class BandwidthModel:
         ratemodel = [0 for i in range(self.numConfigs)]
 
         for i in range(self.numConfigs):
-            numerator = self.overlap[self.calibrateToID]*self.busReads[self.calibrateToID]*self.ticks[i]
-            denom = self.ticks[self.calibrateToID]**2 * self.getCalibrateBW()
+            numerator = self.overlap[self.calibrateToID] * self.busReads[self.calibrateToID] * self.ticks[i]
+            denom = self.ticks[self.calibrateToID] ** 2 * self.getCalibrateBW()
             
-            ratemodel[i] = self.CPIinfL2 / (1 - (numerator/denom) )  
+            ratemodel[i] = self.CPIinfL2 / (1 - (numerator / denom))  
         
         return ratemodel
     
@@ -130,16 +196,13 @@ class BandwidthModel:
         simplemodel = [0 for i in range(self.numConfigs)]
                 
         for i in range(self.numConfigs):
-            simplemodel[i] = self.CPIinfL2 + ((self.overlap[self.calibrateToID]*self.busReads[self.calibrateToID]*self.getAvgBusEstimate(i)) / self.committedInstructions[self.calibrateToID]) 
-            if not opts.quiet:
-                actual = self.ticks[i] / self.committedInstructions[i]
-                print "Simple CPI estimate", simplemodel[i], \
-                      "actual", actual, \
-                      "error", computePercError(simplemodel[i], actual), "%"
+            simplemodel[i] = self.CPIinfL2 + ((self.overlap[self.calibrateToID] * self.busReads[self.calibrateToID] * self.getAvgBusEstimate(i)) / self.committedInstructions[self.calibrateToID]) 
+            actual = self.ticks[i] / self.committedInstructions[i]
+            self.cpistats[i] = ErrorMeasurement(actual, simplemodel[i])
         
         return simplemodel
          
-    def plot(self, opts):
+    def plot(self, opts, filename = ""):
         actualCPI = [self.ticks[i] / self.committedInstructions[i] for i in range(self.numConfigs)]
         
         rateModel = self.getRatemodel()
@@ -148,10 +211,12 @@ class BandwidthModel:
         
         plotLines([self.arrivalRates, self.arrivalRates, self.arrivalRates],
                   [actualCPI, rateModel, simple],
-                  legendTitles = ["Actual CPI", "Rate Model", "Simple"],
+                  legendTitles=["Actual CPI", "Rate Model", "Simple"],
                   ylabel="CPI",
                   xlabel="Arrival Rate",
-                  title=self.bmname)
+                  yrange="0," + str(max(actualCPI) * 1.1),
+                  title=self.bmname,
+                  filename=filename)
 
     def getCalibrateBW(self):
         return self.busReads[self.calibrateToID] / self.busCycles[self.calibrateToID]
@@ -159,55 +224,51 @@ class BandwidthModel:
     def getAvgBusEstimate(self, id):
         return (self.ticks[id] / self.ticks[self.calibrateToID]) * (1.0 / self.getCalibrateBW())
 
-    def plotBus(self, opts):
+    def plotBus(self, opts, filename = ""):
         actualBusLat = [self.busCycles[i] / self.busReads[i] for i in range(self.numConfigs)]
         
         estimateBusLat = [0 for i in range(self.numConfigs)]
         for i in range(self.numConfigs):
             estimateBusLat[i] = self.getAvgBusEstimate(i)
-            if not opts.quiet:
-                print "Bus latency estimate", estimateBusLat[i], \
-                      "actual", self.busCycles[i] / self.busReads[i], \
-                      "error", computePercError(estimateBusLat[i], self.busCycles[i] / self.busReads[i]), "%"
+            self.busstats[i] = ErrorMeasurement(self.busCycles[i] / self.busReads[i], estimateBusLat[i])
         
         plotLines([self.arrivalRates, self.arrivalRates],
                   [actualBusLat, estimateBusLat],
-                  legendTitles = ["Actual", "Estimate"],
+                  legendTitles=["Actual", "Estimate"],
                   ylabel="Average Bus Latency (Clock Cycles)",
                   xlabel="Arrival Rate (Requests/Cycle)",
-                  title=self.bmname)
+                  yrange="0," + str(max(actualBusLat) * 1.1),
+                  title=self.bmname,
+                  filename=filename)
         
-    def plotOverlap(self, opts):
+    def plotOverlap(self, opts, filename = ""):
         
-        if not opts.quiet:
-            for i in range(self.numConfigs):
-                print "Overlap estimate ", self.overlap[self.calibrateToID], \
-                      "actual", self.overlap[i], \
-                      "error", computePercError(self.overlap[self.calibrateToID], self.overlap[i]), "%"
+        for i in range(self.numConfigs):
+            self.overlapstats[i] = ErrorMeasurement(self.overlap[i], self.overlap[self.calibrateToID])
         
         plotLines([self.arrivalRates, self.arrivalRates],
                   [self.overlap, [self.overlap[self.calibrateToID] for i in range(self.numConfigs)]],
-                  legendTitles = ["Actual", "Estimate"],
+                  legendTitles=["Actual", "Estimate"],
                   ylabel="Overlap",
-                  yrange="0,"+str(max(self.overlap)*1.05),
+                  yrange="0," + str(max(self.overlap) * 1.05),
                   xlabel="Arrival Rate (Requests/Cycle)",
-                  title=self.bmname)
+                  title=self.bmname,
+                  filename=filename)
 
 def main():
-    opts,args = parseArgs()
-    bm = args[0]
+    opts, args = parseArgs()
     
     if opts.metric not in modelAlternatives:
-        print "ERROR: Unknown metric argument, alternatives are "+str(modelAlternatives)
-        return -1
+        print "ERROR: Unknown metric argument, alternatives are " + str(modelAlternatives)
+        return - 1
     
     if not os.path.exists("pbsconfig.py"):
         print "ERROR: pbsconfig.py not found"
-        return -1
+        return - 1
     
     if not os.path.exists("index-all.pkl"):
         print "ERROR: cannot find index index-all.pkl, run searchStats.py to generate index"
-        return -1
+        return - 1
     
     if not opts.quiet:
         print >> sys.stdout, "Reading index file index-all.pkl... ",
@@ -216,18 +277,48 @@ def main():
     if not opts.quiet:
         print >> sys.stdout, "done!"
     
-    searchConfig = expconfig.buildMatchAllConfig()
-    searchConfig.benchmark = bm
-    results = StatResults(index, searchConfig, False, opts.quiet)
+    if len(args) == 1:
     
-    curModel = BandwidthModel(bm, results, opts.calibrateTo)
-    
-    if opts.metric == "cpi":
-        curModel.plot(opts)
-    elif opts.metric == "bus":
-        curModel.plotBus(opts)
-    elif opts.metric == "overlap":
-        curModel.plotOverlap(opts)
+        bm = args[0]
+        searchConfig = expconfig.buildMatchAllConfig()
+        searchConfig.benchmark = bm
+        results = StatResults(index, searchConfig, False, opts.quiet)
+        
+        curModel = BandwidthModel(bm, results, opts.calibrateTo)
+        
+        if opts.metric == "cpi":
+            curModel.plot(opts)
+        elif opts.metric == "bus":
+            curModel.plotBus(opts)
+        elif opts.metric == "overlap":
+            curModel.plotOverlap(opts)
+            
+    else:
+        
+        errors = ModelErrors()
+        
+        for bm in wls.getAllBenchmarks():
+            
+            if not opts.quiet:
+                print "Processing benchmark " + bm
+            
+            searchConfig = expconfig.buildMatchAllConfig()
+            searchConfig.benchmark = bm
+            results = StatResults(index, searchConfig, False, opts.quiet)
+
+            curModel = BandwidthModel(bm, results, opts.calibrateTo)
+            
+            if not curModel.invalid:
+                curModel.plot(opts, bm + "-cpi.pdf")
+                curModel.plotBus(opts, bm + "-bus.pdf")
+                curModel.plotOverlap(opts, bm + "-overlap.pdf")
+                
+                errors.add(curModel)
+            else:
+                print "Warning: search failed for benchmark "+bm
+
+
+        errors.dump()
 
 if __name__ == '__main__':
     main()
