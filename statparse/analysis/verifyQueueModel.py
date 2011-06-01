@@ -7,10 +7,11 @@ from optparse import OptionParser
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
 from statparse.plotResults import plotLines
-from math import sqrt
+from math import sqrt, fabs
 import statparse.experimentConfiguration as expconfig 
 from statparse.analysis import computePercError
 from statparse.printResults import printData, numberToString
+from util.subfigure import Subfigure
 
 import workloadfiles.workloads as wls
 
@@ -22,6 +23,12 @@ def parseArgs():
     parser.add_option("--metric", action="store", dest="metric", default="cpi", help="The metric to model (Alternatives: " + str(modelAlternatives) + ")")
     parser.add_option("--calibrate-to", action="store", type="int", dest="calibrateTo", default= -1, help="The configuration to calibrate the model against")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
+    
+    parser.add_option("--cutoff", action="store", type="float", dest="cutoff", default=5, help="Only include figures where the absolute error is larger than this value")
+    
+    parser.add_option("--fig-title", action="store", dest="figtitle", default="CPI Accuracy", help="Figure title")
+    parser.add_option("--fig-width", action="store", type="float", dest="figwidth", default=0.2, help="Figure width")
+    parser.add_option("--fig-cols", action="store", type="int", dest="figcols", default=4, help="Figure columns")
     
     opts, args = parser.parse_args()
     if len(args) > 1:
@@ -296,6 +303,7 @@ def main():
     else:
         
         errors = ModelErrors()
+        subfig = Subfigure("cpi-accuracy.tex")
         
         for bm in wls.getAllBenchmarks():
             
@@ -309,9 +317,13 @@ def main():
             curModel = BandwidthModel(bm, results, opts.calibrateTo)
             
             if not curModel.invalid:
-                curModel.plot(opts, bm + "-cpi.pdf")
+                cpiname = bm + "-cpi.pdf"
+                curModel.plot(opts, cpiname)
                 curModel.plotBus(opts, bm + "-bus.pdf")
                 curModel.plotOverlap(opts, bm + "-overlap.pdf")
+                
+                if fabs(curModel.cpistats[0].percerr) > opts.cutoff:
+                    subfig.addFigure(cpiname, bm)
                 
                 errors.add(curModel)
             else:
@@ -319,6 +331,7 @@ def main():
 
 
         errors.dump()
+        subfig.writeLatex(opts.figtitle, "fig:cpiAccuracy", opts.figwidth, opts.figcols)
 
 if __name__ == '__main__':
     main()
