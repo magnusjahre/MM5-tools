@@ -167,37 +167,19 @@ class BandwidthModel:
         
         liumodel = [0 for i in range(self.numConfigs)]
         
-        ma = (self.busReads[self.calibrateToID] * fclk) / self.ticks[self.calibrateToID]
-        
-        modcons = (ma ** 2 * k ** 2) / (B ** 2)
-
-        for i in range(self.numConfigs):
-            arrivalRate = self.busReads[i] / self.ticks[i]
-            beta = arrivalRate / self.getLambda(self.calibrateToID)
-
-            betaSqInv = 1 / (beta ** 2)
+        maUseID = -1 
+        ma = (self.busReads[maUseID] * fclk) / self.ticks[maUseID] #unit: reqs per sec
+         
+        for i in range(self.numConfigs):    
+            curArrivalRate = self.busReads[i] / self.ticks[i]
+            curArrRateInBps = curArrivalRate * k * fclk
             
-            liumodel[i] = self.CPIinfL2 / (1 - modcons * betaSqInv)
+            beta = curArrRateInBps / B
+            
+            liumodel[i] = self.CPIinfL2 + (((ma**2 * k**2)/(beta**2 * B**2)) * self.busReads[i] / self.committedInstructions[i])
             
         return liumodel
     
-    def getRatemodel(self):
-        ratemodel = [0 for i in range(self.numConfigs)]
-
-        for i in range(self.numConfigs):
-            numerator = self.overlap[self.calibrateToID] * self.busReads[self.calibrateToID] * self.ticks[i]
-            denom = self.ticks[self.calibrateToID] ** 2 * self.getCalibrateBW()
-            
-            ratemodel[i] = self.CPIinfL2 / (1 - (numerator / denom))  
-        
-        return ratemodel
-    
-    def getLambda(self, id):
-        return self.busReads[id] / self.ticks[id]
-    
-    def getTsq(self, id, useLambda):
-        return self.busCycles[id] / (self.busReads[id] * useLambda) 
-        
     def getSimpleModel(self, opts):
         
         simplemodel = [0 for i in range(self.numConfigs)]
@@ -212,13 +194,12 @@ class BandwidthModel:
     def plot(self, opts, filename = ""):
         actualCPI = [self.ticks[i] / self.committedInstructions[i] for i in range(self.numConfigs)]
         
-        rateModel = self.getRatemodel()
-        #liu = self.getLiuModel()
+        liu = self.getLiuModel()
         simple = self.getSimpleModel(opts)
         
         plotLines([self.arrivalRates, self.arrivalRates, self.arrivalRates],
-                  [actualCPI, rateModel, simple],
-                  legendTitles=["Actual CPI", "Rate Model", "Simple"],
+                  [actualCPI, liu, simple],
+                  legendTitles=["Actual CPI", "Liu et al.", "Simple"],
                   ylabel="CPI",
                   xlabel="Arrival Rate",
                   yrange="0," + str(max(actualCPI) * 1.1),
