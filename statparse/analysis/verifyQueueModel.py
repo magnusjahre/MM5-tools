@@ -201,7 +201,8 @@ class BandwidthModel:
                   [actualCPI, liu, simple],
                   legendTitles=["Actual CPI", "Liu et al.", "Simple"],
                   ylabel="CPI",
-                  xlabel="Arrival Rate",
+                  xlabel="Arrival Rate (Requests / Clock Cycle)",
+                  xrange="0,"+str(max(self.arrivalRates)*1.025),
                   yrange="0," + str(max(actualCPI) * 1.1),
                   title=self.bmname,
                   filename=filename)
