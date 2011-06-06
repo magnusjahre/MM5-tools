@@ -180,6 +180,21 @@ class BandwidthModel:
             
         return liumodel
     
+    def getCalibratedLiuModel(self):
+        
+        liumodel = [0 for i in range(self.numConfigs)]
+        
+        for i in range(self.numConfigs):
+            curBW = self.busReads[i] / self.ticks[i]
+            maxBW = self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID]
+        
+            bwratio = maxBW / curBW
+            busEstimate =  (bwratio**2) * (1.0 / self.getCalibrateBW())
+        
+            liumodel[i] = self.CPIinfL2 + ( (self.overlap[self.calibrateToID] * self.busReads[self.calibrateToID] * busEstimate) / self.committedInstructions[i])
+        
+        return liumodel
+    
     def getSimpleModel(self, opts):
         
         simplemodel = [0 for i in range(self.numConfigs)]
@@ -195,11 +210,12 @@ class BandwidthModel:
         actualCPI = [self.ticks[i] / self.committedInstructions[i] for i in range(self.numConfigs)]
         
         liu = self.getLiuModel()
+        calibratedLiu = self.getCalibratedLiuModel()
         simple = self.getSimpleModel(opts)
         
-        plotLines([self.arrivalRates, self.arrivalRates, self.arrivalRates],
-                  [actualCPI, liu, simple],
-                  legendTitles=["Actual CPI", "Liu et al.", "Simple"],
+        plotLines([self.arrivalRates, self.arrivalRates, self.arrivalRates, self.arrivalRates],
+                  [actualCPI, liu, calibratedLiu, simple],
+                  legendTitles=["Actual CPI", "Liu et al.", "Liu et al. (Calibrated)", "Calibrated"],
                   ylabel="CPI",
                   xlabel="Arrival Rate (Requests / Clock Cycle)",
                   xrange="0,"+str(max(self.arrivalRates)*1.025),
