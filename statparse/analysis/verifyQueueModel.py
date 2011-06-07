@@ -100,7 +100,9 @@ class BandwidthModel:
                 "interferenceManager.no_bus_latency",
                 "interferenceManager.requests",
                 "membus0.reads_per_cpu",
-                "interferenceManager.latency_bus_service"]
+                "membus0.total_requests",
+                "membus0.avg_service_cycles"]
+                #"interferenceManager.latency_bus_service"]
     
     invalidKey = "N/A"
 
@@ -138,17 +140,17 @@ class BandwidthModel:
         self.stallCycles = self.getStat("interferenceManager.cpu_stall_cycles")
         self.busCycles = self.getStat("interferenceManager.bus_latency")
         self.noBusCycles = self.getStat("interferenceManager.no_bus_latency")
-        self.busServiceCycles = self.getStat("interferenceManager.latency_bus_service")
+        #self.busServiceCycles = self.getStat("interferenceManager.latency_bus_service")
         self.requests = self.getStat("interferenceManager.requests")
         self.busReads = self.getStat("membus0.reads_per_cpu")
+        self.busRequests = self.getStat("membus0.total_requests")
+        self.busWrites = [self.busRequests[i] - self.busReads[i] for i in range(self.numConfigs)]
         
-        self.avgBusServiceCycles = [self.busServiceCycles[i] / self.requests[i] for i in range(self.numConfigs)]
+        self.avgBusServiceCycles = self.getStat("membus0.avg_service_cycles")
         
         self.overlap = [self.stallCycles[i] / (self.busCycles[i] + self.noBusCycles[i]) for i in range(self.numConfigs)]
         self.computeCycles = self.ticks[self.calibrateToID] - self.stallCycles[self.calibrateToID] 
         self.CPIinfL2 = (self.computeCycles + (self.noBusCycles[self.calibrateToID] * self.overlap[self.calibrateToID])) / self.committedInstructions[self.calibrateToID]
-        
-        # TODO: may want to get bus writes as well
     
     def getBW(self, r):
         return float(r.parameters["MODEL-THROTLING-POLICY-STATIC"])
@@ -224,17 +226,22 @@ class BandwidthModel:
         
         systemTime = (self.busCycles[self.calibrateToID] / self.busReads[self.calibrateToID])
         arrivalRate = (self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID])
-        serviceTime = (self.busServiceCycles[self.calibrateToID] / self.busReads[self.calibrateToID])
+        #serviceTime = (self.busServiceCycles[self.calibrateToID] / self.busReads[self.calibrateToID])
+        serviceTime = self.avgBusServiceCycles[self.calibrateToID]
+        
         
         curBW = self.busReads[id] / self.ticks[id]
         maxBW = self.busReads[-1] / self.ticks[-1]
+        #maxBW = self.busRequests[-1] / self.ticks[-1]
         
         bwratio = maxBW / curBW
         
         if squareBWRatio:
-            retval =  bwratio**2 * systemTime*arrivalRate*serviceTime
+            #retval =  bwratio**2 * systemTime*arrivalRate*serviceTime
+            retval = bwratio**2 * systemTime
         else:
-            retval =  bwratio* systemTime*arrivalRate*serviceTime
+            #retval =  bwratio* systemTime*arrivalRate*serviceTime
+            retval = bwratio * systemTime
         
         return retval
 
