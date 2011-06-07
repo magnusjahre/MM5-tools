@@ -185,11 +185,7 @@ class BandwidthModel:
         liumodel = [0 for i in range(self.numConfigs)]
         
         for i in range(self.numConfigs):
-            curBW = self.busReads[i] / self.ticks[i]
-            maxBW = self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID]
-        
-            bwratio = maxBW / curBW
-            busEstimate =  (bwratio**2) * (1.0 / self.getCalibrateBW())
+            busEstimate =  self.getRatioBusEstimate(i, True)
         
             liumodel[i] = self.CPIinfL2 + ( (self.overlap[self.calibrateToID] * self.busReads[self.calibrateToID] * busEstimate) / self.committedInstructions[i])
         
@@ -200,7 +196,7 @@ class BandwidthModel:
         simplemodel = [0 for i in range(self.numConfigs)]
                 
         for i in range(self.numConfigs):
-            simplemodel[i] = self.CPIinfL2 + ((self.overlap[self.calibrateToID] * self.busReads[self.calibrateToID] * self.getCycleBusEstimate(i)) / self.committedInstructions[self.calibrateToID]) 
+            simplemodel[i] = self.CPIinfL2 + ((self.overlap[self.calibrateToID] * self.busReads[self.calibrateToID] * self.getRatioBusEstimate(i)) / self.committedInstructions[self.calibrateToID]) 
             actual = self.ticks[i] / self.committedInstructions[i]
             self.cpistats[i] = ErrorMeasurement(actual, simplemodel[i])
         
@@ -221,15 +217,10 @@ class BandwidthModel:
                   xrange="0,"+str(max(self.arrivalRates)*1.025),
                   yrange="0," + str(max(actualCPI) * 1.1),
                   title=self.bmname,
-                  filename=filename)
+                  filename=filename,
+                  cols=2)
 
-    def getCalibrateBW(self):
-        return self.busReads[self.calibrateToID] / self.busCycles[self.calibrateToID]
-    
-    def getCycleBusEstimate(self, id):
-        return (self.ticks[id] / self.ticks[self.calibrateToID]) * (1.0 / self.getCalibrateBW())
-    
-    def getRatioBusEstimate(self, id):
+    def getRatioBusEstimate(self, id, squareBWRatio = False):
         
         systemTime = (self.busCycles[self.calibrateToID] / self.busReads[self.calibrateToID])
         arrivalRate = (self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID])
@@ -240,7 +231,10 @@ class BandwidthModel:
         
         bwratio = maxBW / curBW
         
-        retval =  bwratio* systemTime*arrivalRate*serviceTime
+        if squareBWRatio:
+            retval =  bwratio**2 * systemTime*arrivalRate*serviceTime
+        else:
+            retval =  bwratio* systemTime*arrivalRate*serviceTime
         
         return retval
 
@@ -248,15 +242,15 @@ class BandwidthModel:
         actualBusLat = [self.busCycles[i] / self.busReads[i] for i in range(self.numConfigs)]
         
         estimateBusLat = [0 for i in range(self.numConfigs)]
-        ratioBusLat = [0 for i in range(self.numConfigs)]
+        sqRatioEstLat = [0 for i in range(self.numConfigs)]
         for i in range(self.numConfigs):
-            estimateBusLat[i] = self.getCycleBusEstimate(i)
-            ratioBusLat[i] = self.getRatioBusEstimate(i)
+            estimateBusLat[i] = self.getRatioBusEstimate(i, False)
+            sqRatioEstLat[i] = self.getRatioBusEstimate(i, True)
             self.busstats[i] = ErrorMeasurement(self.busCycles[i] / self.busReads[i], estimateBusLat[i])
         
         plotLines([self.arrivalRates, self.arrivalRates, self.arrivalRates],
-                  [actualBusLat, estimateBusLat, ratioBusLat],
-                  legendTitles=["Actual", "Cycle Estimate", "Ratio Estimate"],
+                  [actualBusLat, estimateBusLat, sqRatioEstLat],
+                  legendTitles=["Actual", "Estimate", "Ratio Squared Estimate"],
                   ylabel="Average Bus Latency (Clock Cycles)",
                   xlabel="Arrival Rate (Requests/Cycle)",
                   yrange="0," + str(max(actualBusLat) * 1.1),
