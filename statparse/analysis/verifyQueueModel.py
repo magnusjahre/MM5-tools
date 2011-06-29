@@ -225,22 +225,14 @@ class BandwidthModel:
     def getRatioBusEstimate(self, id, squareBWRatio = False):
         
         systemTime = (self.busCycles[self.calibrateToID] / self.busReads[self.calibrateToID])
-        arrivalRate = (self.busReads[self.calibrateToID] / self.ticks[self.calibrateToID])
-        #serviceTime = (self.busServiceCycles[self.calibrateToID] / self.busReads[self.calibrateToID])
-        serviceTime = self.avgBusServiceCycles[self.calibrateToID]
-        
         
         curBW = self.busReads[id] / self.ticks[id]
-        maxBW = self.busReads[-1] / self.ticks[-1]
-        #maxBW = self.busRequests[-1] / self.ticks[-1]
-        
+        maxBW = self.busReads[-1] / self.ticks[-1]        
         bwratio = maxBW / curBW
         
         if squareBWRatio:
-            #retval =  bwratio**2 * systemTime*arrivalRate*serviceTime
             retval = bwratio**2 * systemTime
         else:
-            #retval =  bwratio* systemTime*arrivalRate*serviceTime
             retval = bwratio * systemTime
         
         return retval
