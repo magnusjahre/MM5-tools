@@ -31,6 +31,8 @@ class MissProfile:
     SETS = 16
     BANKS = 4
     
+    FLATDIFFERENCE = 1.05
+    
     def __init__(self, bm, index, opts):
         
         self.opts = opts
@@ -70,6 +72,35 @@ class MissProfile:
         
         self.missDistribution = [self.maxmisses-cumulativeHits[i] for i in range(self.SETS)]
 
+        self.calibratePicewiseLinearModel()
+
+    def calibratePicewiseLinearModel(self):
+        #print self.missDistribution
+        #for i in range(1, self.SETS):
+        #    print i,"->",i+1, self.missDistribution[i-1] / self.missDistribution[i], "(", self.missDistribution[i-1], "->", self.missDistribution[i], ")"
+        
+        firstInflection = 0
+        for i in range(1, self.SETS):
+            if self.missDistribution[i-1] / self.missDistribution[i] > self.FLATDIFFERENCE:
+                firstInflection = i-1
+                break
+
+        secondInflection = self.SETS-1
+        for i in range(firstInflection+1, self.SETS-1):
+            if self.missDistribution[i] / self.missDistribution[i+1] < self.FLATDIFFERENCE and self.missDistribution[i-1] / self.missDistribution[i] > self.FLATDIFFERENCE:
+                secondInflection = i
+        
+        gradient = (self.missDistribution[secondInflection] - self.missDistribution[firstInflection]) / (secondInflection - firstInflection)
+        
+        self.picewisemodel = [0 for i in range(self.SETS)]
+        for i in range(self.SETS):
+            if i < firstInflection:
+                self.picewisemodel[i] = self.missDistribution[0]
+            elif i >= firstInflection and i <= secondInflection:
+                self.picewisemodel[i] = self.missDistribution[0] + (i-firstInflection)*gradient
+            else:
+                self.picewisemodel[i] = self.missDistribution[secondInflection]
+
     def accumulateDistribution(self, newdata):
         assert len(newdata) == len(self.hitDistribution)
         for i in range(len(newdata)):
@@ -87,9 +118,12 @@ class MissProfile:
         return tmp
 
     def plot(self, filename = ""):
-        plotLines([[i for i in range(1, self.SETS+1)]],
-                  [self.missDistribution],
+        setvector = [i for i in range(1, self.SETS+1)] 
+        
+        plotLines([setvector, setvector],
+                  [self.missDistribution, self.picewisemodel],
                   title=self.benchmark,
+                  legendTitles=["Miss Profile", "Piecewise Linear Model"],
                   xlabel="Shared Cache Sets",
                   ylabel="Number of Cache Misses",
                   yrange="0,"+str(max(self.missDistribution)*1.1),
