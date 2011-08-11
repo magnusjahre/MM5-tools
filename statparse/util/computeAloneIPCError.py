@@ -7,7 +7,7 @@ import statparse.tracefile.errorStatistics as errorStats
 commands = ["IPC", "MWS", "latency"]
 
 def getTracename(dir, cpuID, sharedMode):
-    prefix = "missBandwidthPolicyCommittedInsts"
+    prefix = "globalPolicyCommittedInsts"
     postfix = ".txt"
     
     return dir+"/"+prefix+str(cpuID)+postfix
