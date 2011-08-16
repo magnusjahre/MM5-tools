@@ -32,7 +32,8 @@ class ComputerParams:
             info("Kongull run detected...")
             self.ppn = {1:10, 2:10, 4:10, 8:10, 16:6}
             self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
-            self.projectNum = "acc-idi"
+            if opts.queue == "default":
+                self.projectNum = "acc-idi"
             
         else:
             info("No HPC cluster detected, using fallback values...")
