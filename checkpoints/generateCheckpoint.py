@@ -76,7 +76,7 @@ def buildPossibleParams():
     
     #nps = [4, 8, 16]
     #memsys = ["CrossbarBased", "RingBased"]
-    nps = [2, 4]
+    nps = [2, 4, 8]
     memsys = ["RingBased"]
     fw = -1
     
@@ -102,7 +102,7 @@ def printParameters(np, wl, memsys, simpoint, fw):
 
 def copyCheckpointFiles(destination, opts):
     
-    otherResFiles = ["res*txt", "config.ini", "config.py", "config.out"]
+    otherResFiles = ["res*txt", "config.ini", "config.py", "config.out", "simoutput.txt"]
     
     if not os.path.exists(destination):
         os.mkdir(destination)
