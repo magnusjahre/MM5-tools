@@ -10,11 +10,15 @@ from statparse.util import fatal, warn
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
 from statparse.plotResults import plotImage
+from statparse.plotResults import plotRawScatter
+from workloadfiles.workloads import Workload
 
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
 import statparse.printResults as printres
 import re
+import random
+import pickle
 
 ERRVAL = "N/A"
 
@@ -30,6 +34,9 @@ class ProfileResult:
         self.ymap = {}
         self.profile = []
         
+        self.maxySpeedup = 0
+        self.maxxSpeedup = 0
+        
         for y in range(len(self.ynames)):
             self.profile.append([ERRVAL for i in self.xnames])
             self.ymap[self.ynames[y]] = y
@@ -41,7 +48,139 @@ class ProfileResult:
         self.profile[self.ymap[yname]][self.xmap[xname]] = value
         
     def getResult(self, xname, yname):
-        return self.profile[self.ymap[yname]][self.xmap[xname]] 
+        return self.profile[self.ymap[yname]][self.xmap[xname]]
+    
+    def updateSpeedups(self):
+        
+        self.maxySpeedup = 0
+        self.maxxSpeedup = 0
+        
+        for i in range(len(self.ynames)):
+            curxSpeedup = self.profile[i][-1] / self.profile[i][0]
+            if curxSpeedup > self.maxxSpeedup:
+                self.maxxSpeedup = curxSpeedup
+    
+        for i in range(len(self.xnames)):
+            curySpeedup = self.profile[-1][i] / self.profile[0][i]
+            if curySpeedup > self.maxySpeedup:
+                self.maxySpeedup = curySpeedup
+
+class ProfileSpeedups:
+    
+    def __init__(self):
+        self.xSpeedups = []
+        self.ySpeedups = []
+        self.benchmarks = []
+        
+        self.xstat = ""
+        self.ystat = ""
+        
+    def checkStat(self, profile):
+        xstat = profile.xstat
+        ystat = profile.ystat
+        
+        if self.xstat != "":
+            assert(self.xstat == xstat)
+        else:
+            self.xstat = xstat
+            
+        if self.ystat != "":
+            assert(self.ystat == ystat)
+        else:
+            self.ystat = ystat
+            
+    def addStat(self, profile, bm):
+        self.benchmarks.append(bm)
+        self.xSpeedups.append(profile.maxxSpeedup)
+        self.ySpeedups.append(profile.maxySpeedup)
+        
+    def plot(self):
+        plotRawScatter(self.xSpeedups,
+                       self.ySpeedups,
+                       xlabel = self.xstat,
+                       ylabel = self.ystat)
+        
+    def classify(self, opts):
+        
+        xlim = 2.0
+        ylim = 1.5
+        
+        both = []
+        ysens = []
+        xsens = []
+        none = []
+        
+        for i in range(len(self.xSpeedups)):
+            if self.xSpeedups[i] > xlim and self.ySpeedups[i] > ylim:
+                both.append(self.benchmarks[i])
+            elif self.xSpeedups[i] > xlim:
+                xsens.append(self.benchmarks[i])
+            elif self.ySpeedups[i] > ylim:
+                ysens.append(self.benchmarks[i])
+            else:
+                none.append(self.benchmarks[i])
+        
+        random.seed(42)
+        
+        print
+        print "Benchmark classification with xlim="+str(xlim)+" and ylim="+str(ylim)
+        print
+        print "Both: "+str(both)
+        print self.ystat+": "+str(ysens)
+        print self.xstat+": "+str(xsens)
+        print "None: "+str(none)
+        print
+        
+        self.workloads = {}
+        self.coverage = {}
+        for np in [2,4,8]:
+            self.workloads[np] = {}
+            self.coverage[np] = [False for i in range(len(self.benchmarks))]
+            self.addWlType(np, "a", 10, both)
+            self.addWlType(np, "b", 10, xsens)
+            self.addWlType(np, "c", 10, ysens)
+            self.addWlType(np, "n", 10, none)
+        
+        print
+        print "Generated the following workloads"
+        print
+        for np in self.workloads:
+            print np
+            print "Benchmarks not included: ",
+            for i in range(len(self.coverage[np])):
+                if not self.coverage[np][i]:
+                    print self.benchmarks[i],
+                    if self.benchmarks[i] not in none:
+                        print "(NOT NONE)",
+                    
+            print
+            
+            for type in self.workloads[np]:
+                print type
+                for wl in self.workloads[np][type]:
+                    print str(wl)
+                    
+        outfile = open("typewls.pkl", "w")
+        pickle.dump(self.workloads, outfile)
+        outfile.close()
+        
+                
+    def addWlType(self, np, key, count, bms):
+        self.workloads[np][key] = []
+        for i in range(count):
+            self.workloads[np][key].append(self.findWorkload(bms, np))
+    
+    def findWorkload(self, bms, np):
+        wl = Workload()
+       
+        while wl.getNumBms() < np:
+            index = random.randint(0, len(bms)-1)
+            wl.addBenchmark(bms[index])
+            
+            for i in range(len(self.benchmarks)):
+                if bms[index] == self.benchmarks[i]:
+                    self.coverage[np][i] = True
+        return wl
 
 def parseArgs():
     parser = OptionParser(usage="getProfile.py [options] statistic-pattern [statistic-pattern]")
@@ -52,6 +191,7 @@ def parseArgs():
     parser.add_option("--index-file", action="store", dest="indexfile", default="index-all", help="Use a different index file")
     parser.add_option("--benchmark", action="store", dest="benchmark", default="", help="Only print profile for given benchmark")
     parser.add_option("--decimals", action="store", dest="decimals", default=2, type="int", help="Number of decimals to print")
+    parser.add_option("--generate-wls", action="store_true", dest="genWls", default=False, help="Generate multiprogrammed workloads")
 
     optcomplete.autocomplete(parser)
 
@@ -228,7 +368,6 @@ def doPlot(benchmark, pattern, profile, filename = ""):
               zrange=zrangestr,
               filename=filename)
 
-
 def main():
     
     opts,args = parseArgs()
@@ -261,10 +400,13 @@ def main():
     if not opts.quiet:
         print "done!"
 
+    speedupProfile = ProfileSpeedups()
     
     if opts.benchmark != "":
         profile = getProfile(opts.benchmark, opts, pattern, pbsconfigobj, index, pattern2)
         printTable(profile, opts)
+        profile.updateSpeedups()
+        
         if opts.plot:
             doPlot(opts.benchmark, pattern, profile)
     else:
@@ -280,9 +422,17 @@ def main():
                 print "Processing "+bm
             profile = getProfile(bm, opts, pattern, pbsconfigobj, index, pattern2)
             printTable(profile, opts, "profile-data-"+bm+".txt")
+            profile.updateSpeedups()
+            
+            speedupProfile.checkStat(profile)
+            speedupProfile.addStat(profile, bm)
+            
             if opts.plot:
                 doPlot(bm, pattern, profile, "profile-plot-"+bm+".pdf")
-            
+        
+        if opts.genWls:
+            speedupProfile.classify(opts)
+        
 
 if __name__ == '__main__':
     main()
