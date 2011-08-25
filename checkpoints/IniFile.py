@@ -9,6 +9,7 @@ commentPattern = re.compile("^//.*")
 elementPattern = re.compile(".*=.*")
 
 sharedCachePattern = re.compile("SharedCache[0-9]")
+cacheInterferencePattern = re.compile("cacheInterference")
 simpleCPUPattern = re.compile("simpleCPU[0-9]")
 l1cachePattern = re.compile("L1[di]caches[0-9]")
 privL2cachePattern = re.compile("PrivateL2Cache[0-9]")
@@ -43,6 +44,9 @@ def read(filename, outfilename, newCoreID):
             if sharedCachePattern.match(name) != None:
                 writeToFile = False
             
+            elif cacheInterferencePattern.match(name) != None:
+                writeToFile = False
+                
             else:
                 if translationNeeded(name):
                     newName = translateHeader(name, newCoreID)

@@ -21,6 +21,13 @@ def mergeSharedCache(np, cptPath, outfilename):
     
     cptfile = open(outfilename, "a") 
     
+    sectionName = "cacheInterference"
+    cptfile.write("\n["+sectionName+"]\n")
+    cptfile.write("filenames=")
+    for i in range(np):
+        cptfile.write("cacheInterference-content.bin."+str(i)+" ")
+    cptfile.write("\n")
+    
     for bankID in range(NUMBANKS):
         files = []
         filenames = []
@@ -123,6 +130,8 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
             if file != "m5.cpt":
                 newFilePath = "../"+checkPath+"/"+file
                 if file.startswith("SharedCache"):
+                    newname = file+"."+str(cpuID)
+                elif file.startswith("cacheInterference"):
                     newname = file+"."+str(cpuID)
                 else:
                     newname = file.replace("0", str(cpuID))
