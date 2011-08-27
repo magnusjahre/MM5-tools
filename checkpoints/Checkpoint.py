@@ -94,6 +94,9 @@ def moveBinaryFiles(chkPath):
     for f in glob.glob("SharedCache*.bin"):
         if f not in filenames:
             filenames.append(f)
+    for f in glob.glob("cacheInterference*.bin"):
+        if f not in filenames:
+            filenames.append(f)
     for filename in filenames:
         os.rename(filename, chkPath+"/"+filename)
 
@@ -163,7 +166,7 @@ def runCheckpointGeneration(bm, fwinsts, memsys, np):
     m5cmd.setArgument("SIMINSTS", fwinsts)
     m5cmd.setExpectedComInsts(fwinsts)
     
-    success = m5cmd.run(0, "simpleCPU.*num_insts.*")
+    success = m5cmd.run(0, "simpleCPU.*num_insts.*", True)
     if not success:
         print "Error: M5 did not complete successfully, checkpoint generation failed"
         sys.exit(-1)
