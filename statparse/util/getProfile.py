@@ -133,12 +133,21 @@ class ProfileSpeedups:
         
         self.workloads = {}
         self.coverage = {}
+        
         for np in [2,4,8]:
             self.workloads[np] = {}
             self.coverage[np] = [False for i in range(len(self.benchmarks))]
-            self.addWlType(np, "a", 5, both)
+            if np == 2:
+                self.addWlType(np, "a", 10, both)
+            else:
+                self.addWlType(np, "a", 5, both)
             self.addWlType(np, "b", 10, xsens)
-            self.addWlType(np, "c", 5, ysens)
+            
+            if np == 2:
+                self.addWlType(np, "c", 10, ysens)
+            else:
+                self.addWlType(np, "c", 5, ysens)
+            
             self.addWlType(np, "n", 20, self.benchmarks)
         
         print
@@ -170,6 +179,8 @@ class ProfileSpeedups:
             self.workloads[np][key] = []
             for i in range(count):
                 self.workloads[np][key].append(self.findWorkload(bms, np))
+        elif np == len(bms):
+            self.workloads[np][key] = [self.findWorkload(bms, np)]
     
     def findWorkload(self, bms, np):
         wl = Workload()
