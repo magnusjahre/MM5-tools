@@ -20,7 +20,7 @@ class ComputerParams:
         
         self.queue = opts.queue
         self.projectNum = None
-        self.perProcMem = {1:2304, 2:2304, 4:2600, 8:2600, 16:4032}
+        self.perProcMem = {1:2000, 2:2000, 4:2000, 8:2000, 16:4032}
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
@@ -30,7 +30,7 @@ class ComputerParams:
         
         elif re.search("kongull", compname):
             info("Kongull run detected...")
-            self.ppn = {1:10, 2:10, 4:9, 8:9, 16:6}
+            self.ppn = {1:12, 2:12, 4:12, 8:12, 16:6}
             self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             if opts.queue == "default":
                 self.projectNum = "acc-idi"
