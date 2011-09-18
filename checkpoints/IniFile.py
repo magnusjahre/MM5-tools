@@ -71,7 +71,7 @@ def read(filename, outfilename, newCoreID):
                 line = l.strip()
                 if cacheCPUIDPattern.match(line):
                     outfile.write("cacheCpuID="+str(newCoreID)+"\n")
-                if filenamePattern.match(line):
+                if filenamePattern.search(line):
                     outfile.write(line.strip().replace("0", str(newCoreID))+"\n")
                 else:
                     outfile.write(l.strip()+"\n")
