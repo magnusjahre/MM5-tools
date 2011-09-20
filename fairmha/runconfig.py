@@ -20,7 +20,7 @@ class ComputerParams:
         
         self.queue = opts.queue
         self.projectNum = None
-        self.perProcMem = {1:2000, 2:2000, 4:2000, 8:2000, 16:4032}
+        self.perProcMem = {1:1900, 2:1900, 4:1900, 8:1900, 16:4032}
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
