@@ -3,6 +3,7 @@ from statparse.metrics import NoAggregation
 
 import processResults
 import printResults
+import plotResults
 
 import sys
 import simpoints.simpoints as simpoints
@@ -708,7 +709,7 @@ class StatResults():
         
         return newAggregate
     
-    def printAggregateDistribution(self, decimalPlaces, outfile):
+    def printAggregateDistribution(self, decimalPlaces, outfile, plot):
         
         if self.aggregatePatterns:
             aggDistrib = self._aggregateDistributions(self.noPatResults)
@@ -723,7 +724,8 @@ class StatResults():
                 aggDistrib = self._aggregateDistributions(self.results[statkey])
                 self._printDistribution(aggDistrib, decimalPlaces, outfile)
                                 
-                
+                if plot != "none":
+                    plotResults.plotDistribution(aggDistrib)
     
     def _aggregateDistributions(self, data):
         aggDistrib = {}                

@@ -482,6 +482,32 @@ def plotHistogram(data, **kwargs):
     
     plt.show()
 
+def plotDistribution(distribution, **kwargs):
+    
+    del distribution["samples"]
+    del distribution["max_value"]
+    del distribution["min_value"]
+    
+    data = []
+    labels = sorted(distribution.keys())
+    
+    for l in labels:
+        data.append(distribution[l])
+
+    ind = range(0, len(labels))
+
+    import matplotlib.pyplot as plt    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    ax.bar(ind, data, 1.0)
+    
+    centerticks = [i+0.5 for i in ind]
+    ax.set_xticks(centerticks)
+    ax.set_xticklabels(labels, rotation="vertical")
+    
+    plt.show() 
+
 def plotBrokenBarchart(data, **kwargs):
     
     import matplotlib.pyplot as plt

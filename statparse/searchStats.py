@@ -267,7 +267,7 @@ def writeSearchResults(statSearch, opts, outfile):
             sys.exit(-1)
         
     elif opts.printAggDistribution:
-        statSearch.printAggregateDistribution(opts.decimals, outfile)
+        statSearch.printAggregateDistribution(opts.decimals, outfile, opts.plot)
         
     elif opts.printDistFile:
         if not opts.quiet:
