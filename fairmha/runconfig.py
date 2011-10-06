@@ -34,6 +34,8 @@ class ComputerParams:
             self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             if opts.queue == "default":
                 self.projectNum = "acc-idi"
+            elif opts.queue == "optimist":
+                self.projectNum = "freecycle"
             
         else:
             info("No HPC cluster detected, using fallback values...")
