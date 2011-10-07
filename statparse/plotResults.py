@@ -130,12 +130,24 @@ def plotRawScatter(xdata, ydata, **kwargs):
         
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(xdata, ydata, 'o')
+    series = ax.plot(xdata, ydata, 'o')
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
     if "ylabel" in kwargs:
         ax.set_ylabel(kwargs["ylabel"])
+        
+    if "yrange" in kwargs:
+        try:
+            yrange = kwargs["yrange"].split(",")
+            ymin = float(yrange[0])
+            ymax = float(yrange[1])
+        except:
+            raise Exception("Invalid yrange string")
+        ax.set_ylim(ymin, ymax)
+    
+    if "legend" in kwargs:
+        ax.legend(series, kwargs["legend"], "upper center")
     
     if "filename" in kwargs:
         plt.savefig(kwargs["filename"], type="pdf")
