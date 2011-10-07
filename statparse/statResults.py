@@ -723,8 +723,8 @@ class StatResults():
             
                 aggDistrib = self._aggregateDistributions(self.results[statkey])
                 self._printDistribution(aggDistrib, decimalPlaces, outfile)
-                                
-                if plot != "none":
+                
+                if plot != "none" and aggDistrib != {}:
                     plotResults.plotDistribution(aggDistrib)
     
     def _aggregateDistributions(self, data):
