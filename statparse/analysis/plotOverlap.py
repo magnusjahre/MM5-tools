@@ -8,6 +8,7 @@ from statparse.plotResults import plotRawScatter
 
 import statparse.experimentConfiguration as expconfig
 import statparse.processResults as procres
+import statparse.printResults as printres
 
 import os
 import sys
@@ -61,7 +62,7 @@ class OverlapStats:
         for w in self.ways:
             data[w] = {}
             for b in self.bws:
-                data[w][b] = findPattern(pattern, w, b, self.results)
+                data[w][b] = float(findPattern(pattern, w, b, self.results))
         return data
 
     def _makeArray(self, usedict):
@@ -70,30 +71,52 @@ class OverlapStats:
             data.append(usedict[b])
         return data
 
-    def plot(self):
+    def plot(self, filename = ""):
         xdata = []
         ydata = []
+        maxpara = 0.0
         for w in ways:
-            ydata.append(self._makeArray(self.reqpara[w]))
+            tmpreqpara = self._makeArray(self.reqpara[w])
+            ydata.append(tmpreqpara)
             xdata.append(self._makeArray(self.avgReqLatency[w]))
+            if max(tmpreqpara) > maxpara:
+                maxpara =  max(tmpreqpara) 
         
         plotRawScatter(xdata,
                        ydata,
-                       yrange="0,"+str(max(self.reqpara)*1.1))
+                       yrange="0,"+str(maxpara*1.25),
+                       legend=ways,
+                       title=self.benchmark,
+                       xlabel="Average Shared Memory Latency (cycles)",
+                       ylabel="Average Parallel Requests",
+                       filename=filename)
         
-    
+    def dump(self, decimals):
+        header = [""]
+        just = [True]
+        for b in self.bws:
+            header.append(printres.numberToString(b, decimals))
+            just.append(False)
+        data = [header]
+        
+        for w in self.ways:
+            line = [str(w)]
+            for b in self.bws:
+                line.append(printres.numberToString(self.reqpara[w][b], decimals))
+            data.append(line)
+            
+        printres.printData(data, just, sys.stdout, decimals)
         
 def parseArgs():
     parser = OptionParser(usage="plotOverlap.py [options] [benchmark]")
 
-    parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
+    parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Suppress output")
+    parser.add_option("-f", "--plot-filename", action="store", dest="plotfilename", default="", help="Write plot to this file")
+    parser.add_option("--decimals", action="store", dest="decimals", default=3, help="Number of decimal places in output")
     
     opts, args = parser.parse_args()
     return opts,args
     
-def handleMultibenchmark(index, opts):
-    fatal("not impl")
-
 if __name__ == '__main__':
     opts,args = parseArgs()
     
@@ -132,7 +155,16 @@ if __name__ == '__main__':
 
     if len(args) > 0:
         stats = OverlapStats(args[0], index, ways, bws)
-        stats.plot()
+        
+        print
+        print "Request Overlap"
+        print
+        stats.dump(opts.decimals)
+        stats.plot(opts.plotfilename)
     else:
-        handleMultibenchmark(index, opts)
+        for bm in pbsconfigobj.getAllBenchmarks():
+            print "Processing "+bm
+            stats = OverlapStats(bm, index, ways, bws)
+            stats.plot("reqpara-"+bm+".pdf")
+        
         

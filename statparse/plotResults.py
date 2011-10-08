@@ -127,10 +127,16 @@ def plotRawScatter(xdata, ydata, **kwargs):
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
     matplotlib.rc('font', size=fontsize)
+    
+    if(len(xdata) != len(ydata)):
+        raise Exception("X and Y series data must be of equal length")
+    
         
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    series = ax.plot(xdata, ydata, 'o')
+    
+    for i in range(len(xdata)):
+        ax.plot(xdata[i], ydata[i], 'o')
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
@@ -147,10 +153,16 @@ def plotRawScatter(xdata, ydata, **kwargs):
         ax.set_ylim(ymin, ymax)
     
     if "legend" in kwargs:
-        ax.legend(series, kwargs["legend"], "upper center")
+        ax.legend(kwargs["legend"], "upper center", ncol=len(kwargs["legend"]))
+        
+    if "title" in kwargs:
+        ax.set_title(kwargs["title"])
     
     if "filename" in kwargs:
-        plt.savefig(kwargs["filename"], type="pdf")
+        if kwargs["filename"] != "":
+            plt.savefig(kwargs["filename"], type="pdf")
+        else:
+            plt.show()
     else:
         plt.show()
 

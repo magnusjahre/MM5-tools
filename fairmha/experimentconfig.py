@@ -116,12 +116,16 @@ class ExperimentConfiguration:
         elif suite == self.SUITE_2006:
             self.registerBenchmarksByName(spec2006names, memAddrParts)
         else:
-            bms = []
-            for b in specnames:
-                bms.append(b)
-            for b in spec2006names:
-                bms.append(b)
+            bms = self.getAllBenchmarks()
             self.registerBenchmarksByName(bms, memAddrParts)
+            
+    def getAllBenchmarks(self):
+        bms = []
+        for b in specnames:
+            bms.append(b)
+        for b in spec2006names:
+            bms.append(b)
+        return bms
     
     def registerBenchmarksByName(self, bmnames, memAddrParts):
         """ Arguments:
