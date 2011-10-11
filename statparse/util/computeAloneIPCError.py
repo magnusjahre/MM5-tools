@@ -38,7 +38,7 @@ def main():
     elif command == "latency":
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Alone Memory Latency", "Estimated Private Latency", False, True) 
     elif command == "overlap":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Alone Overlap", "Estimated Alone Overlap", False, True)
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Measured Alone Overlap", "Estimated Alone Overlap", False, True)
     elif command == "compute":
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Compute Cycles", "Compute Cycles", False, True) 
     else:
