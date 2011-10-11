@@ -1,4 +1,4 @@
-from statparse import experimentConfiguration, plotResults
+from statparse import experimentConfiguration, plotResults, isInt
 from statparse.metrics import NoAggregation
 
 import processResults
@@ -722,6 +722,15 @@ class StatResults():
                 print >> outfile, "Aggregate distribution for pattern "+statkey
             
                 aggDistrib = self._aggregateDistributions(self.results[statkey])
+                
+                if "samples" in aggDistrib:
+                    avgsum = 0.0
+                    for k in aggDistrib:
+                        if isInt(k):
+                            avgsum += float(k) * float(aggDistrib[k])
+                        
+                    print >> outfile, "Average is "+str(avgsum/aggDistrib["samples"])
+                
                 self._printDistribution(aggDistrib, decimalPlaces, outfile)
                 
                 if plot != "none" and aggDistrib != {}:
