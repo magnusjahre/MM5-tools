@@ -11,6 +11,8 @@ def parseArgs():
     parser.add_option("--numbins", action="store", dest="numbins", default=10, type="int", help="The number of bins to divide the data into")
     parser.add_option("--plotfile", action="store", dest="plotfile", default="", type="string", help="Write the histogram plot to this file")
     parser.add_option("--title", action="store", dest="title", default="", type="string", help="Title of the plot")
+    parser.add_option("--xlabel", action="store", dest="xlabel", default="Time (seconds)", type="string", help="X-axis label")
+    parser.add_option("--use-col-id", action="store", dest="usecol", default=1, type="int", help="The column in the datafile to use")
     
     opts, args = parser.parse_args()
 
@@ -29,13 +31,22 @@ def readFile(filename, opts):
         print "Cannot open file "+str(filename)
         sys.exit()
     
-    times = []
+    datavals = []
+    file.readline() # skip header 
     
     for l in file:
-        i, time = l.split()
-        times.append(float(time))
+        line = l.split()
+        if opts.usecol > len(line)-1:
+            print "ERROR: Line has "+str(len(line))+" columns, you asked for column "+str(opts.usecol)
+            sys.exit()    
+        
+        try:
+            datavals.append(float(line[opts.usecol]))
+        except ValueError:
+            print "ERROR: Data content \""+str(line[opts.usecol])+"\" cannot be converted to a float"
+            sys.exit()   
     
-    return times
+    return datavals
 
 def main():
     
@@ -43,10 +54,12 @@ def main():
 
     times = readFile(datafilename, opts)
     
+    print "Maximum value is "+str(max(times))
+    
     plotHistogram(times,
                   bins=opts.numbins,
                   filename=opts.plotfile,
-                  xlabel='Time (seconds)',
+                  xlabel=opts.xlabel,
                   title=opts.title)
     
 
