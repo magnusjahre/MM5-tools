@@ -64,6 +64,15 @@ class ProfileResult:
             curySpeedup = self.profile[-1][i] / self.profile[0][i]
             if curySpeedup > self.maxySpeedup:
                 self.maxySpeedup = curySpeedup
+    
+    def normalize(self):
+        xmaxindex = len(self.xnames)-1
+        ymaxindex = len(self.ynames)-1
+        
+        for y in range(len(self.ynames)):
+            for x in range(len(self.xnames)):
+                self.profile[y][x] = self.profile[y][x] / self.profile[ymaxindex][xmaxindex] 
+        
 
 class ProfileSpeedups:
     
@@ -203,8 +212,14 @@ def parseArgs():
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Print the results as a heat map")
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Suppress output")
     parser.add_option("--vector-dist", action="store_true", dest="vectorDist", default=False, help="The pattern identifies a Vector Distribution")
+    parser.add_option("--relative-legend", action="store_true", dest="relative", default=False, help="Use the maximum legend value as the absolute maximum and add percentages")
+    parser.add_option("--normalize-data", action="store_true", dest="normalizeData", default=False, help="Normalize data to the maximum configuration")
     parser.add_option("--index-file", action="store", dest="indexfile", default="index-all", help="Use a different index file")
     parser.add_option("--benchmark", action="store", dest="benchmark", default="", help="Only print profile for given benchmark")
+    parser.add_option("--xlabel", action="store", dest="xlabel", default="", help="Use this label for the x-axis")
+    parser.add_option("--ylabel", action="store", dest="ylabel", default="", help="Use this label for the y-axis")
+    parser.add_option("--zlabel", action="store", dest="zlabel", default="", help="Use this label for the z-axis")
+    parser.add_option("--outfile", action="store", dest="outfile", default="", help="Plot to this filename")
     parser.add_option("--decimals", action="store", dest="decimals", default=2, type="int", help="Number of decimals to print")
     parser.add_option("--generate-wls", action="store_true", dest="genWls", default=False, help="Generate multiprogrammed workloads")
 
@@ -333,6 +348,10 @@ def getProfile(benchmark, opts, pattern, pbsconfigobj, index, pattern2 = None):
             
             profile.addResult(x, y, res)
 
+
+    if opts.normalizeData:
+        profile.normalize()
+    
     return profile
 
 def printTable(profile, opts, outfilename = ""):
@@ -365,19 +384,47 @@ def printTable(profile, opts, outfilename = ""):
     if outfilename != "":
         outfile.close() 
 
-def doPlot(benchmark, pattern, profile, filename = ""):
+def normalize(vector):
+    maxval = float(vector[-1])
+    for i in range(len(vector)):
+        vector[i] = (vector[i] / maxval)*100
+    return vector
+        
+
+def doPlot(benchmark, pattern, profile, opts, filename):
     
     yrangestr = "-0.5,"+str(len(profile.ynames)-0.5)
     xrangestr = "-0.5,"+str(len(profile.xnames)-0.5)
     zrangestr = "0,"+str(max(max(profile.profile)))
     
+    xticklabels = profile.xnames
+    yticklabels = profile.ynames
+    
+    if opts.relative:
+        xticklabels = normalize(xticklabels)
+        yticklabels = normalize(yticklabels)
+    
+    xlabel = profile.xstat
+    if opts.xlabel != "":
+        xlabel = opts.xlabel
+    
+    ylabel = profile.ystat
+    if opts.ylabel != "":
+        ylabel = opts.ylabel
+        
+    zlabel = pattern
+    if opts.zlabel != "":
+        zlabel = opts.zlabel
+    
+    title = benchmark.replace("0","").replace("s6-","")
+    
     plotImage(profile.profile,
-              xlabel=profile.xstat,
-              ylabel=profile.ystat,
-              zlabel=pattern,
-              title=benchmark,
-              xticklabels=profile.xnames,
-              yticklabels=profile.ynames,
+              xlabel=xlabel,
+              ylabel=ylabel,
+              zlabel=zlabel,
+              title=title,
+              xticklabels=xticklabels,
+              yticklabels=yticklabels,
               yrange=yrangestr,
               xrange=xrangestr,
               zrange=zrangestr,
@@ -423,7 +470,7 @@ def main():
         profile.updateSpeedups()
         
         if opts.plot:
-            doPlot(opts.benchmark, pattern, profile)
+            doPlot(opts.benchmark, pattern, profile, opts, opts.outfile)
     else:
         
         if pbsconfigobj == None:
@@ -443,7 +490,7 @@ def main():
             speedupProfile.addStat(profile, bm)
             
             if opts.plot:
-                doPlot(bm, pattern, profile, "profile-plot-"+bm+".pdf")
+                doPlot(bm, pattern, profile, opts, "profile-plot-"+bm+".pdf")
         
         if opts.genWls:
             speedupProfile.classify(opts)
