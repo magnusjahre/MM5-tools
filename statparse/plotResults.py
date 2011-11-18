@@ -118,10 +118,24 @@ def plotScatter(data, **kwargs):
     plt.savefig(plotFileName, type="pdf")
     plt.show()
 
+def linRegression(xdata, ydata, addZero):
+    import numpy as np
+    
+    if addZero:
+        xdata.insert(0, 0.0)
+        ydata.insert(0, 0.0)
+    
+    xvec = np.array(xdata)
+    yvec = np.array(ydata)
+    A = np.vstack([xvec, np.ones(len(xvec))]).T
+    m,c = np.linalg.lstsq(A, yvec)[0]
+    return m,c
+
 def plotRawScatter(xdata, ydata, **kwargs):
     
     import matplotlib
     import matplotlib.pyplot as plt
+    
         
     fontsize = 16
     matplotlib.rc('xtick', labelsize=fontsize) 
@@ -131,12 +145,20 @@ def plotRawScatter(xdata, ydata, **kwargs):
     if(len(xdata) != len(ydata)):
         raise Exception("X and Y series data must be of equal length")
     
-        
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
     for i in range(len(xdata)):
         ax.plot(xdata[i], ydata[i], 'o')
+    
+    if "fitLines" in kwargs:
+        if kwargs["fitLines"]:
+            import numpy as np
+            for i in range(len(xdata)):
+                m,c = linRegression(xdata[i], ydata[i], True)
+                ax.plot(xdata[i], m *np.array(xdata[i]) + c)
+                print "Least squares fit of data set "+str(i)+": m="+str(m)+", c="+str(c)
+    
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
