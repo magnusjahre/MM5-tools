@@ -37,7 +37,8 @@ resultfiles = ["interconnect*.txt",
                "globalPolicy*.txt",
                "detailedCPU*IPCTrace.txt",
                "*-bmout.txt",
-               "membus*.txt"]
+               "membus*.txt",
+               "overlapEstimator.*txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
