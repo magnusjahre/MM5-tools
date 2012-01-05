@@ -38,7 +38,7 @@ def doSearch(benchmark, index):
 
 class OverlapStats:
 
-    def __init__(self, bm, index, ways, bws, plotStall):
+    def __init__(self, bm, index, ways, bws, plotStall, addStallCycles):
         self.benchmark = bm        
         self.results = doSearch(bm, index)
         
@@ -51,9 +51,19 @@ class OverlapStats:
         self.memReqCycles = self.readPatternMatrix("interferenceManager.total_latency")
         self.avgReqLatency = self.readPatternMatrix("interferenceManager.avg_total_latency")
         
+        self.privateMemCycles = self.readPatternMatrix("interferenceManager.total_private_memsys_latency")
+        self.privateL1Cycles = self.readPatternMatrix("interferenceManager.total_l1_hit_latency")
+        self.memsysEntryCycles = self.readPatternMatrix("interferenceManager.total_memsys_entry_latency")
+        
+        if addStallCycles:
+            self.stallCycles = self.add(self.stallCycles, self.privateMemCycles)
+            self.stallCycles = self.add(self.stallCycles, self.privateL1Cycles)
+            self.stallCycles = self.add(self.stallCycles, self.memsysEntryCycles)
+        
+        
         self.reqpara = {}
         
-        for w in self.ways:
+        for w in self.ways: 
             self.reqpara[w] = {}
             for b in self.bws:
                 self.reqpara[w][b] = self.memReqCycles[w][b] / self.stallCycles[w][b]
@@ -65,6 +75,17 @@ class OverlapStats:
             data[w] = {}
             for b in self.bws:
                 data[w][b] = float(findPattern(pattern, w, b, self.results))
+        return data
+    
+    def add(self, m1, m2):
+        data = {}
+        for a in m1:
+            assert a in m2
+            data[a] = {}
+            for b in m1[a]:
+                assert b in m2[a]
+                data[a][b] = m1[a][b] + m2[a][b]
+                
         return data
 
     def _makeArray(self, usedict):
@@ -141,6 +162,7 @@ def parseArgs():
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Suppress output")
     parser.add_option("--plot-stall", action="store_true", dest="plotStall", default=False, help="Plot stall cycles vs memory latency")
+    parser.add_option("--add-cycles", action="store_true", dest="addCycles", default=False, help="Add private memory system latencies to the total memory latency")
     parser.add_option("--fit-line", action="store_true", dest="fitLine", default=False, help="Add linear regression lines to plot")
     parser.add_option("-f", "--plot-filename", action="store", dest="plotfilename", default="", help="Write plot to this file")
     parser.add_option("--decimals", action="store", dest="decimals", default=3, help="Number of decimal places in output")
@@ -185,14 +207,14 @@ if __name__ == '__main__':
         print "done!"
 
     if len(args) > 0:
-        stats = OverlapStats(args[0], index, ways, bws, opts.plotStall)
+        stats = OverlapStats(args[0], index, ways, bws, opts.plotStall, opts.addCycles)
         
         stats.dumpAll(opts.decimals)
         stats.plot(opts.plotfilename, opts.fitLine)
     else:
         for bm in pbsconfigobj.getAllBenchmarks():
             print "Processing "+bm
-            stats = OverlapStats(bm, index, ways, bws, opts.plotStall)
+            stats = OverlapStats(bm, index, ways, bws, opts.plotStall, opts.addCycles)
             stats.plot("reqpara-"+bm+".pdf", opts.fitLine)
         
         
