@@ -172,8 +172,13 @@ def plot(tracefiles, xCol, yCols, **kwargs):
                 raise Exception("Y file id or y column id out of range")     
             xvalues.append(xColValues[yFileID])
             legendTitles.append(str(yFileID)+":"+tracefiles[yFileID].headers[yColID])
-            
-        plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel)
+        
+        if kwargs["plotType"] == "line":
+            plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel)
+        elif kwargs["plotType"] == "scatter":
+            plotResults.plotRawScatter(xvalues, yvalues)
+        else:
+            raise Exception("Supported plot types are line and scatter")
 
 def findLowestEndpoint(value, sortedList):
     min = 0
