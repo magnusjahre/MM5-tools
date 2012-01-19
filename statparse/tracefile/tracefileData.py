@@ -8,9 +8,12 @@ from statparse.tracefile import isInt
 from statparse.tracefile import isFloat
 
 import statparse.plotResults as plotResults
+from statparse.printResults import printData
+from statparse.printResults import numberToString
 from statparse.tracefile.errorStatistics import ErrorStatistics
 import math
 import re
+import sys
 
 __metaclass__ = type
 
@@ -88,6 +91,41 @@ def buildColSpec(valuePairs):
             spec += ","
         spec += str(fileID)+":"+str(colID)
     return spec
+
+def formattedPrint(tracefile, colspecstr):
+    
+    decimals = 2
+    
+    useColumns = sorted(tracefile.data.keys())
+    if colspecstr != "":
+        colspec = parseColumnSpec(colspecstr)
+        useColumns = [c for f,c in colspec]
+    
+    data = []
+    headers = []
+    justify = []
+    
+    try:
+        for colID in useColumns:
+            headers.append(tracefile.headers[colID])
+            justify.append(False)
+    except:
+        raise Exception("Column ID points to column that does not exist in the file")
+        
+    data.append(headers)
+    
+    rowlength = len(tracefile.data[useColumns[0]])
+    for i in useColumns:
+        if rowlength != len(tracefile.data[i]):
+            raise Exception("All columns must be of the same length") 
+    
+    for i in range(rowlength):
+        row = []
+        for j in useColumns:
+            row.append(numberToString(tracefile.data[j][i], decimals))
+        data.append(row)    
+    
+    printData(data, justify, sys.stdout, decimals)
     
 
 def plot(tracefiles, xCol, yCols, **kwargs):
