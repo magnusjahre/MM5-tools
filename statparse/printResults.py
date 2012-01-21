@@ -137,6 +137,8 @@ def paramsToString(params, valuesOnly = False):
         
         retstr += keyIdent+"-"+str(params[k])
     
+    if retstr == "":
+        return "Data"
     return retstr
 
 def normalize(data, toColumnID, decimals):

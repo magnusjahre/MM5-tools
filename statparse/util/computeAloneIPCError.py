@@ -4,7 +4,7 @@ from statparse.util import fatal, getNpExperimentDirs, computeTraceError, parseU
 from statparse.tracefile.errorStatistics import plotBoxFromDict, dumpAllErrors
 import statparse.tracefile.errorStatistics as errorStats
 
-commands = ["IPC", "MWS", "latency", "overlap", "compute"]
+commands = ["IPC", "MWS", "latency", "overlap", "compute", "privlat"]
 
 def getTracename(dir, cpuID, sharedMode):
     prefix = "globalPolicyCommittedInsts"
@@ -40,7 +40,9 @@ def main():
     elif command == "overlap":
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Measured Alone Overlap", "Estimated Alone Overlap", False, True)
     elif command == "compute":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Compute Cycles", "Compute Cycles", False, True) 
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Compute Cycles", "Compute Cycles", False, True)
+    elif command == "privlat":
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Private Stall Cycles", "Private Stall Cycles", False, True) 
     else:
         assert False, "unknown command"
         
