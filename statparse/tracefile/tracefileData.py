@@ -171,12 +171,15 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             except:
                 raise Exception("Y file id or y column id out of range")     
             xvalues.append(xColValues[yFileID])
-            legendTitles.append(str(yFileID)+":"+tracefiles[yFileID].headers[yColID])
+            if kwargs["plotType"] == "scatter":
+                legendTitles.append("File "+str(yFileID))
+            else:
+                legendTitles.append(str(yFileID)+":"+tracefiles[yFileID].headers[yColID])
         
         if kwargs["plotType"] == "line":
             plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel)
         elif kwargs["plotType"] == "scatter":
-            plotResults.plotRawScatter(xvalues, yvalues)
+            plotResults.plotRawScatter(xvalues, yvalues, xrange=xrange, yrange=yrange, legend=legendTitles, xlabel=xlabel, ylabel=ylabel)
         else:
             raise Exception("Supported plot types are line and scatter")
 

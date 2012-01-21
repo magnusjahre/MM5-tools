@@ -161,18 +161,31 @@ def plotRawScatter(xdata, ydata, **kwargs):
     
     
     if "xlabel" in kwargs:
-        ax.set_xlabel(kwargs["xlabel"])
+        if kwargs["xlabel"] != "none":
+            ax.set_xlabel(kwargs["xlabel"])
     if "ylabel" in kwargs:
-        ax.set_ylabel(kwargs["ylabel"])
+        if kwargs["ylabel"] != "none":
+            ax.set_ylabel(kwargs["ylabel"])
         
     if "yrange" in kwargs:
-        try:
-            yrange = kwargs["yrange"].split(",")
-            ymin = float(yrange[0])
-            ymax = float(yrange[1])
-        except:
-            raise Exception("Invalid yrange string")
-        ax.set_ylim(ymin, ymax)
+        if kwargs["yrange"] != "":
+            try:
+                yrange = kwargs["yrange"].split(",")
+                ymin = float(yrange[0])
+                ymax = float(yrange[1])
+            except:
+                raise Exception("Invalid yrange string")
+            ax.set_ylim(ymin, ymax)
+            
+    if "xrange" in kwargs:
+        if kwargs["xrange"] != "":
+            try:
+                xrange = kwargs["xrange"].split(",")
+                xmin = float(xrange[0])
+                xmax = float(xrange[1])
+            except:
+                raise Exception("Invalid xrange string")
+            ax.set_xlim(xmin, xmax)
     
     if "legend" in kwargs:
         ax.legend(kwargs["legend"], "upper center", ncol=len(kwargs["legend"]))
