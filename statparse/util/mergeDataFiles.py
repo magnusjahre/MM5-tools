@@ -110,8 +110,12 @@ def mergeData(fileData, opts):
             assert len(v) == numVals
             
             match = re.search("fair[0-9][0-9]", v[0])
+            
             if match == None:
                 match = re.search("[0-9]+-t-[abnc]-[0-9]+", v[0])
+            
+            if match == None:
+                match = re.search("t-[abnc]-[0-9]*-[0-9].*\S", v[0])            
             
             if match == None:
                 fatal("Could not find workload pattern in key "+v[0])
@@ -119,7 +123,10 @@ def mergeData(fileData, opts):
             wl = match.group()
             
             spmatch = re.search("sp[0-9]", v[0])
-            sp = spmatch.group()
+            if spmatch != None:
+                sp = spmatch.group()
+            else:
+                sp = False
             
             linekey = wl
             if sp:
