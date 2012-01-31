@@ -417,3 +417,16 @@ class TracefileData():
     def getColumn(self, columnID):
         return self.data[columnID]
     
+    def getRow(self, rowID):
+        row = []
+        for i in sorted(self.data.keys()):
+            row.append(self.data[i][rowID])
+        return row
+    
+    def getNumRows(self):
+        rowsize = 0
+        for i in self.data.keys():
+            if rowsize == 0:
+                rowsize = len(self.data[i])
+            assert(rowsize == len(self.data[i]))
+        return rowsize
