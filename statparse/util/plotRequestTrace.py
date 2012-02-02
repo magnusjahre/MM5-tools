@@ -129,7 +129,7 @@ def main():
                     clist.append('navy')
             else:
                 if r.sharedCacheMiss:
-                    clist.append('tomato')
+                    clist.append('lightsalmon')
                 else:
                     clist.append('mediumslateblue')
                     
