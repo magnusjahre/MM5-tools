@@ -599,3 +599,15 @@ def plotBrokenBarchart(data, **kwargs):
             return
     
     plt.show()
+    
+def plotRawBarChart(data, **kwargs):
+    import matplotlib.pyplot as plt
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    
+    width = 0.8
+    for i in range(len(data)):        
+        ax.bar(i, data[i], width)
+    
+    plt.show()
