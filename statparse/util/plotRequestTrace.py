@@ -31,11 +31,20 @@ class Request:
         self.dependsOn = None
         self.children = []
         
+        self.causedCompute = False
+        self.computeFrom = 0
+        self.computeTo = 0
+        
     def setDependsOn(self, req):
         self.dependsOn = req
         
     def addChild(self, req):
         self.children.append(req)
+        
+    def setCompute(self, compto):
+        self.causedCompute = True
+        self.computeFrom = self.requestStallResumedAt
+        self.computeTo = compto
         
     def __str__(self):
         return str(self.id)+" (issued at "+str(self.issuedAt)+", completed at "+str(self.completedAt)+")"
@@ -163,6 +172,17 @@ def getStats(requests, parareqs, maxdepth, opts, stalls):
     if opts.avgAloneLat > 0:
         print "Alone stall est.   ", opts.avgAloneLat*maxdepth
 
+def findCompute(requests):
+    stallreqs = []
+    for r in requests:
+        if r.requestCausedStall:
+            stallreqs.append(r)
+    
+    for i in range(1, len(stallreqs)):
+        stallreqs[i-1].setCompute(stallreqs[i].requestCausedStallAt)
+    del stallreqs[-1]
+
+        
 def buildRequestGraph(requests):
     
     roots = []
@@ -186,7 +206,7 @@ def buildRequestGraph(requests):
             requests[minIndex].addChild(requests[i])
         else:
             roots.append(requests[i]) 
-    
+        
     return roots
 
 def makeDepencencyDot(roots):
@@ -206,10 +226,20 @@ def makeDepencencyDot(roots):
 def traverseDependencies(node, dotfile, depth):
     depth += 1
     depths = []
+    
+    nodename = str(node.id)
+    
+    if node.requestCausedStall:
+        dotfile.write(str(node.id)+" [color=red]\n")
+    
+    if node.causedCompute:
+        nodename = "compute"+   str(node.id)
+        dotfile.write(str(nodename)+" [shape=box, label="+str(int(node.computeTo-node.computeFrom))+", style=filled, color=grey]\n")
+        dotfile.write(str(node.id)+" -> "+str(nodename)+"\n")
+        
+    
     for c in node.children:
-        if node.requestCausedStall:
-            dotfile.write(str(node.id)+" [color=red]")
-        dotfile.write(str(node.id)+" -> "+str(c.id)+" [label="+str(int(c.issuedAt-node.completedAt))+"]\n")
+        dotfile.write(str(nodename)+" -> "+str(c.id)+" [label="+str(int(c.issuedAt-node.completedAt))+"]\n")
         depths.append(traverseDependencies(c, dotfile, depth))
     
     if node.children == []:
@@ -269,7 +299,7 @@ def main():
         parareqs[pos].append(req)
         outstandingReqs[pos] = req
     
-    
+    findCompute(requests)
     roots = buildRequestGraph(requests)
     maxdepth = makeDepencencyDot(roots)
     stalls = treeStalls(roots, maxdepth)
