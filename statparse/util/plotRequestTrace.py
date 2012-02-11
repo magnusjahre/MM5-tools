@@ -19,14 +19,19 @@ class Request:
             self.sharedCacheMiss = True
         else:
             self.sharedCacheMiss = False
+        
+        if row[6] == 1:
+            self.privModeSharedCacheMiss = True
+        else:
+            self.privModeSharedCacheMiss = False
             
-        if row[6] > 0:
+        if row[7] > 0:
             self.requestCausedStall = True    
         else:
             self.requestCausedStall = False
             
-        self.requestCausedStallAt = row[6]
-        self.requestStallResumedAt = row[7]
+        self.requestCausedStallAt = row[7]
+        self.requestStallResumedAt = row[8]
         
         self.dependsOn = None
         self.children = []
@@ -59,6 +64,7 @@ def parseArgs():
     parser.add_option("-s", "--plot-size", action="store", type="int", dest="plotSize", default=0, help="plot this number of requests")
     parser.add_option("-t", "--plot-type", action="store", type="string", dest="plotType", default="", help="type of plot, one of "+str(plotTypes))
     parser.add_option("--avg-alone-lat", action="store", type="float", dest="avgAloneLat", default=0.0, help="average alone memory latency")
+    parser.add_option("--avg-bus-serv-lat", action="store", type="float", dest="avgBusServiceLat", default=0.0, help="average private mode bus service latency")
     
     opts, args = parser.parse_args()
     
@@ -145,7 +151,7 @@ def createHeightData(parareqs, requests):
     
     return height
 
-def getStats(requests, parareqs, maxdepth, opts, stalls):
+def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt):
     
     totalLatency = 0.0
     totalStall = 0.0
@@ -159,6 +165,10 @@ def getStats(requests, parareqs, maxdepth, opts, stalls):
             totalIssueToStall += r.requestCausedStallAt - r.issuedAt
         numReqs += 1
     
+    pmaccesses, pmhits, pmmisses, smhits, smmisses = nodecnt
+    
+    avgPmMisses = sum(pmmisses) / float(len(pmmisses))
+    
     print
     print "Total latency:     ", totalLatency
     print "Average latency:   ", totalLatency /numReqs
@@ -168,9 +178,62 @@ def getStats(requests, parareqs, maxdepth, opts, stalls):
     print "Overlap:           ", totalStall / totalLatency
     print "Max. depth:        ", maxdepth
     print "Avg st. per level: ", sum(stalls) / len(stalls)
+    print "Average para:      ", sum(pmaccesses) / float(len(pmaccesses))
+    print "Avg priv hit para: ", sum(pmhits) / float(len(pmhits))
+    print "Avg priv miss par: ", avgPmMisses
+    print "Avg sh hit para:   ", sum(smhits) / float(len(smhits))
+    print "Avg sh miss para:  ", sum(smmisses) / float(len(smmisses))
     
     if opts.avgAloneLat > 0:
-        print "Alone stall est.   ", opts.avgAloneLat*maxdepth
+        assert opts.avgBusServiceLat > 0
+        
+        busSerialCorrection = 0
+        if avgPmMisses > 1:
+            busSerialCorrection = (avgPmMisses-1)*opts.avgBusServiceLat
+        print
+        print "Provided a. lat:   ", opts.avgAloneLat
+        print "Provided bus lat:  ", opts.avgBusServiceLat
+        print "Bus Ser. Cor.:     ", busSerialCorrection
+        print "Alone stall est.   ", (opts.avgAloneLat+busSerialCorrection)*maxdepth
+
+def countNodesPerLevel(roots, maxdepth):
+    hitAccumulator = [0 for i in range(maxdepth)]
+    missAccumulator = [0 for i in range(maxdepth)]
+    accessAccumulator = [0 for i in range(maxdepth)]
+    
+    sharedModeHits = [0 for i in range(maxdepth)]
+    sharedModeMisses = [0 for i in range(maxdepth)]
+    
+    for r in roots:
+        pmhits = [0 for i in range(maxdepth)]
+        pmmisses = [0 for i in range(maxdepth)]
+        smhits = [0 for i in range(maxdepth)]
+        smmisses = [0 for i in range(maxdepth)]
+        countNodes(r, 0, pmhits, pmmisses, smhits, smmisses)
+        for i in range(len(pmhits)):
+            hitAccumulator[i] += pmhits[i]
+            missAccumulator[i] += pmmisses[i] 
+            accessAccumulator[i] += pmhits[i]+pmmisses[i]
+            
+            sharedModeHits[i] += smhits[i]
+            sharedModeMisses[i] += smmisses[i]
+    
+    return (accessAccumulator, hitAccumulator, missAccumulator, sharedModeHits, sharedModeMisses)
+    
+def countNodes(node, depth, pmhits, pmmisses, smhits, smmisses):
+    for n in node.children:
+        countNodes(n, depth+1, pmhits, pmmisses, smhits, smmisses)
+    
+    if node.privModeSharedCacheMiss:
+        pmmisses[depth] += 1
+    else:
+        pmhits[depth] += 1
+        
+    if node.sharedCacheMiss:
+        smmisses[depth] += 1
+    else:
+        smhits[depth] += 1
+    
 
 def findCompute(requests):
     stallreqs = []
@@ -303,7 +366,8 @@ def main():
     roots = buildRequestGraph(requests)
     maxdepth = makeDepencencyDot(roots)
     stalls = treeStalls(roots, maxdepth)
-    getStats(requests, parareqs, maxdepth, opts, stalls)
+    nodecnt = countNodesPerLevel(roots, maxdepth)
+    getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt)
     
     if opts.plotType != "":
         if opts.plotType == "requests":
