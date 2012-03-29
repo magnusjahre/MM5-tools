@@ -178,11 +178,15 @@ def processData(mergedData, mergeSpec, opts):
                 if mergedData[i][j] == metrics.errorString or mergedData[i][opts.normalizeTo] == metrics.errorString:
                     normalizedData[i][j] = metrics.errorString
                 else:
-                    try:
-                        relVal = (float(mergedData[i][j]) / float(mergedData[i][opts.normalizeTo])) - 1
-                    except:
-                        fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
-                    normalizedData[i][j] = printResults.numberToString(relVal, opts.decimals)
+                    if float(mergedData[i][opts.normalizeTo]) == 0.0:
+                        normalizedData[i][j] = "inf"                
+                    else:    
+                        try:
+                            relVal = (float(mergedData[i][j]) / float(mergedData[i][opts.normalizeTo])) - 1
+                        except:
+                            fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
+                
+                        normalizedData[i][j] = printResults.numberToString(relVal, opts.decimals)
         
         for i in normalizedData:
             for j in normalizedData[i]:
