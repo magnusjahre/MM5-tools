@@ -4,7 +4,7 @@ from statparse.util import fatal, getNpExperimentDirs, computeTraceError, parseU
 from statparse.tracefile.errorStatistics import plotBoxFromDict, dumpAllErrors
 import statparse.tracefile.errorStatistics as errorStats
 
-commands = ["IPC", "MWS", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall"]
+commands = ["IPC", "MWS", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp"]
 
 def getTracename(dir, cpuID, sharedMode):
     prefix = "globalPolicyCommittedInsts"
@@ -49,6 +49,8 @@ def main():
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "CPL", "CPL", False, True)
     elif command == "stall":
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Actual Stall", "Stall Estimate", False, True)
+    elif command == "cwp":
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "CWP", "CWP", False, True)
     else:
         assert False, "unknown command"
         
