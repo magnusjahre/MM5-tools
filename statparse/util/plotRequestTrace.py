@@ -65,6 +65,7 @@ def parseArgs():
     parser.add_option("-t", "--plot-type", action="store", type="string", dest="plotType", default="", help="type of plot, one of "+str(plotTypes))
     parser.add_option("--avg-alone-lat", action="store", type="float", dest="avgAloneLat", default=0.0, help="average alone memory latency")
     parser.add_option("--avg-bus-serv-lat", action="store", type="float", dest="avgBusServiceLat", default=0.0, help="average private mode bus service latency")
+    parser.add_option("--max-recursion-depth", action="store", type="int", dest="recursionDepth", default=0, help="Set the maximum recursion depth")
     
     opts, args = parser.parse_args()
     
@@ -337,6 +338,10 @@ def main():
     if not os.path.exists(filename):
         print "Error: File "+str(filename)+" not found"
         return -1
+    
+    if opts.recursionDepth > 0:
+        print "Info: setting maximum recursion depth to "+str(opts.recursionDepth)
+        sys.setrecursionlimit(opts.recursionDepth)
         
     tracecontent = TracefileData(filename)
     tracecontent.readTracefile()
