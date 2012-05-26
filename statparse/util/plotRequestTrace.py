@@ -152,7 +152,7 @@ def createHeightData(parareqs, requests):
     
     return height
 
-def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt):
+def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstlength):
     
     totalLatency = 0.0
     totalStall = 0.0
@@ -185,6 +185,7 @@ def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt):
     print "Avg sh hit para:   ", sum(smhits) / float(len(smhits))
     print "Avg sh miss para:  ", sum(smmisses) / float(len(smmisses))
     
+    
     if opts.avgAloneLat > 0:
         assert opts.avgBusServiceLat > 0
         
@@ -196,6 +197,8 @@ def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt):
         print "Provided bus lat:  ", opts.avgBusServiceLat
         print "Bus Ser. Cor.:     ", busSerialCorrection
         print "Alone stall est.   ", (opts.avgAloneLat+busSerialCorrection)*maxdepth
+        
+    computeBurstStats(burstlength, totalLatency /numReqs)
 
 def countNodesPerLevel(roots, maxdepth):
     hitAccumulator = [0 for i in range(maxdepth)]
@@ -326,6 +329,46 @@ def findStallPerTreeLevel(node, depth, buffer):
     for c in node.children:
         findStallPerTreeLevel(c, depth+1, buffer)
 
+def findBurstLatency(roots, maxdepth):
+    buf = [[] for i in range(maxdepth)]
+    
+    for r in roots:
+        findBurstLatencyPerLevel(r, 0, buf)
+        
+    return buf
+
+def findBurstLatencyPerLevel(node, depth, buf):
+    minval = 10000000000
+    maxval = 0
+    for c in node.children:
+        if c.issuedAt < minval:
+            minval = c.issuedAt
+        if c.completedAt > maxval:
+            maxval = c.completedAt
+    
+    if node.children != []:
+        buf[depth].append((maxval - minval, len(node.children)))
+    
+    for c in node.children:
+        findBurstLatencyPerLevel(c, depth+1, buf)
+
+def computeBurstStats(burstlength, avglat):
+    
+    latsum = 0
+    bursts = 0
+    for i in range(len(burstlength)):
+        for b in burstlength[i]:
+            #print str(i)+": "+str(b)
+            lat, size = b
+            if size > 1:
+                extralat = lat - avglat
+                perReqInc = float(extralat) / (size-1)
+                latsum += perReqInc
+            bursts += 1
+    
+    print
+    print "Average additional latency due to serialization in bus is "+str(float(latsum)/float(bursts))
+
 def main():
 
     opts,args = parseArgs()
@@ -372,7 +415,8 @@ def main():
     maxdepth = makeDepencencyDot(roots)
     stalls = treeStalls(roots, maxdepth)
     nodecnt = countNodesPerLevel(roots, maxdepth)
-    getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt)
+    burstlength = findBurstLatency(roots, maxdepth)
+    getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstlength)
     
     if opts.plotType != "":
         if opts.plotType == "requests":
