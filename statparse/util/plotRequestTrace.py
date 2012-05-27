@@ -354,6 +354,7 @@ def findBurstLatencyPerLevel(node, depth, buf):
 
 def computeBurstStats(burstlength, avglat):
     
+    burstlatsum = 0
     latsum = 0
     bursts = 0
     for i in range(len(burstlength)):
@@ -365,9 +366,11 @@ def computeBurstStats(burstlength, avglat):
                 perReqInc = float(extralat) / (size-1)
                 latsum += perReqInc
             bursts += 1
+            burstlatsum += lat
     
     print
     print "Average additional latency due to serialization in bus is "+str(float(latsum)/float(bursts))
+    print "Average latency of a burst is "+str(float(burstlatsum)/float(bursts))
 
 def main():
 
