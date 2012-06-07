@@ -19,6 +19,7 @@ def parseArgs():
     parser.add_option("--xlabel", action="store", dest="xlabel", default="none", type="string", help="The x axis label")
     parser.add_option("--ylabel", action="store", dest="ylabel", default="none", type="string", help="The y axis label")
     parser.add_option("--type", action="store", dest="plotType", default="line", type="string", help="The plot type to use")
+    parser.add_option("--title", action="store", dest="title", default="none", type="string", help="The chart title")
     
     opts, args = parser.parse_args()
     
@@ -63,7 +64,7 @@ def main():
             print "Plotting results..."
         
         try:
-            tracefileModule.plot(traces, opts.xCol, opts.yCols, filename=opts.plotFilename, xrange=opts.xRange, yrange=opts.yRange, plotType=opts.plotType, xlabel=opts.xlabel, ylabel=opts.ylabel)
+            tracefileModule.plot(traces, opts.xCol, opts.yCols, filename=opts.plotFilename, xrange=opts.xRange, yrange=opts.yRange, plotType=opts.plotType, xlabel=opts.xlabel, ylabel=opts.ylabel, title=opts.title)
         except Exception as e:
             print "Plotting failed!"
             print "Error: "+str(e) 

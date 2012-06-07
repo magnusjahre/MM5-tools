@@ -136,6 +136,7 @@ def plot(tracefiles, xCol, yCols, **kwargs):
         cols = 2
         ylabel = "none"
         xlabel = "none"
+        title = "none"
         if "filename" in kwargs:
             filename = kwargs["filename"]
         if "xrange" in kwargs:
@@ -148,6 +149,8 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             xlabel = kwargs["xlabel"]
         if "ylabel" in kwargs:
             ylabel = kwargs["ylabel"]
+        if "title" in kwargs:
+            title = kwargs["title"]
             
         
         
@@ -177,9 +180,9 @@ def plot(tracefiles, xCol, yCols, **kwargs):
                 legendTitles.append(str(yFileID)+":"+tracefiles[yFileID].headers[yColID])
         
         if kwargs["plotType"] == "line":
-            plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel)
+            plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel, title=title)
         elif kwargs["plotType"] == "scatter":
-            plotResults.plotRawScatter(xvalues, yvalues, xrange=xrange, yrange=yrange, legend=legendTitles, xlabel=xlabel, ylabel=ylabel)
+            plotResults.plotRawScatter(xvalues, yvalues, xrange=xrange, yrange=yrange, legend=legendTitles, xlabel=xlabel, ylabel=ylabel, title=title)
         else:
             raise Exception("Supported plot types are line and scatter")
 

@@ -191,7 +191,8 @@ def plotRawScatter(xdata, ydata, **kwargs):
         ax.legend(kwargs["legend"], "upper center", ncol=len(kwargs["legend"]))
         
     if "title" in kwargs:
-        ax.set_title(kwargs["title"])
+        if kwargs["title"] != "none":
+            ax.set_title(kwargs["title"])
     
     if "filename" in kwargs:
         if kwargs["filename"] != "":
@@ -431,7 +432,8 @@ def plotLines(xvalues, yvalues, **kwargs):
             ax.set_ylim( (float(minY), float(maxY))  )
     
     if "title" in kwargs:
-        ax.set_title(kwargs["title"], size="large")
+        if kwargs["title"] != "none":
+            ax.set_title(kwargs["title"], size="large")
     
     if "filename" in kwargs:
         if kwargs["filename"] != "":
