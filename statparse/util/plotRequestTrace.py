@@ -66,6 +66,7 @@ def parseArgs():
     parser.add_option("--avg-alone-lat", action="store", type="float", dest="avgAloneLat", default=0.0, help="average alone memory latency")
     parser.add_option("--avg-bus-serv-lat", action="store", type="float", dest="avgBusServiceLat", default=0.0, help="average private mode bus service latency")
     parser.add_option("--max-recursion-depth", action="store", type="int", dest="recursionDepth", default=0, help="Set the maximum recursion depth")
+    parser.add_option("--print-bp", action="store_true", dest="printBurstStats", default=False, help="Print statistics about each burst (verbose)")
     
     opts, args = parser.parse_args()
     
@@ -152,7 +153,7 @@ def createHeightData(parareqs, requests):
     
     return height
 
-def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstlength):
+def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstdata):
     
     totalLatency = 0.0
     totalStall = 0.0
@@ -198,7 +199,7 @@ def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstlength):
         print "Bus Ser. Cor.:     ", busSerialCorrection
         print "Alone stall est.   ", (opts.avgAloneLat+busSerialCorrection)*maxdepth
         
-    computeBurstStats(burstlength, totalLatency /numReqs)
+    computeBurstStats(burstdata, totalLatency /numReqs, opts)
 
 def countNodesPerLevel(roots, maxdepth):
     hitAccumulator = [0 for i in range(maxdepth)]
@@ -329,48 +330,63 @@ def findStallPerTreeLevel(node, depth, buffer):
     for c in node.children:
         findStallPerTreeLevel(c, depth+1, buffer)
 
-def findBurstLatency(roots, maxdepth):
-    buf = [[] for i in range(maxdepth)]
+class BurstLevelStats:
     
-    for r in roots:
-        findBurstLatencyPerLevel(r, 0, buf)
+    def __init__(self, depth):
+        self.startedAt =10000000000
+        self.finishedAt = 0
+        self.numReqs = 0 
+        self.depth = depth
         
-    return buf
+    def addReq(self, start, end):
+        if start < self.startedAt:
+            self.startedAt = start
+        if end > self.finishedAt:
+            self.finishedAt = end
+        self.numReqs += 1
+        
+    def lat(self):
+        return self.finishedAt - self.startedAt
+        
+    def __str__(self):
+        return "Burst "+str(self.depth)+", from "+str(self.startedAt)+" to "+str(self.finishedAt)+" ("+str(self.lat())+"), "+str(self.numReqs)+" reqs"
 
-def findBurstLatencyPerLevel(node, depth, buf):
-    minval = 10000000000
-    maxval = 0
-    for c in node.children:
-        if c.issuedAt < minval:
-            minval = c.issuedAt
-        if c.completedAt > maxval:
-            maxval = c.completedAt
+class BurstProcessor:
     
-    if node.children != []:
-        buf[depth].append((maxval - minval, len(node.children)))
-    
-    for c in node.children:
-        findBurstLatencyPerLevel(c, depth+1, buf)
+    def __init__(self, maxdepth):
+        self.burstDataList = [BurstLevelStats(i) for i in range(maxdepth)]
 
-def computeBurstStats(burstlength, avglat):
-    
+    def findBurstLatency(self, roots):
+        for r in roots:
+            self._findBurstLatencyPerLevel(r, 0)
+
+    def _findBurstLatencyPerLevel(self, node, depth):
+        for c in node.children:
+            self.burstDataList[depth].addReq(c.issuedAt, c.completedAt)
+            self._findBurstLatencyPerLevel(c, depth+1)
+
+def computeBurstStats(burstdata, avglat, opts):
     burstlatsum = 0
-    latsum = 0
-    bursts = 0
-    for i in range(len(burstlength)):
-        for b in burstlength[i]:
-            #print str(i)+": "+str(b)
-            lat, size = b
-            if size > 1:
-                extralat = lat - avglat
-                perReqInc = float(extralat) / (size-1)
-                latsum += perReqInc
-            bursts += 1
-            burstlatsum += lat
+    overlapsum = 0
+    numReqs = 0
+    for bd in burstdata.burstDataList:
+        if bd.startedAt < bd.finishedAt:
+            if opts.printBurstStats:
+                print str(bd)
+            burstlatsum += bd.lat()
+            numReqs += bd.numReqs
+    
+    for i in range(1,len(burstdata.burstDataList)):
+        if burstdata.burstDataList[i].startedAt < burstdata.burstDataList[i].finishedAt and burstdata.burstDataList[i-1].startedAt < burstdata.burstDataList[i-1].finishedAt:
+            overlap = burstdata.burstDataList[i-1].finishedAt - burstdata.burstDataList[i].startedAt
+            if overlap > 0:
+                overlapsum += overlap
+             
     
     print
-    print "Average additional latency due to serialization in bus is "+str(float(latsum)/float(bursts))
-    print "Average latency of a burst is "+str(float(burstlatsum)/float(bursts))
+    print "Sum burst latency:      "+str(burstlatsum)
+    print "Sum interburst overlap: "+str(overlapsum)
+    print "Requests in burstlist:  "+str(numReqs) # the roots are missing, so this is not the exact number of reqs
 
 def main():
 
@@ -418,8 +434,11 @@ def main():
     maxdepth = makeDepencencyDot(roots)
     stalls = treeStalls(roots, maxdepth)
     nodecnt = countNodesPerLevel(roots, maxdepth)
-    burstlength = findBurstLatency(roots, maxdepth)
-    getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstlength)
+    
+    burstData = BurstProcessor(maxdepth)
+    burstData.findBurstLatency(roots)
+    
+    getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstData)
     
     if opts.plotType != "":
         if opts.plotType == "requests":
