@@ -6,9 +6,24 @@ from optparse import OptionParser
 from statparse.tracefile.tracefileData import TracefileData
 from statparse.plotResults import plotRawBarChart, plotHistogram
 
-class Request:
+class Node():
     
+    def __init__(self):
+        self.dependsOn = None
+        self.children = []
+        self.issuedAt = 0
+        self.completedAt = 0
+
+    def setDependsOn(self, req):
+        self.dependsOn = req
+        
+    def addChild(self, req):
+        self.children.append(req)
+
+class Request(Node):
+       
     def __init__(self, row):
+        Node.__init__(self)
         self.curTick = row[0]
         self.id = int(row[1])
         self.address = row[2]
@@ -33,26 +48,30 @@ class Request:
         self.requestCausedStallAt = row[7]
         self.requestStallResumedAt = row[8]
         
-        self.dependsOn = None
-        self.children = []
-        
-        self.causedCompute = False
-        self.computeFrom = 0
-        self.computeTo = 0
-        
-    def setDependsOn(self, req):
-        self.dependsOn = req
-        
-    def addChild(self, req):
-        self.children.append(req)
-        
-    def setCompute(self, compto):
-        self.causedCompute = True
-        self.computeFrom = self.requestStallResumedAt
-        self.computeTo = compto
+    def getName(self):
+        return str(self.id)
         
     def __str__(self):
         return str(self.id)+" (issued at "+str(self.issuedAt)+", completed at "+str(self.completedAt)+")"
+    
+class Compute(Node):
+    
+    def __init__(self, compFrom, compTo, ident):
+        Node.__init__(self)
+        assert compFrom < compTo
+        self.issuedAt = compFrom
+        self.completedAt = compTo
+        
+        self.nodename = "compute"+str(ident)
+        
+    def duration(self):
+        return self.completedAt - self.issuedAt
+    
+    def getName(self):
+        return str(self.nodename)
+    
+    def __str__(self):
+        return "Compute from "+str(self.issuedAt)+" to "+str(self.completedAt)
 
 def parseArgs():
     parser = OptionParser(usage="analyzeTrace.py [options] filename1")
@@ -242,13 +261,15 @@ def countNodes(node, depth, pmhits, pmmisses, smhits, smmisses):
 
 def findCompute(requests):
     stallreqs = []
+    computeNodes = []
     for r in requests:
         if r.requestCausedStall:
             stallreqs.append(r)
     
     for i in range(1, len(stallreqs)):
-        stallreqs[i-1].setCompute(stallreqs[i].requestCausedStallAt)
+        computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt, stallreqs[i].requestCausedStallAt, stallreqs[i-1].id))
     del stallreqs[-1]
+    return computeNodes
 
         
 def buildRequestGraph(requests):
@@ -295,19 +316,12 @@ def traverseDependencies(node, dotfile, depth):
     depth += 1
     depths = []
     
-    nodename = str(node.id)
-    
-    if node.requestCausedStall:
-        dotfile.write(str(node.id)+" [color=red]\n")
-    
-    if node.causedCompute:
-        nodename = "compute"+   str(node.id)
-        dotfile.write(str(nodename)+" [shape=box, label="+str(int(node.computeTo-node.computeFrom))+", style=filled, color=grey]\n")
-        dotfile.write(str(node.id)+" -> "+str(nodename)+"\n")
-        
-    
     for c in node.children:
-        dotfile.write(str(nodename)+" -> "+str(c.id)+" [label="+str(int(c.issuedAt-node.completedAt))+"]\n")
+        if c.__class__.__name__ == "Request":
+            dotfile.write(str(node.getName())+" -> "+str(c.getName())+" [label="+str(int(c.issuedAt-node.completedAt))+"]\n")
+        else:
+            dotfile.write(str(c.getName())+" [shape=box, label="+str(int(c.completedAt-c.issuedAt))+", style=filled, color=grey]\n")
+            dotfile.write(str(node.getName())+" -> "+c.getName()+"\n")
         depths.append(traverseDependencies(c, dotfile, depth))
     
     if node.children == []:
@@ -388,6 +402,33 @@ def computeBurstStats(burstdata, avglat, opts):
     print "Sum interburst overlap: "+str(overlapsum)
     print "Requests in burstlist:  "+str(numReqs) # the roots are missing, so this is not the exact number of reqs
 
+def mergeNodes(compnodes, requests):
+    
+    for i in range(1, len(requests)):
+        assert requests[i-1].completedAt <= requests[i].completedAt
+    
+    for i in range(1, len(compnodes)):    
+        assert compnodes[i-1].completedAt <= compnodes[i].completedAt 
+    
+    allnodes = []
+    while not (compnodes == [] and requests == []):
+        if compnodes != [] and requests != []:
+            if compnodes[0].completedAt <= requests[0].completedAt:
+                allnodes.append(compnodes.pop(0))
+            else:
+                allnodes.append(requests.pop(0))
+                
+        if compnodes == [] and requests != []:
+            allnodes.append(requests.pop(0))
+        
+        if requests == [] and compnodes != []:
+            allnodes.append(compnodes.pop(0))
+    
+    for i in range(1, len(allnodes)):
+        assert allnodes[i-1].completedAt <= allnodes[i].completedAt 
+    
+    return allnodes
+
 def main():
 
     opts,args = parseArgs()
@@ -429,9 +470,14 @@ def main():
         parareqs[pos].append(req)
         outstandingReqs[pos] = req
     
-    findCompute(requests)
-    roots = buildRequestGraph(requests)
+    compnodes = findCompute(requests)
+    allnodes = mergeNodes(compnodes, requests)
+    
+    roots = buildRequestGraph(allnodes)
     maxdepth = makeDepencencyDot(roots)
+    
+    assert False
+    
     stalls = treeStalls(roots, maxdepth)
     nodecnt = countNodesPerLevel(roots, maxdepth)
     
