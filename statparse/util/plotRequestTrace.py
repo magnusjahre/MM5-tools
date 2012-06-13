@@ -13,6 +13,7 @@ class Node():
         self.children = []
         self.issuedAt = 0
         self.completedAt = 0
+        self.visited = False
 
     def setDependsOn(self, req):
         self.dependsOn = req
@@ -71,7 +72,7 @@ class Compute(Node):
         return str(self.nodename)
     
     def __str__(self):
-        return "Compute from "+str(self.issuedAt)+" to "+str(self.completedAt)
+        return self.getName()+" (from "+str(self.issuedAt)+" to "+str(self.completedAt)+")"
 
 def parseArgs():
     parser = OptionParser(usage="analyzeTrace.py [options] filename1")
@@ -271,7 +272,53 @@ def findCompute(requests):
     del stallreqs[-1]
     return computeNodes
 
+
+def buildCombinedGraph(reqs, commits):
+    cnt = 0
+    for r in reqs:
+        print "\nIteration "+str(cnt)
+        match = False
         
+        # Step 1: find overlapping commits
+        for c in commits:
+            print str(r)
+            print str(c)
+            if r.completedAt >= c.issuedAt-1 and r.completedAt < c.completedAt:
+                print "Adding c as child of r"
+                assert c not in r.children
+                r.addChild(c)
+                match = True
+            if r.issuedAt >= c.issuedAt and r.issuedAt < c.completedAt:
+                print "Adding r as child of c"
+                assert r not in c.children
+                c.addChild(r)
+                match = True
+                
+        #Step 2: find closest commit
+        if not match:
+            minDistance = 10000000000
+            minIndex = -1
+            
+            for j in range(len(commits)):
+                difference = r.issuedAt - commits[j].completedAt
+                if difference > 0 and difference < minDistance:
+                    minIndex = j
+                    minDistance = difference
+                    
+            if minIndex != -1:
+                commits[minIndex].addChild(r)
+                print "Adding "+r.getName()+" as child of "+commits[minIndex].getName()
+        
+        cnt +=1
+        
+        #if cnt > 5:
+            #assert False
+                
+    # TODO: this is wrong!
+    return [reqs[0]]
+                
+                
+
 def buildRequestGraph(requests):
     
     roots = []
@@ -316,15 +363,23 @@ def traverseDependencies(node, dotfile, depth):
     depth += 1
     depths = []
     
+    print "visiting "+node.getName()
+    node.visited = True
+    print "Children:"
+    for c in node.children:
+        print c.getName()
+    
+    
     for c in node.children:
         if c.__class__.__name__ == "Request":
             dotfile.write(str(node.getName())+" -> "+str(c.getName())+" [label="+str(int(c.issuedAt-node.completedAt))+"]\n")
         else:
             dotfile.write(str(c.getName())+" [shape=box, label="+str(int(c.completedAt-c.issuedAt))+", style=filled, color=grey]\n")
             dotfile.write(str(node.getName())+" -> "+c.getName()+"\n")
-        depths.append(traverseDependencies(c, dotfile, depth))
+        if not c.visited:
+            depths.append(traverseDependencies(c, dotfile, depth))
     
-    if node.children == []:
+    if depths == []:
         return depth
     return max(depths)
 
@@ -471,9 +526,11 @@ def main():
         outstandingReqs[pos] = req
     
     compnodes = findCompute(requests)
-    allnodes = mergeNodes(compnodes, requests)
     
-    roots = buildRequestGraph(allnodes)
+    ##allnodes = mergeNodes(compnodes, requests)
+    #roots = buildRequestGraph(allnodes)
+    
+    roots = buildCombinedGraph(requests, compnodes)
     maxdepth = makeDepencencyDot(roots)
     
     assert False
