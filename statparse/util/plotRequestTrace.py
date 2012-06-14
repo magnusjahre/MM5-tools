@@ -95,8 +95,6 @@ def parseArgs():
     parser.add_option("-f", "--plot-from", action="store", type="int", dest="plotFrom", default=0, help="plot from this request id")
     parser.add_option("-s", "--plot-size", action="store", type="int", dest="plotSize", default=0, help="plot this number of requests")
     parser.add_option("-t", "--plot-type", action="store", type="string", dest="plotType", default="", help="type of plot, one of "+str(plotTypes))
-    parser.add_option("--avg-alone-lat", action="store", type="float", dest="avgAloneLat", default=0.0, help="average alone memory latency")
-    parser.add_option("--avg-bus-serv-lat", action="store", type="float", dest="avgBusServiceLat", default=0.0, help="average private mode bus service latency")
     parser.add_option("--max-recursion-depth", action="store", type="int", dest="recursionDepth", default=0, help="Set the maximum recursion depth")
     parser.add_option("--print-bp", action="store_true", dest="printBurstStats", default=False, help="Print statistics about each burst (verbose)")
     
@@ -185,7 +183,7 @@ def createHeightData(parareqs, requests):
     
     return height
 
-def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstdata):
+def getStats(requests, parareqs, maxdepth, opts, burstdata):
     
     totalLatency = 0.0
     totalStall = 0.0
@@ -198,11 +196,7 @@ def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstdata):
             totalStall += r.requestStallResumedAt - r.requestCausedStallAt
             totalIssueToStall += r.requestCausedStallAt - r.issuedAt
         numReqs += 1
-    
-    pmaccesses, pmhits, pmmisses, smhits, smmisses = nodecnt
-    
-    avgPmMisses = sum(pmmisses) / float(len(pmmisses))
-    
+
     print
     print "Total latency:     ", totalLatency
     print "Average latency:   ", totalLatency /numReqs
@@ -211,65 +205,8 @@ def getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstdata):
     print "T. issue to stall: ", totalIssueToStall
     print "Overlap:           ", totalStall / totalLatency
     print "Max. depth:        ", maxdepth
-    print "Avg st. per level: ", sum(stalls) / len(stalls)
-    print "Average para:      ", sum(pmaccesses) / float(len(pmaccesses))
-    print "Avg priv hit para: ", sum(pmhits) / float(len(pmhits))
-    print "Avg priv miss par: ", avgPmMisses
-    print "Avg sh hit para:   ", sum(smhits) / float(len(smhits))
-    print "Avg sh miss para:  ", sum(smmisses) / float(len(smmisses))
-    
-    
-    if opts.avgAloneLat > 0:
-        assert opts.avgBusServiceLat > 0
-        
-        busSerialCorrection = 0
-        if avgPmMisses > 1:
-            busSerialCorrection = (avgPmMisses-1)*opts.avgBusServiceLat
-        print
-        print "Provided a. lat:   ", opts.avgAloneLat
-        print "Provided bus lat:  ", opts.avgBusServiceLat
-        print "Bus Ser. Cor.:     ", busSerialCorrection
-        print "Alone stall est.   ", (opts.avgAloneLat+busSerialCorrection)*maxdepth
         
     computeBurstStats(burstdata, totalLatency /numReqs, opts)
-
-def countNodesPerLevel(roots, maxdepth):
-    hitAccumulator = [0 for i in range(maxdepth)]
-    missAccumulator = [0 for i in range(maxdepth)]
-    accessAccumulator = [0 for i in range(maxdepth)]
-    
-    sharedModeHits = [0 for i in range(maxdepth)]
-    sharedModeMisses = [0 for i in range(maxdepth)]
-    
-    for r in roots:
-        pmhits = [0 for i in range(maxdepth)]
-        pmmisses = [0 for i in range(maxdepth)]
-        smhits = [0 for i in range(maxdepth)]
-        smmisses = [0 for i in range(maxdepth)]
-        countNodes(r, 0, pmhits, pmmisses, smhits, smmisses)
-        for i in range(len(pmhits)):
-            hitAccumulator[i] += pmhits[i]
-            missAccumulator[i] += pmmisses[i] 
-            accessAccumulator[i] += pmhits[i]+pmmisses[i]
-            
-            sharedModeHits[i] += smhits[i]
-            sharedModeMisses[i] += smmisses[i]
-    
-    return (accessAccumulator, hitAccumulator, missAccumulator, sharedModeHits, sharedModeMisses)
-    
-def countNodes(node, depth, pmhits, pmmisses, smhits, smmisses):
-    for n in node.children:
-        countNodes(n, depth+1, pmhits, pmmisses, smhits, smmisses)
-    
-    if node.privModeSharedCacheMiss:
-        pmmisses[depth] += 1
-    else:
-        pmhits[depth] += 1
-        
-    if node.sharedCacheMiss:
-        smmisses[depth] += 1
-    else:
-        smhits[depth] += 1
     
 
 def findCompute(requests):
@@ -356,7 +293,8 @@ def makeDepencencyDot(roots):
     return max(maxdepths)
     
 def traverseDependencies(node, dotfile, depth):
-    depth += 1
+    if node.__class__.__name__ == "Request":
+        depth += 1
     depths = []
     
     node.visited = True
@@ -373,22 +311,6 @@ def traverseDependencies(node, dotfile, depth):
     if depths == []:
         return depth
     return max(depths)
-
-def treeStalls(roots, maxdepth):
-    buffer = [0 for i in range(maxdepth)]
-    
-    for r in roots:
-        findStallPerTreeLevel(r, 0, buffer)
-        
-    return buffer
-    
-
-def findStallPerTreeLevel(node, depth, buffer):
-    if node.requestCausedStall:
-        buffer[depth] += node.requestStallResumedAt - node.requestCausedStallAt
-    
-    for c in node.children:
-        findStallPerTreeLevel(c, depth+1, buffer)
 
 class BurstLevelStats:
     
@@ -421,9 +343,17 @@ class BurstProcessor:
             self._findBurstLatencyPerLevel(r, 0)
 
     def _findBurstLatencyPerLevel(self, node, depth):
+        node.visited = True
         for c in node.children:
-            self.burstDataList[depth].addReq(c.issuedAt, c.completedAt)
-            self._findBurstLatencyPerLevel(c, depth+1)
+            if not c.visited:
+                if c.__class__.__name__ == "Request":
+                    # Requests that have the same commit period as parent and child 
+                    # are completely hidden
+                    if node not in c.children:
+                        self.burstDataList[depth].addReq(c.issuedAt, c.completedAt)
+                    self._findBurstLatencyPerLevel(c, depth+1)
+                else:
+                    self._findBurstLatencyPerLevel(c, depth)
 
 def computeBurstStats(burstdata, avglat, opts):
     burstlatsum = 0
@@ -441,8 +371,7 @@ def computeBurstStats(burstdata, avglat, opts):
             overlap = burstdata.burstDataList[i-1].finishedAt - burstdata.burstDataList[i].startedAt
             if overlap > 0:
                 overlapsum += overlap
-             
-    
+                
     print
     print "Sum burst latency:      "+str(burstlatsum)
     print "Sum interburst overlap: "+str(overlapsum)
@@ -474,6 +403,12 @@ def mergeNodes(compnodes, requests):
         assert allnodes[i-1].completedAt <= allnodes[i].completedAt 
     
     return allnodes
+
+def clearVisited(reqs, coms):
+    for r in reqs:
+        r.visited = False
+    for c in coms:
+        c.visited = False
 
 def main():
 
@@ -523,16 +458,12 @@ def main():
     
     roots = buildCombinedGraph(requests, compnodes)
     maxdepth = makeDepencencyDot(roots)
-    
-    assert False
-    
-    stalls = treeStalls(roots, maxdepth)
-    nodecnt = countNodesPerLevel(roots, maxdepth)
-    
+ 
+    clearVisited(requests, compnodes)
     burstData = BurstProcessor(maxdepth)
     burstData.findBurstLatency(roots)
     
-    getStats(requests, parareqs, maxdepth, opts, stalls, nodecnt, burstData)
+    getStats(requests, parareqs, maxdepth, opts, burstData)
     
     if opts.plotType != "":
         if opts.plotType == "requests":
