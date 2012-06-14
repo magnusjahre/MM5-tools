@@ -55,13 +55,13 @@ class Request(Node):
         
     def distanceToParentCompute(self, compute):
         distance = self.issuedAt - compute.issuedAt
-        if distance < 0:
+        if distance <= 0:
             return sys.maxint
         return distance
     
     def distanceToChildCompute(self, compute):
         distance = compute.completedAt - self.completedAt
-        if distance < 0:
+        if distance <= 0:
             return sys.maxint
         return distance
         
@@ -222,12 +222,12 @@ def findCompute(requests):
     for i in range(1, len(stallreqs)):
         computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt, stallreqs[i].requestCausedStallAt-1, stallreqs[i-1].id))
     #del stallreqs[-1]
-    
+     
     return computeNodes
 
 
 def buildCombinedGraph(reqs, commits):
-    for r in reqs:
+    for r in reqs:  
         minDistance = sys.maxint
         minParent = None
         for c in commits:
