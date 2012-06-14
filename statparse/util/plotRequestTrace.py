@@ -52,6 +52,18 @@ class Request(Node):
     def getName(self):
         return str(self.id)
         
+    def distanceToParentCompute(self, compute):
+        distance = self.issuedAt - compute.issuedAt
+        if distance < 0:
+            return sys.maxint
+        return distance
+    
+    def distanceToChildCompute(self, compute):
+        distance = compute.completedAt - self.completedAt
+        if distance < 0:
+            return sys.maxint
+        return distance
+        
     def __str__(self):
         return str(self.id)+" (issued at "+str(self.issuedAt)+", completed at "+str(self.completedAt)+")"
     
@@ -267,55 +279,39 @@ def findCompute(requests):
         if r.requestCausedStall:
             stallreqs.append(r)
     
+    computeNodes.append(Compute(0, stallreqs[0].requestCausedStallAt, "Init"))
     for i in range(1, len(stallreqs)):
         computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt, stallreqs[i].requestCausedStallAt, stallreqs[i-1].id))
-    del stallreqs[-1]
+    #del stallreqs[-1]
+    
     return computeNodes
 
 
 def buildCombinedGraph(reqs, commits):
-    cnt = 0
     for r in reqs:
-        print "\nIteration "+str(cnt)
-        match = False
         
-        # Step 1: find overlapping commits
+        minDistance = sys.maxint
+        minParent = None
         for c in commits:
-            print str(r)
-            print str(c)
-            if r.completedAt >= c.issuedAt-1 and r.completedAt < c.completedAt:
-                print "Adding c as child of r"
-                assert c not in r.children
-                r.addChild(c)
-                match = True
-            if r.issuedAt >= c.issuedAt and r.issuedAt < c.completedAt:
-                print "Adding r as child of c"
-                assert r not in c.children
-                c.addChild(r)
-                match = True
-                
-        #Step 2: find closest commit
-        if not match:
-            minDistance = 10000000000
-            minIndex = -1
-            
-            for j in range(len(commits)):
-                difference = r.issuedAt - commits[j].completedAt
-                if difference > 0 and difference < minDistance:
-                    minIndex = j
-                    minDistance = difference
-                    
-            if minIndex != -1:
-                commits[minIndex].addChild(r)
-                print "Adding "+r.getName()+" as child of "+commits[minIndex].getName()
+            if r.distanceToParentCompute(c) < minDistance:
+                minDistance = r.distanceToParentCompute(c) 
+                minParent = c
         
-        cnt +=1
+        if minParent != None:
+            minParent.addChild(r)
         
-        #if cnt > 5:
-            #assert False
-                
-    # TODO: this is wrong!
-    return [reqs[0]]
+        minDistance = sys.maxint
+        minChild = None
+
+        for c in commits:
+            if r.distanceToChildCompute(c) < minDistance:
+                minDistance = r.distanceToChildCompute(c) 
+                minChild = c
+        
+        if minChild != None:
+            r.addChild(minChild)
+        
+    return [commits[0]]
                 
                 
 
@@ -363,16 +359,11 @@ def traverseDependencies(node, dotfile, depth):
     depth += 1
     depths = []
     
-    print "visiting "+node.getName()
     node.visited = True
-    print "Children:"
-    for c in node.children:
-        print c.getName()
-    
     
     for c in node.children:
         if c.__class__.__name__ == "Request":
-            dotfile.write(str(node.getName())+" -> "+str(c.getName())+" [label="+str(int(c.issuedAt-node.completedAt))+"]\n")
+            dotfile.write(str(node.getName())+" -> "+str(c.getName())+" [label="+str(int(c.issuedAt-node.issuedAt))+"]\n")
         else:
             dotfile.write(str(c.getName())+" [shape=box, label="+str(int(c.completedAt-c.issuedAt))+", style=filled, color=grey]\n")
             dotfile.write(str(node.getName())+" -> "+c.getName()+"\n")
