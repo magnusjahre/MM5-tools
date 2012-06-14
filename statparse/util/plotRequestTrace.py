@@ -220,7 +220,7 @@ def findCompute(requests):
     
     computeNodes.append(Compute(0, stallreqs[0].requestCausedStallAt, "Init"))
     for i in range(1, len(stallreqs)):
-        computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt+1, stallreqs[i].requestCausedStallAt-1, stallreqs[i-1].id))
+        computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt, stallreqs[i].requestCausedStallAt-1, stallreqs[i-1].id))
     #del stallreqs[-1]
     
     return computeNodes
