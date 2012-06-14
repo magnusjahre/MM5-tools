@@ -14,6 +14,7 @@ class Node():
         self.issuedAt = 0
         self.completedAt = 0
         self.visited = False
+        self.reachable = False
 
     def setDependsOn(self, req):
         self.dependsOn = req
@@ -71,7 +72,7 @@ class Compute(Node):
     
     def __init__(self, compFrom, compTo, ident):
         Node.__init__(self)
-        assert compFrom < compTo
+        assert compFrom <= compTo
         self.issuedAt = compFrom
         self.completedAt = compTo
         
@@ -204,6 +205,7 @@ def getStats(requests, parareqs, maxdepth, opts, burstdata):
     print "Stall per request: ", totalStall / numReqs
     print "T. issue to stall: ", totalIssueToStall
     print "Overlap:           ", totalStall / totalLatency
+    print "Num reqs:          ", len(requests)
     print "Max. depth:        ", maxdepth
         
     computeBurstStats(burstdata, totalLatency /numReqs, opts)
@@ -218,7 +220,7 @@ def findCompute(requests):
     
     computeNodes.append(Compute(0, stallreqs[0].requestCausedStallAt, "Init"))
     for i in range(1, len(stallreqs)):
-        computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt, stallreqs[i].requestCausedStallAt, stallreqs[i-1].id))
+        computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt+1, stallreqs[i].requestCausedStallAt-1, stallreqs[i-1].id))
     #del stallreqs[-1]
     
     return computeNodes
@@ -226,11 +228,10 @@ def findCompute(requests):
 
 def buildCombinedGraph(reqs, commits):
     for r in reqs:
-        
         minDistance = sys.maxint
         minParent = None
         for c in commits:
-            if r.distanceToParentCompute(c) < minDistance:
+            if r.distanceToParentCompute(c) < minDistance:                
                 minDistance = r.distanceToParentCompute(c) 
                 minParent = c
         
@@ -296,7 +297,7 @@ def traverseDependencies(node, dotfile, depth):
     if node.__class__.__name__ == "Request":
         depth += 1
     depths = []
-    
+  
     node.visited = True
     
     for c in node.children:
@@ -404,6 +405,31 @@ def mergeNodes(compnodes, requests):
     
     return allnodes
 
+def verifyReachability(roots, reqs, comp):
+    for r in roots:
+        doVerifyTraverse(r)
+    
+    passed = True
+    for r in reqs:
+        if not r.reachable:
+            print "Not reachable: "+str(r)
+            passed = False
+            
+    for c in comp:
+        if not c.reachable:
+            print "Not reachable: "+str(c)
+            passed = False
+            
+    assert passed, "Reachability analysis failed"
+    clearVisited(reqs, comp)
+
+def doVerifyTraverse(node):
+    node.visited = True
+    node.reachable = True
+    for c in node.children:
+        if not c.visited:
+            doVerifyTraverse(c)
+
 def clearVisited(reqs, coms):
     for r in reqs:
         r.visited = False
@@ -457,6 +483,7 @@ def main():
     #roots = buildRequestGraph(allnodes)
     
     roots = buildCombinedGraph(requests, compnodes)
+    verifyReachability(roots, requests, compnodes)
     maxdepth = makeDepencencyDot(roots)
  
     clearVisited(requests, compnodes)
