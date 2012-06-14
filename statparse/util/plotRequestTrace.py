@@ -208,7 +208,7 @@ def getStats(requests, parareqs, maxdepth, opts, burstdata):
     print "Num reqs:          ", len(requests)
     print "Max. depth:        ", maxdepth
         
-    computeBurstStats(burstdata, totalLatency /numReqs, opts)
+    computeBurstStats(burstdata, totalLatency /numReqs, opts, totalStall)
     
 
 def findCompute(requests):
@@ -316,7 +316,7 @@ def traverseDependencies(node, dotfile, depth):
 class BurstLevelStats:
     
     def __init__(self, depth):
-        self.startedAt =10000000000
+        self.startedAt = sys.maxint
         self.finishedAt = 0
         self.numReqs = 0 
         self.depth = depth
@@ -338,6 +338,7 @@ class BurstProcessor:
     
     def __init__(self, maxdepth):
         self.burstDataList = [BurstLevelStats(i) for i in range(maxdepth)]
+        self.sumBurstCompOverlap = 0
 
     def findBurstLatency(self, roots):
         for r in roots:
@@ -355,8 +356,41 @@ class BurstProcessor:
                     self._findBurstLatencyPerLevel(c, depth+1)
                 else:
                     self._findBurstLatencyPerLevel(c, depth)
+                    
+    def findCompReqOverlap(self, roots):
+        assert self.sumBurstCompOverlap == 0
+        for r in roots:
+            self.sumBurstCompOverlap += self._findCompReqOverlap(r)
+        
+    def _findCompReqOverlap(self, node):
+        node.visited = True
+        retval = 0
+        for c in node.children:
+            if not c.visited:
+                if c.__class__.__name__ == "Request":
+                    if node not in c.children:
+                        assert len(c.children) < 2
+                        for compchild in c.children:
+                            assert compchild.__class__.__name__ == "Compute"
+                            ovl = c.completedAt - compchild.issuedAt
+                            if ovl > 0:
+                                retval += ovl 
+                            
+                if c.__class__.__name__ == "Compute":
+                    ovls = []
+                    for reqchild in c.children:
+                        assert reqchild.__class__.__name__ == "Request"
+                        ovl = c.completedAt - reqchild.issuedAt
+                        if ovl > 0:
+                            ovls.append(ovl)
+                    if ovls != []:
+                        retval += max(ovls)
+                        
+                retval += self._findCompReqOverlap(c)
+        return retval
+                    
 
-def computeBurstStats(burstdata, avglat, opts):
+def computeBurstStats(burstdata, avglat, opts, totalStall):
     burstlatsum = 0
     overlapsum = 0
     numReqs = 0
@@ -373,9 +407,14 @@ def computeBurstStats(burstdata, avglat, opts):
             if overlap > 0:
                 overlapsum += overlap
                 
+    modelStallEst = burstlatsum-overlapsum-burstdata.sumBurstCompOverlap
+                
     print
     print "Sum burst latency:      "+str(burstlatsum)
     print "Sum interburst overlap: "+str(overlapsum)
+    print "Sum comp burst overlap: "+str(burstdata.sumBurstCompOverlap)
+    print "Model stall estimate:   "+str(modelStallEst)
+    print "Model stall error:      "+str(((modelStallEst-totalStall)/totalStall)*100)+" %"
     print "Requests in burstlist:  "+str(numReqs) # the roots are missing, so this is not the exact number of reqs
 
 def mergeNodes(compnodes, requests):
@@ -436,6 +475,34 @@ def clearVisited(reqs, coms):
     for c in coms:
         c.visited = False
 
+def findOverlap(reqs, coms):
+    coverage = []
+    
+    for c in coms:     
+        print "Processing "+str(c)
+        
+        for r in reqs:
+            if r.completedAt < c.issuedAt or r.issuedAt > c.completedAt:
+                # Not overlapping continue
+                continue
+            
+            start = r.issuedAt
+            if r.issuedAt < c.issuedAt:
+                start = c.issuedAt
+                
+            end = r.completedAt
+            if end > c.completedAt:
+                end = c.completedAt
+            
+            print "Overlaping from ", start, " to ", end, " tot ", end-start
+            coverage.append( (start, end) )
+    # dustelosning: maa sjekke for individuell overlap ogsaa
+    test = 0
+    for f,t in coverage:
+        print f, t
+        test += t-f
+    print test
+
 def main():
 
     opts,args = parseArgs()
@@ -485,10 +552,14 @@ def main():
     roots = buildCombinedGraph(requests, compnodes)
     verifyReachability(roots, requests, compnodes)
     maxdepth = makeDepencencyDot(roots)
- 
     clearVisited(requests, compnodes)
+    
     burstData = BurstProcessor(maxdepth)
     burstData.findBurstLatency(roots)
+    clearVisited(requests, compnodes)
+    burstData.findCompReqOverlap(roots)
+    
+    findOverlap(requests, compnodes)
     
     getStats(requests, parareqs, maxdepth, opts, burstData)
     
