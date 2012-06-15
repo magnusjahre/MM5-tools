@@ -482,7 +482,7 @@ def findOverlap(reqs, coms):
                     
         overlap += curComOverlap
     
-    return overlap
+    return float(overlap)
 
 def main():
 
