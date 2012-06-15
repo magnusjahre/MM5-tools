@@ -96,6 +96,51 @@ class Compute(Node):
     def __str__(self):
         return self.getName()+" (from "+str(self.issuedAt)+" to "+str(self.completedAt)+")"
 
+
+class BurstLevelStats:
+    
+    def __init__(self, depth):
+        self.startedAt = sys.maxint
+        self.finishedAt = 0
+        self.numReqs = 0 
+        self.depth = depth
+        
+    def addReq(self, start, end):
+        if start < self.startedAt:
+            self.startedAt = start
+        if end > self.finishedAt:
+            self.finishedAt = end
+        self.numReqs += 1
+        
+    def lat(self):
+        return self.finishedAt - self.startedAt
+        
+    def __str__(self):
+        return "Burst "+str(self.depth)+", from "+str(self.startedAt)+" to "+str(self.finishedAt)+" ("+str(self.lat())+"), "+str(self.numReqs)+" reqs"
+
+class BurstProcessor:
+    
+    def __init__(self, maxdepth):
+        self.burstDataList = [BurstLevelStats(i) for i in range(maxdepth)]
+        self.sumBurstCompOverlap = 0
+
+    def findBurstLatency(self, roots):
+        for r in roots:
+            self._findBurstLatencyPerLevel(r, 0)
+
+    def _findBurstLatencyPerLevel(self, node, depth):
+        node.visited = True
+        for c in node.children:
+            if not c.visited:
+                if c.__class__.__name__ == "Request":
+                    # Requests that have the same commit period as parent and child 
+                    # are completely hidden
+                    if node not in c.children:
+                        self.burstDataList[depth].addReq(c.issuedAt, c.completedAt)
+                    self._findBurstLatencyPerLevel(c, depth+1)
+                else:
+                    self._findBurstLatencyPerLevel(c, depth)
+
 def parseArgs():
     parser = OptionParser(usage="analyzeTrace.py [options] filename1")
 
@@ -217,7 +262,7 @@ def getStats(requests, parareqs, maxdepth, opts, burstdata):
     print "Num reqs:          ", len(requests)
     print "Max. depth:        ", maxdepth
         
-    computeBurstStats(burstdata, totalLatency /numReqs, opts, totalStall)
+    computeBurstStats(burstdata, totalLatency /numReqs, opts, totalStall, maxdepth)
     
 
 def findCompute(requests):
@@ -322,51 +367,7 @@ def traverseDependencies(node, dotfile, depth):
         return depth
     return max(depths)
 
-class BurstLevelStats:
-    
-    def __init__(self, depth):
-        self.startedAt = sys.maxint
-        self.finishedAt = 0
-        self.numReqs = 0 
-        self.depth = depth
-        
-    def addReq(self, start, end):
-        if start < self.startedAt:
-            self.startedAt = start
-        if end > self.finishedAt:
-            self.finishedAt = end
-        self.numReqs += 1
-        
-    def lat(self):
-        return self.finishedAt - self.startedAt
-        
-    def __str__(self):
-        return "Burst "+str(self.depth)+", from "+str(self.startedAt)+" to "+str(self.finishedAt)+" ("+str(self.lat())+"), "+str(self.numReqs)+" reqs"
-
-class BurstProcessor:
-    
-    def __init__(self, maxdepth):
-        self.burstDataList = [BurstLevelStats(i) for i in range(maxdepth)]
-        self.sumBurstCompOverlap = 0
-
-    def findBurstLatency(self, roots):
-        for r in roots:
-            self._findBurstLatencyPerLevel(r, 0)
-
-    def _findBurstLatencyPerLevel(self, node, depth):
-        node.visited = True
-        for c in node.children:
-            if not c.visited:
-                if c.__class__.__name__ == "Request":
-                    # Requests that have the same commit period as parent and child 
-                    # are completely hidden
-                    if node not in c.children:
-                        self.burstDataList[depth].addReq(c.issuedAt, c.completedAt)
-                    self._findBurstLatencyPerLevel(c, depth+1)
-                else:
-                    self._findBurstLatencyPerLevel(c, depth)
-
-def computeBurstStats(burstdata, avglat, opts, totalStall):
+def computeBurstStats(burstdata, avglat, opts, totalStall, cpl):
     burstlatsum = 0
     overlapsum = 0
     numReqs = 0
@@ -386,6 +387,7 @@ def computeBurstStats(burstdata, avglat, opts, totalStall):
     modelStallEst = burstlatsum-overlapsum-burstdata.sumBurstCompOverlap
                 
     print
+    print "Avg burst latency:      "+str(burstlatsum/cpl)
     print "Sum burst latency:      "+str(burstlatsum)
     print "Sum interburst overlap: "+str(overlapsum)
     print "Sum comp burst overlap: "+str(burstdata.sumBurstCompOverlap)
