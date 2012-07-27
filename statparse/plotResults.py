@@ -391,7 +391,7 @@ def plotLines(xvalues, yvalues, **kwargs):
     lines = []
     for id in range(len(xvalues)):
         line = ax.plot(xvalues[id], yvalues[id])
-        lines.append(line)
+        lines.append(line[0])
         id += 1
     
     if "cols" in kwargs:
