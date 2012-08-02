@@ -38,7 +38,8 @@ resultfiles = ["interconnect*.txt",
                "detailedCPU*IPCTrace.txt",
                "*-bmout.txt",
                "membus*.txt",
-               "overlapEstimator*.txt"]
+               "overlapEstimator*.txt",
+               "overlapTable*.txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
