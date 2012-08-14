@@ -17,7 +17,6 @@ class ComputerParams:
     def __init__(self, opts):
         
         compname = platform.node()
-        print compname
         
         self.queue = opts.queue
         self.projectNum = None
@@ -129,10 +128,9 @@ class BatchCommands:
         output.write(self.compenv.getHeader(self.currentNp))
         
         for command in self.commands:
-
+            print >> output, "rm -Rf "+command.id # take care of restarts
             print >> output, "mkdir "+command.id
             print >> output, "cd "+command.id
-            print >> output, "rm -Rf *" # take care of restarts
             print >> output, command.cmd + '\n\n'
             print >> output, "cd .."
         
