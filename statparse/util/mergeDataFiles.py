@@ -117,10 +117,11 @@ def mergeData(fileData, opts):
             if match == None:
                 match = re.search("t-[abnc]-[0-9]*-[0-9].*\S", v[0])            
             
-            if match == None:
-                fatal("Could not find workload pattern in key "+v[0])
-            
-            wl = match.group()
+            if match != None:
+                wl = match.group()
+                
+            else:
+                wl = v[0]
             
             spmatch = re.search("sp[0-9]", v[0])
             if spmatch != None:
