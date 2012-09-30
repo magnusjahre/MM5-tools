@@ -35,7 +35,7 @@ def parseArgs():
     return opts, args, datafile
     
 def readFile(datafile, removeColumns):
-    header = datafile.readline().strip().split("  ")
+    header = datafile.readline().strip().split()
     data = []
     for l in datafile:
         rawline = l.strip().split()
