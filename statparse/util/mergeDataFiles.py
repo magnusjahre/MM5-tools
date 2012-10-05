@@ -3,6 +3,7 @@ from statparse import printResults, metrics
 from statparse.util import warn
 from optcomplete import DirCompleter
 from statparse.tracefile import isFloat
+from statparse.plotResults import plotRawBarChart
 
 import sys
 import os
@@ -43,7 +44,10 @@ def parseArgs():
     parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")
     parser.add_option("--print-names", action="store_true", dest="printColumnNames", default=False, help="Print the column ID to column name mapping for the provided files")
     parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
-    parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")    
+    parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
+    parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
+    parser.add_option("--plot-filename", action="store", dest="pltfilename", type="string", default="", help="Provide a filename to store the plot in a file")
+    parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
     opts, args = parser.parse_args()
@@ -183,7 +187,7 @@ def processData(mergedData, mergeSpec, opts):
                         normalizedData[i][j] = "inf"                
                     else:    
                         try:
-                            relVal = (float(mergedData[i][j]) / float(mergedData[i][opts.normalizeTo])) - 1
+                            relVal = (float(mergedData[i][j]) / float(mergedData[i][opts.normalizeTo])) 
                         except:
                             fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
                 
@@ -244,6 +248,54 @@ def computeAverage(processedData, justify, opts):
 
     return resData, justify[1:]
 
+def makeFileData(data, columnToFileList):
+    filedata = []
+    header = [""]
+    fileIndex = {}
+    for c in columnToFileList[1:]:
+        if c not in header:
+            fileIndex[c] = len(header)
+            header.append(c)
+    filedata.append(header)
+
+    legend = []
+    for d in data[0][1:]:
+        if d not in legend:
+            legend.append(d)
+    
+    for l in legend:
+        line = [0.0 for i in range(len(header))]
+        line[0] = l
+        for i in range(len(data[1]))[1:]:
+            if data[0][i] == l:
+                pos = fileIndex[columnToFileList[i]]
+                assert line[pos] == 0.0
+                line[pos] = float(data[1][i])
+        
+        filedata.append(line)
+    
+    return filedata
+    
+
+def plotData(processedData, columnToFileList, opts, filecnt):
+    
+    if opts.doAverage:
+        processedData = makeFileData(processedData, columnToFileList)
+        
+    legend = processedData[0][1:]
+    bms = []
+    datavals = []
+    for i in range(1, len(processedData)):
+        curdata = []
+        for j in range(len(processedData[i])):
+            if j == 0:
+                bms.append(processedData[i][j])
+            else:
+                curdata.append(float(processedData[i][j]))
+        datavals.append(curdata)            
+    
+    plotRawBarChart(datavals, xticklabels=bms, legend=legend, filename=opts.pltfilename, legendcols=opts.legendcols)
+
 def main():
 
     opts,args, printSpec = parseArgs()
@@ -252,6 +304,7 @@ def main():
         if not os.path.exists(filename):
             fatal("File "+filename+" does not exist!")
     
+    filecnt = len(args)
     fileData = readFiles(args, opts)
     mergedData, columnToFileList = mergeData(fileData, opts)
     
@@ -268,6 +321,11 @@ def main():
     if opts.doAverage:
         processedData, justify = computeAverage(processedData, justify, opts)
     printResults.printData(processedData, justify, sys.stdout, opts.decimals, colorCodeOffsets=doColor)
+    
+
+    if opts.plot:
+        plotData(processedData, columnToFileList, opts, filecnt)
+        
 
 if __name__ == '__main__':
     main()

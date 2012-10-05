@@ -608,8 +608,39 @@ def plotRawBarChart(data, **kwargs):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     
-    width = 0.8
-    for i in range(len(data)):        
-        ax.bar(i, data[i], width)
+    pos = 0
+    cols = len(data)
+    
+    legendRects = []
+    
+    for i in range(len(data)):
+        for j in range(len(data[i])):
+            if j >= len(COLORLIST):
+                raise Exception("Used up all the colors, aka to many bars")
+            b = ax.bar(pos, data[i][j], color=COLORLIST[j])
+            pos += 1
+            
+            if len(legendRects) < len(data[i]):
+                legendRects.append(b)
+    
+    if "legend" in kwargs:
+        assert len(kwargs["legend"]) == len(legendRects)
+        if "legendcols" in kwargs:
+            numcols = kwargs["legendcols"]
+        else:
+            numcols = 3
+        
+        ax.legend(legendRects, kwargs["legend"], loc="lower center", ncol = numcols)
+    
+    colsize = float(pos) / float(cols)
+    
+    if "xticklabels" in kwargs:
+        ax.set_xticks([i*colsize+(colsize/2.0) for i in range(len(kwargs["xticklabels"]))])
+        ax.set_xticklabels(kwargs["xticklabels"], rotation="vertical")
+
+    if "filename" in kwargs:
+        if kwargs["filename"] != "":
+            plt.savefig(kwargs["filename"], type="pdf")
+            return
     
     plt.show()
