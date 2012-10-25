@@ -72,10 +72,10 @@ def colorCodeOffsets(text, doColor):
     
     floatVal = float(text)
     
-    if floatVal == 0.0:
+    if floatVal == 1.0:
         return text
     
-    if floatVal > 0.0:
+    if floatVal > 1.0:
         return greenPrefix+text+colorSuffix
     
     return redPrefix+text+colorSuffix
