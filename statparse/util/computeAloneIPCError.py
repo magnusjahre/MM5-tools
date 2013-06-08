@@ -12,6 +12,38 @@ def getTracename(dir, cpuID, sharedMode):
     
     return dir+"/"+prefix+str(cpuID)+postfix
 
+class ColumnPair:
+    def __init__(self, privcol, shcol):
+        self.privateColumn = privcol
+        self.sharedColumn = shcol
+
+class ColumnMatches:
+    def __init__(self):
+        self.colstore = {}
+        self.populateColstore()
+        
+    def populateColstore(self):
+        self.colstore["IPC"] = ColumnPair("Measured Alone IPC", "Estimated Alone IPC")
+        self.colstore["MWS"] = ColumnPair("Misses while Stalled", "Misses while Stalled")
+        self.colstore["latency"] = ColumnPair("Alone Memory Latency", "Estimated Private Latency")
+        self.colstore["overlap"] = ColumnPair("Measured Alone Overlap", "Estimated Alone Overlap")
+
+        self.colstore["compute"] = ColumnPair("Compute Cycles", "Compute Cycles")
+        self.colstore["privlat"] = ColumnPair("Private Stall Cycles", "Private Stall Cycles")
+        self.colstore["memind"] = ColumnPair("Memory Independent Stalls", "Memory Independent Stalls")
+        self.colstore["cpl"] = ColumnPair("CPL", "CPL")
+
+        self.colstore["stall"] = ColumnPair("Actual Stall", "Stall Estimate")
+        self.colstore["cwp"] = ColumnPair("CWP", "CWP")
+        self.colstore["writestall"] = ColumnPair("Write Stall Cycles", "Alone Write Stall Estimate")
+        self.colstore["erob"] = ColumnPair("Empty ROB Stall Cycles", "Alone Empty ROB Stall Estimate")
+        
+    def hasKey(self, key):
+        return key in self.colstore
+
+    def getPair(self, key):
+        return self.colstore[key]
+
 def main():
 
     opts,args = parseUtilArgs("computeAloneIPCError.py", commands)
@@ -30,31 +62,11 @@ def main():
         print
     
     dirs, sortedparams = getNpExperimentDirs(np)
+    traceColMatches = ColumnMatches()
     
-    if command == "IPC":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Measured Alone IPC", "Estimated Alone IPC", False, True)
-    elif command == "MWS":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Misses while Stalled", "Misses while Stalled", False, True)
-    elif command == "latency":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Alone Memory Latency", "Estimated Private Latency", False, True) 
-    elif command == "overlap":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Measured Alone Overlap", "Estimated Alone Overlap", False, True)
-    elif command == "compute":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Compute Cycles", "Compute Cycles", False, True)
-    elif command == "privlat":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Private Stall Cycles", "Private Stall Cycles", False, True)
-    elif command == "memind":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Memory Independent Stalls", "Memory Independent Stalls", False, True)
-    elif command == "cpl":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "CPL", "CPL", False, True)
-    elif command == "stall":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Actual Stall", "Stall Estimate", False, True)
-    elif command == "cwp":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "CWP", "CWP", False, True)
-    elif command == "writestall":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Write Stall Cycles", "Alone Write Stall Estimate", False, True)
-    elif command == "erob":
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, "Empty ROB Stall Cycles", "Alone Empty ROB Stall Estimate", False, True)
+    if traceColMatches.hasKey(command):
+        pair = traceColMatches.getPair(command)
+        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
     else:
         assert False, "unknown command"
         
