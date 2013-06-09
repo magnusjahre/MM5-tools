@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 
+import sys
 from statparse.util import fatal, getNpExperimentDirs, computeTraceError, parseUtilArgs
 from statparse.tracefile.errorStatistics import plotBoxFromDict, dumpAllErrors
 import statparse.tracefile.errorStatistics as errorStats
+from statparse.printResults import numberToString, printData
 
-commands = ["IPC", "MWS", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp", "writestall", "erob"]
+commands = ["IPC", "MWS", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp", "writestall", "erob", "model", "privmemstall"]
+modelComponentCmds = ["compute", "memind", "writestall", "erob", "privmemstall", "stall"]
+modelComponentNames = ["Compute Cycle Error", "Memory Independent Stall Error", "Write Stall Error", "Empty ROB Stall Error" , "Private Memsys Stall Error", "Shared Memsys Stall Error"]
 
 def getTracename(dir, cpuID, sharedMode):
     prefix = "globalPolicyCommittedInsts"
@@ -38,11 +42,47 @@ class ColumnMatches:
         self.colstore["writestall"] = ColumnPair("Write Stall Cycles", "Alone Write Stall Estimate")
         self.colstore["erob"] = ColumnPair("Empty ROB Stall Cycles", "Alone Empty ROB Stall Estimate")
         
+        self.colstore["privmemstall"] = ColumnPair("Private Blocked Stall Cycles", "Alone Private Blocked Stall Estimate")
+        
     def hasKey(self, key):
         return key in self.colstore
 
     def getPair(self, key):
         return self.colstore[key]
+
+def printModelRes(modelRes, sortedparams, workloads, statistic, decimals, doPercentage):
+    header = [""]
+    justify = [True]
+    for p in modelComponentNames:
+        header.append(p)
+        justify.append(False)
+    
+    lines = [header]
+    
+    for w in workloads:
+        for p in sortedparams:
+            line = [w+"-"+p]
+            vals = []
+            for i in range(len(modelRes)):
+                vals.append(modelRes[i][w][p].getStatByName(statistic))
+                
+            if doPercentage:
+                errsum = 0.0
+                for i in range(len(vals)):
+                    vals[i] = abs(vals[i])
+                    errsum += float(vals[i])
+                
+                for i in range(len(vals)):
+                    if errsum != 0.0:
+                        vals[i] = (vals[i]/errsum)*100
+                    else:
+                        vals[i] = 0.0
+            
+            for v in vals:
+                line.append(numberToString(v, decimals))
+            lines.append(line)
+            
+    printData(lines, justify, sys.stdout, decimals)
 
 def main():
 
@@ -67,19 +107,33 @@ def main():
     if traceColMatches.hasKey(command):
         pair = traceColMatches.getPair(command)
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+        if opts.printAll:
+            errorStats.printParamErrorStatDict(results, sortedparams, statname, opts.relativeErrors, opts.decimals)
+        else:
+            errorStats.printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)
+            
+        if opts.plotBox:
+            plotBoxFromDict(results, opts.hideOutliers, sortedparams)
+            
+        if opts.allErrorFile:
+            dumpAllErrors(results, opts.allErrorFile)
+    
     else:
-        assert False, "unknown command"
-        
-    if opts.printAll:
-        errorStats.printParamErrorStatDict(results, sortedparams, statname, opts.relativeErrors, opts.decimals)
-    else:
-        errorStats.printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)
-        
-    if opts.plotBox:
-        plotBoxFromDict(results, opts.hideOutliers, sortedparams)
-        
-    if opts.allErrorFile:
-        dumpAllErrors(results, opts.allErrorFile)
+        assert command == "model", "unknown command"
+        modelRes = []
+        workloads = []
+        first = True
+        for cmd in modelComponentCmds:
+            if not opts.quiet:
+                print "Processing command", cmd
+            pair = traceColMatches.getPair(cmd)
+            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+            if first:
+                workloads = res.keys()
+                workloads.sort()
+                first = False
+            modelRes.append(res)
+        printModelRes(modelRes, sortedparams, workloads, statname, opts.decimals, opts.modelPerc)
 
 if __name__ == '__main__':
     main()
