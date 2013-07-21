@@ -60,7 +60,7 @@ class Request(Node):
         self.requestStallResumedAt = row[8]
         
     def getName(self):
-        return str(self.id)
+        return "request"+str(self.id) 
         
     def distanceToParentCompute(self, compute):
         distance = self.issuedAt - compute.issuedAt
@@ -349,6 +349,7 @@ def makeDepencencyDot(roots):
     
 def traverseDependencies(node, dotfile, depth):
     if node.__class__.__name__ == "Request":
+        dotfile.write(node.getName()+" [label="+str(int(node.address))+"]")
         depth += 1
     depths = []
   
