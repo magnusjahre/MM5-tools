@@ -735,6 +735,9 @@ def processCPTData(opts):
     return computeNodes, requestNodes
 
 def traverseGraphToAnnotate(graphNode, cptNode):
+    if graphNode.visited:
+        cptNode.missing = True
+    
     graphNode.visited = True
     cptNode.visited = True
     
@@ -747,7 +750,6 @@ def traverseGraphToAnnotate(graphNode, cptNode):
                 cptNode.children[0].missing = True
         
         elif len(graphNode.children) == 1:
-            assert graphNode.children[0].visited == cptNode.children[0].visited
             if not graphNode.children[0].visited:
                 traverseGraphToAnnotate(graphNode.children[0], cptNode.children[0]) 
     else:
