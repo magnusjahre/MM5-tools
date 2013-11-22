@@ -152,6 +152,7 @@ def parseArgs():
     parser.add_option("-t", "--plot-type", action="store", type="string", dest="plotType", default="", help="type of plot, one of "+str(plotTypes))
     parser.add_option("--max-recursion-depth", action="store", type="int", dest="recursionDepth", default=0, help="Set the maximum recursion depth")
     parser.add_option("--print-bp", action="store_true", dest="printBurstStats", default=False, help="Print statistics about each burst (verbose)")
+    parser.add_option("--cpt-edge-trace", action="store", dest="cptEdgeTrace", default="", help="Read Critical Path Table edge data from this file")
     
     opts, args = parser.parse_args()
     
@@ -488,23 +489,7 @@ def findOverlap(reqs, coms):
     
     return float(overlap)
 
-def main():
-
-    opts,args = parseArgs()
-    
-    if not opts.quiet:
-        print
-        print "Running trace file analysis..."
-    
-    filename = args[0]
-    if not os.path.exists(filename):
-        print "Error: File "+str(filename)+" not found"
-        return -1
-    
-    if opts.recursionDepth > 0:
-        print "Info: setting maximum recursion depth to "+str(opts.recursionDepth)
-        sys.setrecursionlimit(opts.recursionDepth)
-        
+def buildGraphData(opts, filename):
     tracecontent = TracefileData(filename)
     tracecontent.readTracefile()
 
@@ -530,10 +515,7 @@ def main():
         outstandingReqs[pos] = req
     
     compnodes = findCompute(requests)
-    
-    ##allnodes = mergeNodes(compnodes, requests)
-    #roots = buildRequestGraph(allnodes)
-    
+        
     roots = buildCombinedGraph(requests, compnodes)
     verifyReachability(roots, requests, compnodes)
     maxdepth = makeDepencencyDot(roots)
@@ -557,7 +539,129 @@ def main():
             plotHistogram(heightdata)
         else:
             print "Unknown plot type"
+
+class CPTNode:
+    COMPUTE = 0
+    REQUEST = 1
+    
+    def __init__(self, id, type):
+        self.id = int(id)
+        self.type = int(type)
+        self.children = []
+        self.visited = False
         
+    def addChild(self, node):
+        self.children.append(node)
+        
+    def getName(self):
+        if self.type == self.REQUEST:
+            return "request"+str(self.id)
+        return "comp"+str(self.id)
+
+def checkForNodes(computeNodes, requestNodes, computeId, requestId):
+    if computeId not in computeNodes:
+        computeNodes[computeId] = CPTNode(computeId, CPTNode.COMPUTE)
+                
+    if requestId not in requestNodes:
+        requestNodes[requestId] = CPTNode(requestId, CPTNode.REQUEST)
+
+def buildCPTGraph(tracecontent):
+    computeNodes = {}
+    requestNodes = {}
+    
+    for i in range(tracecontent.getNumRows()):
+        row = tracecontent.getRow(i)
+        
+        if row[3] == CPTNode.REQUEST:
+            requestId = row[1]
+            computeId = row[2]
+            
+            checkForNodes(computeNodes, requestNodes, computeId, requestId)
+            requestNodes[requestId].addChild(computeNodes[computeId])
+            
+        else:
+            assert row[3] == CPTNode.COMPUTE
+            computeId = row[1]
+            requestId = row[2]
+            
+            checkForNodes(computeNodes, requestNodes, computeId, requestId)
+            
+            computeNodes[computeId].addChild(requestNodes[requestId])
+    
+    return computeNodes, requestNodes
+
+def traverseCPTGraph(node):
+    node.visited = True
+    for c in node.children:
+        if not c.visited:
+            traverseCPTGraph(c)
+
+def clearCPTVisited(nodes):
+    for id in nodes:
+        nodes[id].visited = False
+
+def checkCPTReachability(computeNodes, requestNodes):
+    traverseCPTGraph(computeNodes[0])
+    
+    for id in computeNodes:
+        assert computeNodes[id].visited        
+        
+    for addr in requestNodes:
+        assert requestNodes[addr].visited
+    
+    clearCPTVisited(computeNodes)    
+    clearCPTVisited(requestNodes)
+
+def writeCPTDot(node, dotfile):
+    
+    if node.type == CPTNode.REQUEST:
+        dotfile.write(node.getName()+" [label="+str(int(node.id))+"]")
+
+    else:
+        assert node.type == CPTNode.COMPUTE
+        dotfile.write(node.getName()+" [shape=box, label="+str(node.id)+", style=filled, color=grey]\n")
+    
+    node.visited = True
+    
+    for c in node.children:
+        dotfile.write(str(node.getName())+" -> "+c.getName()+"\n")
+        if not c.visited:
+            writeCPTDot(c, dotfile)
+
+def processCPTData(opts):
+    tracecontent = TracefileData(opts.cptEdgeTrace)
+    tracecontent.readTracefile()
+    
+    computeNodes, requestNodes = buildCPTGraph(tracecontent)
+    checkCPTReachability(computeNodes, requestNodes)
+    
+    dotfile = open("cpt-dependencies.dot", "w")
+    dotfile.write("digraph G{\n")
+    writeCPTDot(computeNodes[0], dotfile)
+    dotfile.write("}\n")
+    dotfile.flush()
+    dotfile.close()
+
+def main():
+
+    opts,args = parseArgs()
+    
+    if not opts.quiet:
+        print
+        print "Running trace file analysis..."
+    
+    filename = args[0]
+    if not os.path.exists(filename):
+        print "Error: File "+str(filename)+" not found"
+        return -1
+    
+    if opts.recursionDepth > 0:
+        print "Info: setting maximum recursion depth to "+str(opts.recursionDepth)
+        sys.setrecursionlimit(opts.recursionDepth)
+    
+    buildGraphData(opts, filename)
+    if opts.cptEdgeTrace != "":
+        processCPTData(opts)
         
 if __name__ == '__main__':
     main()
