@@ -601,7 +601,7 @@ def clearCPTVisited(nodes):
         nodes[id].visited = False
 
 def checkCPTReachability(computeNodes, requestNodes):
-    traverseCPTGraph(computeNodes[0])
+    traverseCPTGraph(computeNodes[findCPTRootKey(computeNodes)])
     
     for id in computeNodes:
         assert computeNodes[id].visited        
@@ -611,6 +611,11 @@ def checkCPTReachability(computeNodes, requestNodes):
     
     clearCPTVisited(computeNodes)    
     clearCPTVisited(requestNodes)
+
+def findCPTRootKey(computeNodes):
+    keys = computeNodes.keys()
+    keys.sort()
+    return keys[0]
 
 def writeCPTDot(node, dotfile):
     
@@ -637,7 +642,7 @@ def processCPTData(opts):
     
     dotfile = open("cpt-dependencies.dot", "w")
     dotfile.write("digraph G{\n")
-    writeCPTDot(computeNodes[0], dotfile)
+    writeCPTDot(computeNodes[findCPTRootKey(computeNodes)], dotfile)
     dotfile.write("}\n")
     dotfile.flush()
     dotfile.close()
