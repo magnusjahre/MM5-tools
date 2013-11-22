@@ -150,7 +150,7 @@ def parseArgs():
     parser.add_option("-f", "--plot-from", action="store", type="int", dest="plotFrom", default=0, help="plot from this request id")
     parser.add_option("-s", "--plot-size", action="store", type="int", dest="plotSize", default=0, help="plot this number of requests")
     parser.add_option("-t", "--plot-type", action="store", type="string", dest="plotType", default="", help="type of plot, one of "+str(plotTypes))
-    parser.add_option("--max-recursion-depth", action="store", type="int", dest="recursionDepth", default=0, help="Set the maximum recursion depth")
+    parser.add_option("--max-recursion-maxdepth", action="store", type="int", dest="recursionDepth", default=0, help="Set the maximum recursion maxdepth")
     parser.add_option("--print-bp", action="store_true", dest="printBurstStats", default=False, help="Print statistics about each burst (verbose)")
     parser.add_option("--cpt-edge-trace", action="store", dest="cptEdgeTrace", default="", help="Read Critical Path Table edge data from this file")
     
@@ -261,7 +261,7 @@ def getStats(requests, parareqs, maxdepth, opts, burstdata):
     print "T. issue to stall: ", totalIssueToStall
     print "Overlap:           ", totalStall / totalLatency
     print "Num reqs:          ", len(requests)
-    print "Max. depth:        ", maxdepth
+    print "Max. maxdepth:        ", maxdepth
         
     computeBurstStats(burstdata, totalLatency /numReqs, opts, totalStall, maxdepth)
     
@@ -527,6 +527,8 @@ def buildGraphData(opts, filename):
     
     getStats(requests, parareqs, maxdepth, opts, burstData)
     
+    clearVisited(requests, compnodes)
+    
     if opts.plotType != "":
         if opts.plotType == "requests":
             plotdata, colors = makePlotData(parareqs)
@@ -539,6 +541,9 @@ def buildGraphData(opts, filename):
             plotHistogram(heightdata)
         else:
             print "Unknown plot type"
+            
+    assert len(roots) == 1
+    return roots[0]
 
 class CPTNode:
     COMPUTE = 0
@@ -548,11 +553,18 @@ class CPTNode:
         self.id = int(id)
         self.type = int(type)
         self.children = []
+        self.parents = []
         self.visited = False
+        self.missing = False
+        self.incomingEdges = 0
+        self.maxdepth = 0
         
     def addChild(self, node):
         self.children.append(node)
-        
+    
+    def addParent(self, node):
+        self.parents.append(node)
+    
     def getName(self):
         if self.type == self.REQUEST:
             return "request"+str(self.id)
@@ -590,19 +602,79 @@ def buildCPTGraph(tracecontent):
     
     return computeNodes, requestNodes
 
-def traverseCPTGraph(node):
-    node.visited = True
-    for c in node.children:
-        if not c.visited:
-            traverseCPTGraph(c)
-
 def clearCPTVisited(nodes):
     for id in nodes:
         nodes[id].visited = False
 
-def checkCPTReachability(computeNodes, requestNodes):
-    traverseCPTGraph(computeNodes[findCPTRootKey(computeNodes)])
+def populateCPTParentCount(root, cn, rn):
+    workqueue = [root]
+    while workqueue != []:
+        node = workqueue.pop(0)
+        if node.visited:
+            continue
+        
+        node.visited = True
+        for c in node.children:
+            c.incomingEdges += 1
+            if not c.visited:
+                workqueue.append(c)
     
+    for c in rn:
+        assert rn[c].incomingEdges == 1
+        assert rn[c].incomingEdges == len(rn[c].parents)
+        
+    for c in cn:
+        assert cn[c].incomingEdges == len(cn[c].parents)
+    
+    clearCPTVisited(cn)
+    clearCPTVisited(rn)
+
+def populateCPTParents(computeNodes, requestNodes):
+    root = computeNodes[findCPTRootKey(computeNodes)]
+    workqueue = [root]
+    
+    while workqueue != []:
+        node = workqueue.pop(0)
+        if node.visited:
+            continue
+        
+        node.visited = True
+        for c in node.children:
+            c.addParent(node)
+            if not c.visited:
+                workqueue.append(c)
+    
+    clearCPTVisited(computeNodes)    
+    clearCPTVisited(requestNodes)
+
+def checkCPTReachability(computeNodes, requestNodes):
+
+    root = computeNodes[findCPTRootKey(computeNodes)]
+    populateCPTParentCount(root, computeNodes, requestNodes)
+    
+    workqueue = [root]
+    toposort = []
+    
+    while workqueue != []:
+        node = workqueue.pop(0)
+        node.visited = True
+        toposort.append(node)
+        
+        for c in node.children:
+            c.incomingEdges = c.incomingEdges - 1
+            if not c.visited and c.incomingEdges == 0:
+                workqueue.append(c)
+    
+    for n in toposort:
+        parentMaxdepth = 0
+        for p in n.parents:
+            if p.maxdepth > parentMaxdepth:
+                parentMaxdepth = p.maxdepth
+        if n.type == CPTNode.REQUEST:
+            n.maxdepth = parentMaxdepth+1
+        else:
+            n.maxdepth = parentMaxdepth
+            
     for id in computeNodes:
         assert computeNodes[id].visited        
         
@@ -617,35 +689,89 @@ def findCPTRootKey(computeNodes):
     keys.sort()
     return keys[0]
 
-def writeCPTDot(node, dotfile):
+def writeCPTDotNode(node, dotfile):
     
     if node.type == CPTNode.REQUEST:
-        dotfile.write(node.getName()+" [label="+str(int(node.id))+"]")
+        dotfile.write(node.getName()+" [label=\""+str(int(node.id))+"\\nMaxD: "+str(node.maxdepth)+"\"")
+        if node.missing:
+            dotfile.write(", color=red")
+        dotfile.write("]\n")
 
     else:
         assert node.type == CPTNode.COMPUTE
-        dotfile.write(node.getName()+" [shape=box, label="+str(node.id)+", style=filled, color=grey]\n")
+        dotfile.write(node.getName()+" [shape=box, label=\""+str(node.id)+"\\nMaxD: "+str(node.maxdepth)+"\", style=filled, ")
+        if node.missing:
+            dotfile.write("color=red")
+        else:
+            dotfile.write("color=grey")
+        dotfile.write("]\n")
     
     node.visited = True
     
     for c in node.children:
         dotfile.write(str(node.getName())+" -> "+c.getName()+"\n")
         if not c.visited:
-            writeCPTDot(c, dotfile)
+            writeCPTDotNode(c, dotfile)
+
+def writeCPTDot(computeNodes, requestNodes):
+    dotfile = open("cpt-dependencies.dot", "w")
+    dotfile.write("digraph G{\n")
+    writeCPTDotNode(computeNodes[findCPTRootKey(computeNodes)], dotfile)
+    dotfile.write("}\n")
+    dotfile.flush()
+    dotfile.close()
+    
+    clearCPTVisited(computeNodes)    
+    clearCPTVisited(requestNodes)
 
 def processCPTData(opts):
     tracecontent = TracefileData(opts.cptEdgeTrace)
     tracecontent.readTracefile()
     
     computeNodes, requestNodes = buildCPTGraph(tracecontent)
+    populateCPTParents(computeNodes, requestNodes)
     checkCPTReachability(computeNodes, requestNodes)
     
-    dotfile = open("cpt-dependencies.dot", "w")
-    dotfile.write("digraph G{\n")
-    writeCPTDot(computeNodes[findCPTRootKey(computeNodes)], dotfile)
-    dotfile.write("}\n")
-    dotfile.flush()
-    dotfile.close()
+    return computeNodes, requestNodes
+
+def traverseGraphToAnnotate(graphNode, cptNode):
+    graphNode.visited = True
+    cptNode.visited = True
+    
+    if graphNode.__class__.__name__ == "Request":
+        assert len(graphNode.children) <= 1
+        assert len(cptNode.children) <= 1
+        
+        if len(graphNode.children) != len(cptNode.children):
+            if(len(cptNode.children) == 1):
+                cptNode.children[0].missing = True
+        
+        elif len(graphNode.children) == 1:
+            assert graphNode.children[0].visited == cptNode.children[0].visited
+            if not graphNode.children[0].visited:
+                traverseGraphToAnnotate(graphNode.children[0], cptNode.children[0]) 
+    else:
+        seen = {}
+        for c in cptNode.children:
+            seen[c.id] = False
+        
+        for c in graphNode.children:
+            seen[c.address] = True
+                
+        for c in cptNode.children:
+            if not seen[c.id]:
+                c.missing = True
+    
+        for gc in graphNode.children:
+            found = False
+            for cc in cptNode.children:
+                if gc.address == cc.id:
+                    assert found == False
+                    traverseGraphToAnnotate(gc, cc)
+                    found = True
+
+def annotateCPT(graphroot, cptroot):
+    traverseGraphToAnnotate(graphroot, cptroot)
 
 def main():
 
@@ -661,12 +787,16 @@ def main():
         return -1
     
     if opts.recursionDepth > 0:
-        print "Info: setting maximum recursion depth to "+str(opts.recursionDepth)
+        print "Info: setting maximum recursion maxdepth to "+str(opts.recursionDepth)
         sys.setrecursionlimit(opts.recursionDepth)
     
-    buildGraphData(opts, filename)
+    graphroot = buildGraphData(opts, filename)
     if opts.cptEdgeTrace != "":
-        processCPTData(opts)
+        cptComputeNodes, cptRequestNodes = processCPTData(opts)
+        annotateCPT(graphroot, cptComputeNodes[findCPTRootKey(cptComputeNodes)])
+        clearCPTVisited(cptComputeNodes)
+        clearCPTVisited(cptRequestNodes)
+        writeCPTDot(cptComputeNodes, cptRequestNodes)
         
 if __name__ == '__main__':
     main()
