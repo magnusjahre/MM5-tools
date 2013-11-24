@@ -607,6 +607,7 @@ def clearCPTVisited(nodes):
         nodes[id].visited = False
 
 def populateCPTParentCount(root, cn, rn):
+    
     workqueue = [root]
     while workqueue != []:
         node = workqueue.pop(0)
@@ -647,9 +648,18 @@ def populateCPTParents(computeNodes, requestNodes):
     clearCPTVisited(computeNodes)    
     clearCPTVisited(requestNodes)
 
-def checkCPTReachability(computeNodes, requestNodes):
+def removeCycles(cn, rn):
+    for compID in cn:
+        comp = cn[compID]
+        for req in comp.children:
+            if comp in req.children:
+                req.children.remove(comp)
+                comp.parents.remove(req)
+
+def populateMaximumDepths(computeNodes, requestNodes):
 
     root = computeNodes[findCPTRootKey(computeNodes)]
+    removeCycles(computeNodes, requestNodes)
     populateCPTParentCount(root, computeNodes, requestNodes)
     
     workqueue = [root]
@@ -676,6 +686,8 @@ def checkCPTReachability(computeNodes, requestNodes):
             n.maxdepth = parentMaxdepth
             
     for id in computeNodes:
+        if not computeNodes[id].visited:
+            print "Not visited", computeNodes[id].id
         assert computeNodes[id].visited        
         
     for addr in requestNodes:
@@ -730,7 +742,7 @@ def processCPTData(opts):
     
     computeNodes, requestNodes = buildCPTGraph(tracecontent)
     populateCPTParents(computeNodes, requestNodes)
-    checkCPTReachability(computeNodes, requestNodes)
+    populateMaximumDepths(computeNodes, requestNodes)
     
     return computeNodes, requestNodes
 
