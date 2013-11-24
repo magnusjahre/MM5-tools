@@ -358,9 +358,9 @@ def traverseDependencies(node, dotfile, depth):
     
     for c in node.children:
         if c.__class__.__name__ == "Request":
-            dotfile.write(str(node.getName())+" -> "+str(c.getName())+" [label="+str(int(c.issuedAt-node.issuedAt))+"]\n")
+            dotfile.write(str(node.getName())+" -> "+str(c.getName())+" [label=\""+str(int(c.issuedAt-node.issuedAt))+"\"]\n")
         else:
-            dotfile.write(str(c.getName())+" [shape=box, label="+str(int(c.completedAt-c.issuedAt))+", style=filled, color=grey]\n")
+            dotfile.write(str(c.getName())+" [shape=box, label=\""+c.getName()+"\\n"+str(int(c.completedAt-c.issuedAt))+"\", style=filled, color=grey]\n")
             dotfile.write(str(node.getName())+" -> "+c.getName()+"\n")
         if not c.visited:
             depths.append(traverseDependencies(c, dotfile, depth))
