@@ -745,7 +745,12 @@ class StatResults():
                 if key not in aggDistrib:
                     aggDistrib[key] = curDistrib[key]
                 else:
-                    aggDistrib[key] += curDistrib[key]
+                    if key == "max_value":
+                        aggDistrib[key] = max(aggDistrib[key], curDistrib[key])
+                    elif key == "min_value":
+                        aggDistrib[key] = min(aggDistrib[key], curDistrib[key])
+                    else:
+                        aggDistrib[key] += curDistrib[key]
         return aggDistrib
                     
     def _printDistribution(self, aggDistrib, decimalPlaces, outfile):
