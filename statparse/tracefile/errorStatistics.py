@@ -71,7 +71,7 @@ def printErrorStatDict(errors, relative, decimals, sortedkeys = None):
     sortedParamKeys: list of strings with the order the parameters should appear in
     statistic: a string describing the statistic to print
 """
-def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decimals):
+def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decimals, outfile = sys.stdout):
     
     header = [""]
     justify = [True]
@@ -93,7 +93,7 @@ def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decima
                 thisLine.append("N/A")
         lines.append(thisLine)
     
-    printData(lines, justify, sys.stdout, decimals)
+    printData(lines, justify, outfile, decimals)
 
 """ Plots a box and whiskers plot based on data from a dictionary 
 

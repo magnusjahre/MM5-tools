@@ -35,7 +35,7 @@ class ColumnMatches:
         self.colstore["compute"] = ColumnPair("Compute Cycles", "Compute Cycles")
         self.colstore["privlat"] = ColumnPair("Private Stall Cycles", "Private Stall Cycles")
         self.colstore["memind"] = ColumnPair("Memory Independent Stalls", "Memory Independent Stalls")
-        self.colstore["cpl"] = ColumnPair("CPL", "CPL")
+        self.colstore["cpl"] = ColumnPair("Graph CPL", "Table CPL")
 
         self.colstore["stall"] = ColumnPair("Actual Stall", "Stall Estimate")
         self.colstore["cwp"] = ColumnPair("CWP", "CWP")
@@ -93,8 +93,11 @@ def main():
         fatal("Number of CPUs must be an integer")
     
     
-    command = args[1]
-    statname = args[2]
+    
+    statname = args[1]
+    command = None
+    if len(args) == 3:
+        command = args[2]
     
     if not opts.quiet:
         print
@@ -103,8 +106,8 @@ def main():
     
     dirs, sortedparams = getNpExperimentDirs(np)
     traceColMatches = ColumnMatches()
-    
-    if traceColMatches.hasKey(command):
+
+    if command != None:
         pair = traceColMatches.getPair(command)
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
         if opts.printAll:
@@ -117,23 +120,28 @@ def main():
             
         if opts.allErrorFile:
             dumpAllErrors(results, opts.allErrorFile)
+        return
     
-    else:
-        assert command == "model", "unknown command"
-        modelRes = []
-        workloads = []
-        first = True
-        for cmd in modelComponentCmds:
-            if not opts.quiet:
-                print "Processing command", cmd
-            pair = traceColMatches.getPair(cmd)
-            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
-            if first:
-                workloads = res.keys()
-                workloads.sort()
-                first = False
-            modelRes.append(res)
-        printModelRes(modelRes, sortedparams, workloads, statname, opts.decimals, opts.modelPerc)
+    modelRes = []
+    workloads = []
+    first = True
+    for cmd in modelComponentCmds:
+        outname = "error-"+str(np)+"-"+statname+"-"+cmd+".txt"
+        outfile = open(outname, "w") 
+        if not opts.quiet:
+            print "Processing command "+cmd+", writing output to file "+outname
+        pair = traceColMatches.getPair(cmd)
+        res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+        errorStats.printParamErrorStatDict(res, sortedparams, statname, opts.relativeErrors, opts.decimals, outfile)
+        outfile.close()
+
+        if first:
+            workloads = res.keys()
+            workloads.sort()
+            first = False
+        modelRes.append(res)
+    
+    printModelRes(modelRes, sortedparams, workloads, statname, opts.decimals, opts.modelPerc)
 
 if __name__ == '__main__':
     main()

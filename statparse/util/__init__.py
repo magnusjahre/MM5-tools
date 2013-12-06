@@ -243,7 +243,7 @@ class CustomListCompleter:
         return self.list
 
 def parseUtilArgs(programName, commands):
-    parser = OptionParser(usage=programName+" [options] np command statistic")
+    parser = OptionParser(usage=programName+" [options] np statistic [command]")
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Print extra progress output")
@@ -258,13 +258,14 @@ def parseUtilArgs(programName, commands):
     optcomplete.autocomplete(parser, CustomListCompleter([commands, errorStats.statNames]))
     opts, args = parser.parse_args()
     
-    if len(args) != 3:
+    if len(args) < 1 and len(args) > 3:
         fatal("command line error\nUsage: "+parser.usage)
     
-    if args[1] not in commands:
-        fatal("Unknown command "+args[1]+", candidates are "+str(commands))
-    
-    if not errorStats.checkStatName(args[2]):
+    if not errorStats.checkStatName(args[1]):
         fatal("Unknown statistic name. "+errorStats.getStatnameMessage()) 
+    
+    if len(args) == 3:
+        if args[2] not in commands:
+            fatal("Unknown command "+args[2]+", candidates are "+str(commands))
     
     return opts,args
