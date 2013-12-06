@@ -122,7 +122,7 @@ def main():
                 first = False
             modelRes.append(res)
         
-        printModelRes(modelRes, sortedparams, workloads, statname, opts.decimals, opts.modelPerc)
+        printModelRes(modelRes, sortedparams, workloads, statname, opts.decimals, opts.relativeErrors)
         return
 
     elif command != None:
