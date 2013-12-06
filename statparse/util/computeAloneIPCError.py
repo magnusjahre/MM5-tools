@@ -6,7 +6,7 @@ from statparse.tracefile.errorStatistics import plotBoxFromDict, dumpAllErrors
 import statparse.tracefile.errorStatistics as errorStats
 from statparse.printResults import numberToString, printData
 
-commands = ["IPC", "MWS", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp", "writestall", "erob", "model", "privmemstall"]
+commands = ["IPC", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp", "writestall", "erob", "model", "privmemstall"]
 modelComponentCmds = ["compute", "memind", "writestall", "erob", "privmemstall", "stall"]
 modelComponentNames = ["Compute Cycle Error", "Memory Independent Stall Error", "Write Stall Error", "Empty ROB Stall Error" , "Private Memsys Stall Error", "Shared Memsys Stall Error"]
 
@@ -28,7 +28,6 @@ class ColumnMatches:
         
     def populateColstore(self):
         self.colstore["IPC"] = ColumnPair("Measured Alone IPC", "Estimated Alone IPC")
-        self.colstore["MWS"] = ColumnPair("Misses while Stalled", "Misses while Stalled")
         self.colstore["latency"] = ColumnPair("Alone Memory Latency", "Estimated Private Latency")
         self.colstore["overlap"] = ColumnPair("Measured Alone Overlap", "Estimated Alone Overlap")
 
@@ -107,7 +106,26 @@ def main():
     dirs, sortedparams = getNpExperimentDirs(np)
     traceColMatches = ColumnMatches()
 
-    if command != None:
+    if command == "model":
+        modelRes = []
+        workloads = []
+        first = True
+        for cmd in modelComponentCmds: 
+            if not opts.quiet:
+                print "Processing command",cmd
+            pair = traceColMatches.getPair(cmd)
+            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+            
+            if first:
+                workloads = res.keys()
+                workloads.sort()
+                first = False
+            modelRes.append(res)
+        
+        printModelRes(modelRes, sortedparams, workloads, statname, opts.decimals, opts.modelPerc)
+        return
+
+    elif command != None:
         pair = traceColMatches.getPair(command)
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
         if opts.printAll:
@@ -122,26 +140,23 @@ def main():
             dumpAllErrors(results, opts.allErrorFile)
         return
     
-    modelRes = []
-    workloads = []
-    first = True
-    for cmd in modelComponentCmds:
-        outname = "error-"+str(np)+"-"+statname+"-"+cmd+".txt"
+    print "Printing all error components to files"
+    relstr = "abs"
+    if opts.relativeErrors:
+        relstr = "rel"
+    for cmd in commands:
+        if cmd == "model":
+            continue
+        
+        outname = "error-"+str(np)+"-"+statname+"-"+relstr+"-"+cmd+".txt"
         outfile = open(outname, "w") 
         if not opts.quiet:
-            print "Processing command "+cmd+", writing output to file "+outname
+            print "Processing command "+cmd+": Writing output to file "+outname
         pair = traceColMatches.getPair(cmd)
         res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
         errorStats.printParamErrorStatDict(res, sortedparams, statname, opts.relativeErrors, opts.decimals, outfile)
         outfile.close()
 
-        if first:
-            workloads = res.keys()
-            workloads.sort()
-            first = False
-        modelRes.append(res)
-    
-    printModelRes(modelRes, sortedparams, workloads, statname, opts.decimals, opts.modelPerc)
 
 if __name__ == '__main__':
     main()
