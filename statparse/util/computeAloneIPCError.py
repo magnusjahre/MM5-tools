@@ -146,8 +146,8 @@ def main():
         if opts.allErrorFile:
             dumpAllErrors(results, opts.allErrorFile)
         return
-    
-    print "Printing all error components to files"
+    if not opts.quiet:
+        print "Printing all error components to files"
     relstr = "abs"
     if opts.relativeErrors:
         relstr = "rel"
