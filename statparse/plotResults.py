@@ -265,6 +265,49 @@ def plotBoxPlot(data, **kwargs):
     if not "no-show" in parameters:
         plt.show()
 
+
+def plotRawLinePlot(xvalues, ydataseries, **kwargs):
+    
+    import numpy as np
+    import matplotlib
+    
+    fontsize = 12
+    matplotlib.rc('xtick', labelsize=fontsize) 
+    matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('font', size=fontsize)
+    
+    import matplotlib.pyplot as plt
+    
+    fig = plt.figure(figsize=(8,3))
+    ax = fig.add_subplot(111)
+    
+    labels = None
+    if "titles" in kwargs:
+        if len(kwargs["titles"]) != len(ydataseries):
+            raise Exception("The titles list must have the same length as the y-datalist list")
+        
+        labels = kwargs["titles"]
+    
+    for i in range(len(ydataseries)):
+        if labels != None:
+            ax.plot(xvalues, ydataseries[i], label=labels[i])
+        else:
+            ax.plot(xvalues, ydata[i])
+            
+    if labels != None:
+        plt.legend(ncol=2, loc="upper center")
+
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"])
+    
+    if "ylabel" in kwargs:
+        ax.set_ylabel(kwargs["ylabel"])
+    
+    if "filename" in kwargs:
+        plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
+    else:
+        plt.show()
+
 """ Boxplot supports the following string parameters:
     - data: a list of lists containing the data ranges to be visualized
 

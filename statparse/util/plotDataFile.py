@@ -3,18 +3,21 @@
 from optparse import OptionParser
 from statparse.util import fatal
 
-from statparse.plotResults import plotRawBoxPlot
+from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot
 
 import optcomplete
 
 def parseArgs():
     parser = OptionParser(usage="plotDataFile.py [options] filename")
 
+    plotTypes = ["boxplot", "lineplot"]
+
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--rotate", action="store", dest="rotate", type="int", default=0, help="Rotate labels by x degrees")
     parser.add_option("--margins", action="store", dest="margins", type="string", default="", help="Comma separated plot margins: left,right,top,bottom ")
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default="plot.pdf", help="Output filename (Default: plot.pdf)")
+    parser.add_option("--plot-type", action="store", dest="plotType", type="string", default="boxplot", help="Output filename (Default: boxplot, alternatives "+str(plotTypes)+")")
     parser.add_option("-y", "--ytitle", action="store", dest="ytitle", type="string", default="Y axis title")
     parser.add_option("-x", "--xtitle", action="store", dest="xtitle", type="string", default="X axis title")
     parser.add_option("--remove-columns", action="store", dest="removeColumns", type="string", default="", help="Comma separated list of columns to remove (Zero indexed)")
@@ -31,6 +34,9 @@ def parseArgs():
         except:
             print parser.usage
             fatal("Command line error")
+    
+    if opts.plotType not in plotTypes:
+        fatal("Plot type needs to be one of "+str(plotTypes))
     
     return opts, args, datafile
     
@@ -89,7 +95,7 @@ def createDataSeries(rawdata, datacols):
         for i in range(datacols+1):
             dataseries[i].append(l[i])
 
-    return dataseries[1:]
+    return dataseries
     
 def main():
 
@@ -113,13 +119,21 @@ def main():
     
     print "Plotting data to file "+opts.outfile+"..."
     
-    plotRawBoxPlot(dataseries,
-                   titles=header,
-                   rotate=opts.rotate,
-                   plotmargins=margs,
-                   filename=opts.outfile,
-                   xlabel=opts.xtitle,
-                   ylabel=opts.ytitle)
+    if opts.plotType == "lineplot":
+        plotRawLinePlot(dataseries[0], dataseries[1:],
+                        titles=header,
+                        filename=opts.outfile,
+                        xlabel=opts.xtitle,
+                        ylabel=opts.ytitle)
+    else:
+        assert opts.plotType == "boxplot"
+        plotRawBoxPlot(dataseries[1:],
+                       titles=header,
+                       rotate=opts.rotate,
+                       plotmargins=margs,
+                       filename=opts.outfile,
+                       xlabel=opts.xtitle,
+                       ylabel=opts.ytitle)
 
     print "Done!"
 
