@@ -82,14 +82,14 @@ def readFile(datafile, removeColumns):
     
     return header, data
 
-def createBoxWhiskerData(rawdata, datacols):
-    bwdata =[[] for i in range(datacols+1)]
+def createDataSeries(rawdata, datacols):
+    dataseries =[[] for i in range(datacols+1)]
     
     for l in rawdata:
         for i in range(datacols+1):
-            bwdata[i].append(l[i])
+            dataseries[i].append(l[i])
 
-    return bwdata[1:]
+    return dataseries[1:]
     
 def main():
 
@@ -100,7 +100,7 @@ def main():
     
     header, data = readFile(datafile, opts.removeColumns)
     
-    bwdata = createBoxWhiskerData(data, len(header))
+    dataseries = createDataSeries(data, len(header))
     
     if opts.margins != "":
         margList = opts.margins.split(",")
@@ -113,7 +113,7 @@ def main():
     
     print "Plotting data to file "+opts.outfile+"..."
     
-    plotRawBoxPlot(bwdata,
+    plotRawBoxPlot(dataseries,
                    titles=header,
                    rotate=opts.rotate,
                    plotmargins=margs,
