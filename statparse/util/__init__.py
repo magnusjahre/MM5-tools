@@ -245,10 +245,12 @@ class CustomListCompleter:
 def parseUtilArgs(programName, commands):
     parser = OptionParser(usage=programName+" [options] np statistic [command]")
 
+    printTypes= ["all", "statistics", "distribution"]
+
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Print extra progress output")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
-    parser.add_option("--print-all", action="store_true", dest="printAll", default=False, help="Print results for each workload")
+    parser.add_option("--print-type", action="store", dest="printType", default="all", help="Result print style to use (one of "+str(printTypes)+")")
     parser.add_option("--relative", action="store_true", dest="relativeErrors", default=False, help="Print relative errors (Default: absolute)")
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
     parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")
@@ -266,5 +268,8 @@ def parseUtilArgs(programName, commands):
     if len(args) == 3:
         if args[2] not in commands:
             fatal("Unknown command "+args[2]+", candidates are "+str(commands))
+    
+    if opts.printType not in printTypes:
+        fatal("Print type needs to be one of "+str(printTypes))
     
     return opts,args

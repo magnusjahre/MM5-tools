@@ -94,6 +94,43 @@ def printParamErrorStatDict(errors, sortedParamKeys, statistic, relative, decima
         lines.append(thisLine)
     
     printData(lines, justify, outfile, decimals)
+    
+""" Prints error dictionary with parameters but sorts each data data set to create a sorted value distribution
+
+    errors: key string -> parameter string --> ErrorStatistics object
+    sortedParamKeys: list of strings with the order the parameters should appear in
+    statistic: a string describing the statistic to print
+"""
+def printParamErrorStatDistribution(errors, sortedParamKeys, statistic, relative, decimals, outfile = sys.stdout):
+    header = [""]
+    justify = [True]
+    for p in sortedParamKeys:
+        header.append(p)
+        justify.append(False)
+    
+    lines = [header]
+    
+    mainkeys = errors.keys()
+    mainkeys.sort()
+    
+    data = {}
+    for k in mainkeys:
+        for p in sortedParamKeys:
+            if p not in data:
+                data[p] = []
+            data[p].append(errors[k][p].getStatByName(statistic))
+            
+    for p in sortedParamKeys:
+        data[p].sort()
+        
+    for i in range(len(mainkeys)):
+        line = [str(i+1)]
+        for p in sortedParamKeys:
+            line.append(numberToString(data[p][i], decimals))
+        lines.append(line)
+    
+    printData(lines, justify, outfile, decimals)    
+
 
 """ Plots a box and whiskers plot based on data from a dictionary 
 

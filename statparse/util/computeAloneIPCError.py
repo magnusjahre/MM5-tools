@@ -83,6 +83,15 @@ def printModelRes(modelRes, sortedparams, workloads, statistic, decimals, doPerc
             
     printData(lines, justify, sys.stdout, decimals)
 
+def printResults(results, aggRes, sortedparams, statname, opts, outfile):
+    if opts.printType == "all":
+        errorStats.printParamErrorStatDict(results, sortedparams, statname, opts.relativeErrors, opts.decimals, outfile)
+    elif opts.printType == "distribution":
+        errorStats.printParamErrorStatDistribution(results, sortedparams, statname, opts.relativeErrors, opts.decimals, outfile)
+    else:
+        assert opts.printType == "statistics"
+        errorStats.printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)            
+
 def main():
 
     opts,args = parseUtilArgs("computeAloneIPCError.py", commands)
@@ -128,11 +137,9 @@ def main():
     elif command != None:
         pair = traceColMatches.getPair(command)
         results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
-        if opts.printAll:
-            errorStats.printParamErrorStatDict(results, sortedparams, statname, opts.relativeErrors, opts.decimals)
-        else:
-            errorStats.printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)
-            
+        
+        printResults(results, aggRes, sortedparams, statname, opts, sys.stdout)
+        
         if opts.plotBox:
             plotBoxFromDict(results, opts.hideOutliers, sortedparams)
             
@@ -148,13 +155,13 @@ def main():
         if cmd == "model":
             continue
         
-        outname = "error-"+str(np)+"-"+statname+"-"+relstr+"-"+cmd+".txt"
+        outname = "error-"+str(np)+"-"+statname+"-"+opts.printType+"-"+relstr+"-"+cmd+".txt"
         outfile = open(outname, "w") 
         if not opts.quiet:
             print "Processing command "+cmd+": Writing output to file "+outname
         pair = traceColMatches.getPair(cmd)
         res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
-        errorStats.printParamErrorStatDict(res, sortedparams, statname, opts.relativeErrors, opts.decimals, outfile)
+        printResults(res, aggRes, sortedparams, statname, opts, outfile)
         outfile.close()
 
 
