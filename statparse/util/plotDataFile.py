@@ -15,11 +15,13 @@ def parseArgs():
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--rotate", action="store", dest="rotate", type="int", default=0, help="Rotate labels by x degrees")
+    parser.add_option("--legend-columns", action="store", dest="legendColumns", type="int", default=2, help="Number of columns in legend")
     parser.add_option("--margins", action="store", dest="margins", type="string", default="", help="Comma separated plot margins: left,right,top,bottom ")
-    parser.add_option("--outfile", action="store", dest="outfile", type="string", default="plot.pdf", help="Output filename (Default: plot.pdf)")
+    parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Output filename (Default: plot.pdf)")
     parser.add_option("--plot-type", action="store", dest="plotType", type="string", default="boxplot", help="Output filename (Default: boxplot, alternatives "+str(plotTypes)+")")
-    parser.add_option("-y", "--ytitle", action="store", dest="ytitle", type="string", default="Y axis title")
-    parser.add_option("-x", "--xtitle", action="store", dest="xtitle", type="string", default="X axis title")
+    parser.add_option("-y", "--ytitle", action="store", dest="ytitle", type="string", default="Y axis title", help="Y axis title")
+    parser.add_option("-x", "--xtitle", action="store", dest="xtitle", type="string", default="X axis title", help="X axis title")
+    parser.add_option("--yrange", action="store", dest="yrange", type="string", default=None, help="Comma separated min,max pair")
     parser.add_option("--remove-columns", action="store", dest="removeColumns", type="string", default="", help="Comma separated list of columns to remove (Zero indexed)")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
@@ -117,14 +119,19 @@ def main():
     else:
         margs = None
     
-    print "Plotting data to file "+opts.outfile+"..."
+    if opts.outfile != None:
+        print "Plotting data to file "+opts.outfile+"..."
+    else:
+        print "Showing plot..."
     
     if opts.plotType == "lineplot":
         plotRawLinePlot(dataseries[0], dataseries[1:],
                         titles=header,
                         filename=opts.outfile,
                         xlabel=opts.xtitle,
-                        ylabel=opts.ytitle)
+                        ylabel=opts.ytitle,
+                        legendColumns=opts.legendColumns,
+                        yrange=opts.yrange)
     else:
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries[1:],

@@ -295,7 +295,10 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
             ax.plot(xvalues, ydata[i])
             
     if labels != None:
-        plt.legend(ncol=2, loc="upper center")
+        if "legendColumns" in kwargs:
+            plt.legend(ncol=kwargs["legendColumns"], loc="upper center")
+        else:
+            plt.legend(ncol=2, loc="upper center")
 
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
@@ -303,10 +306,22 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     if "ylabel" in kwargs:
         ax.set_ylabel(kwargs["ylabel"])
     
+    if "yrange" in kwargs:
+        if kwargs["yrange"] != None:
+            try:
+                min,max = kwargs["yrange"].split(",")
+                min = int(min)
+                max = int(max)
+            except:
+                raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
+            plt.ylim(min,max)
+    
     if "filename" in kwargs:
-        plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
-    else:
-        plt.show()
+        if kwargs["filename"] != None:
+            plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
+            return
+        
+    plt.show()
 
 """ Boxplot supports the following string parameters:
     - data: a list of lists containing the data ranges to be visualized
