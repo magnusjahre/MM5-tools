@@ -146,11 +146,14 @@ def main():
         if opts.allErrorFile:
             dumpAllErrors(results, opts.allErrorFile)
         return
+    
     if not opts.quiet:
         print "Printing all error components to files"
+    
     relstr = "abs"
     if opts.relativeErrors:
         relstr = "rel"
+    
     for cmd in commands:
         if cmd == "model":
             continue
