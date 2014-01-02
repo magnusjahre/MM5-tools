@@ -398,7 +398,7 @@ class TracefileData():
     """
     def findColumnID(self, name, cpuID):
         if cpuID == -1:
-            pattern = "^"+name+".*"
+            pattern = "^"+name+"$"
         else:
             pattern = "^"+name+".*"+str(cpuID)+"$"
         
