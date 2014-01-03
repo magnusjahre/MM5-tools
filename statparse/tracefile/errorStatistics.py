@@ -118,8 +118,11 @@ def printParamErrorStatDistribution(errors, sortedParamKeys, statistic, relative
         for p in sortedParamKeys:
             if p not in data:
                 data[p] = []
-            data[p].append(errors[k][p].getStatByName(statistic))
-            
+            if p in errors[k]:
+                data[p].append(errors[k][p].getStatByName(statistic))
+            else:
+                data[p].append("N/A")
+    
     for p in sortedParamKeys:
         data[p].sort()
         
