@@ -15,7 +15,8 @@ privateStatNames = ["detailedCPU",
                     "L1dcaches", 
                     "L1icaches", 
                     "PointToPointLink",
-                    "PrivateL2Cache"] 
+                    "PrivateL2Cache",
+                    "overlapEstimators"] 
 
 PICKLERPROT = 2
 
