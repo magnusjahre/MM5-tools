@@ -4,6 +4,7 @@ from optparse import OptionParser
 from workloadfiles.workloads import parseTypeString
 from workloadfiles.workloads import Workloads
 from workloadfiles.workloads import UnknownWorkloadException
+from workloadfiles.workloads import getAllBenchmarks
 import optcomplete
 import sys
 
@@ -11,6 +12,7 @@ def parseArgs():
     parser = OptionParser(usage="getWorkload.py [options] np [workload-name]")
 
     parser.add_option("--type", action="store", dest="type", default="all", help="Only print workloads of the specified type")
+    parser.add_option("--bm-classification", action="store_true", dest="bmClassification", default=False, help="Print lists of benchmarks given their classification")
     
     optcomplete.autocomplete(parser)
     opts, args = parser.parse_args()
@@ -22,11 +24,55 @@ def parseArgs():
     
     return opts, args
 
+def printBenchmarkClassification(np, workloads):
+    bms = {}
+    for type in ["a", "c", "b"]:
+        bms[type] = []
+        wls = workloads.getWorkloadsByType(np, type)
+        for wl in wls:
+            for bm in workloads.getTypedBms(np, wl):        
+                if bm not in bms[type]:
+                    bms[type].append(bm)                
+    
+    bms["n"] = []
+    for noneWl in workloads.getWorkloadsByType(np, "n"):
+        for noneBm in workloads.getTypedBms(np, noneWl):
+            found = False
+            for type in ["a", "c", "b", "n"]:
+                if noneBm in bms[type]:
+                    found = True
+            if not found:
+                bms["n"].append(noneBm)
+                
+    allBms = getAllBenchmarks()
+    for type in bms:
+        for bm in bms[type]:
+            assert bm in allBms
+            allBms.remove(bm)
+            
+    
+    print "Benchmark classification:"
+    print 
+    for t in bms:
+        print t+":",
+        for b in bms[t]:
+            print b+", ",
+        print
+    
+    print "Unknown: ",
+    for b in allBms:
+        print b+", ",
+    print
+
 def main():
     opts, args = parseArgs()
     
     np = int(args[0])
     workloads = Workloads()
+    
+    if opts.bmClassification:
+        printBenchmarkClassification(np, workloads)
+        return
     
     if len(args) == 2:
         try:
