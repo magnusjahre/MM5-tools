@@ -127,7 +127,10 @@ class WorkloadMetric():
                     self.speedups[simpoint] = []
                     return
                 
-                self.speedups[simpointkey].append(float(mpb[simpoint][bm]) / float(spb[simpoint][bm]))
+                if spb[simpoint][bm] == 0.0:
+                    self.speedups[simpointkey].append(errorString)
+                else:
+                    self.speedups[simpointkey].append(float(mpb[simpoint][bm]) / float(spb[simpoint][bm]))
             else:
                 self.speedups[simpointkey].append(float(mpb[simpoint][bm]))
         
