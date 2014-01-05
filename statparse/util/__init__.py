@@ -5,8 +5,6 @@ from statparse.tracefile.tracefileData import TracefileData, computeErrors, Malf
 
 from workloadfiles.workloads import Workloads
 
-
-
 import sys
 import os
 import re
@@ -273,3 +271,51 @@ def parseUtilArgs(programName, commands):
         fatal("Print type needs to be one of "+str(printTypes))
     
     return opts,args
+
+def readDataFile(datafile, removeColumns):
+    header = datafile.readline().strip().split()
+    data = []
+    for l in datafile:
+        rawline = l.strip().split()
+        tmp = [rawline[0]]
+        
+        error = False
+        for e in rawline[1:]:
+            if e == "N/A":
+                error = True
+                continue
+            elif e == "RM":
+                error = True
+                continue
+            
+            try:
+                tmp.append(float(e))
+            except:
+                fatal("Parse error, cannot convert "+e+" to float")
+        
+        if not error:
+            data.append(tmp)
+    
+    if len(header) != len(data[0])-1:
+        fatal("Datafile parse error, header has length "+str(len(header))+", data length is "+str(len(data[0])))
+    
+    if removeColumns != "":
+        colstrs = removeColumns.split(",")
+        removelist = [float(s) for s in colstrs]
+        
+        newheader = []
+        for i in range(len(header)):
+            if i not in removelist:
+                newheader.append(header[i])
+        
+        newdata = []
+        for l in data:
+            newline = [l[0]]
+            for i in range(len(header)):
+                if i not in removelist:
+                    newline.append(l[i+1])
+            newdata.append(newline)
+        
+        return newheader, newdata
+    
+    return header, data

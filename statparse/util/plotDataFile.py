@@ -2,6 +2,7 @@
 
 from optparse import OptionParser
 from statparse.util import fatal
+from statparse.util import readDataFile
 
 from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot
 
@@ -41,54 +42,6 @@ def parseArgs():
         fatal("Plot type needs to be one of "+str(plotTypes))
     
     return opts, args, datafile
-    
-def readFile(datafile, removeColumns):
-    header = datafile.readline().strip().split()
-    data = []
-    for l in datafile:
-        rawline = l.strip().split()
-        tmp = [rawline[0]]
-        
-        error = False
-        for e in rawline[1:]:
-            if e == "N/A":
-                error = True
-                continue
-            elif e == "RM":
-                error = True
-                continue
-            
-            try:
-                tmp.append(float(e))
-            except:
-                fatal("Parse error, cannot convert "+e+" to float")
-        
-        if not error:
-            data.append(tmp)
-    
-    if len(header) != len(data[0])-1:
-        fatal("Datafile parse error, header has length "+str(len(header))+", data length is "+str(len(data[0])))
-    
-    if removeColumns != "":
-        colstrs = removeColumns.split(",")
-        removelist = [float(s) for s in colstrs]
-        
-        newheader = []
-        for i in range(len(header)):
-            if i not in removelist:
-                newheader.append(header[i])
-        
-        newdata = []
-        for l in data:
-            newline = [l[0]]
-            for i in range(len(header)):
-                if i not in removelist:
-                    newline.append(l[i+1])
-            newdata.append(newline)
-        
-        return newheader, newdata
-    
-    return header, data
 
 def createDataSeries(rawdata, datacols):
     dataseries =[[] for i in range(datacols+1)]
@@ -106,7 +59,7 @@ def main():
     print "Data file plot of file "+args[0]
     print "Processing data..."
     
-    header, data = readFile(datafile, opts.removeColumns)
+    header, data = readDataFile(datafile, opts.removeColumns)
     
     dataseries = createDataSeries(data, len(header))
     

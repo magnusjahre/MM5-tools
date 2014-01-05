@@ -704,3 +704,38 @@ def plotRawBarChart(data, **kwargs):
             return
     
     plt.show()
+    
+def plotBenchmarkBarChart(names, values, errors, **kwargs):
+    import numpy as np
+    import matplotlib
+    import matplotlib.pyplot as plt
+
+    fontsize = 10
+    matplotlib.rc('xtick', labelsize=fontsize) 
+    matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('font', size=fontsize)
+    
+    fig = plt.figure(figsize=(8,3))
+    ax = fig.add_subplot(111)
+    width = 0.8
+    
+    ind = np.arange(len(names))+0.1
+    
+    rects = ax.bar(ind, values, width, color="r", yerr=errors)
+    
+    ax.set_xlim(0, len(names))
+    ax.set_xticks(ind+(width/2.0))
+    ax.set_xticklabels(names, rotation="vertical")
+    
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"])
+    
+    if "ylabel" in kwargs:
+        ax.set_ylabel(kwargs["ylabel"])
+    
+    
+    if "filename" in kwargs:
+        if kwargs["filename"] != None:
+            plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
+            return
+    plt.show()
