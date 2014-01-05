@@ -25,6 +25,9 @@ def parseArgs():
     return opts, args
 
 def printBenchmarkClassification(np, workloads):
+    print "Benchmark classification:"
+    print 
+    
     bms = {}
     for type in ["a", "c", "b"]:
         bms[type] = []
@@ -43,16 +46,18 @@ def printBenchmarkClassification(np, workloads):
                     found = True
             if not found:
                 bms["n"].append(noneBm)
-                
+
     allBms = getAllBenchmarks()
+    
+    print "Number of benchmarks: "+str(len(allBms))
+    print
+    
     for type in bms:
         for bm in bms[type]:
             assert bm in allBms
             allBms.remove(bm)
             
     
-    print "Benchmark classification:"
-    print 
     for t in bms:
         print t+":",
         for b in bms[t]:
