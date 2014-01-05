@@ -389,9 +389,11 @@ def plotRawBoxPlot(data, **kwargs):
         ax.set_ylabel(kwargs["ylabel"])
     
     if "filename" in kwargs:
-        plt.savefig(kwargs["filename"], type="pdf")
-    else:
-        plt.show()
+        if kwargs["filename"] != None:
+            plt.savefig(kwargs["filename"], type="pdf")
+            return
+    
+    plt.show()
 
 def plot3DPoints(data, **kwargs):
     assert False, "Not implemented"
