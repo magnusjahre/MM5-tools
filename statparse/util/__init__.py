@@ -272,7 +272,7 @@ def parseUtilArgs(programName, commands):
     
     return opts,args
 
-def readDataFile(datafile, removeColumns):
+def readDataFile(datafile, removeColumns, onlyWlType):
     header = datafile.readline().strip().split()
     data = []
     for l in datafile:
@@ -294,6 +294,11 @@ def readDataFile(datafile, removeColumns):
                 fatal("Parse error, cannot convert "+e+" to float")
         
         if not error:
+            if onlyWlType != "":
+                wlString = tmp[0].split("-")
+                if wlString[1] != onlyWlType:
+                    continue
+            
             data.append(tmp)
     
     if len(header) != len(data[0])-1:

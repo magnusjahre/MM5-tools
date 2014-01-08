@@ -83,7 +83,7 @@ def main():
     print "Data file plot of file "+args[0]
     print "Processing data..."
     
-    header, data = readDataFile(datafile, "")
+    header, data = readDataFile(datafile, "", "")
     bmdata = processData(header, data, columnID)
     names, averages, errors = makePlotData(bmdata)
     
