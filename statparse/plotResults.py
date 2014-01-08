@@ -705,6 +705,50 @@ def plotRawBarChart(data, **kwargs):
     
     plt.show()
     
+def plotDataFileBarChart(names, values, legendNames, **kwargs):
+    import numpy as np
+    import matplotlib
+    import matplotlib.pyplot as plt
+
+    fontsize = 10
+    matplotlib.rc('xtick', labelsize=fontsize) 
+    matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('font', size=fontsize)
+    
+    fig = plt.figure(figsize=(8,3))
+    ax = fig.add_subplot(111)
+    width = 0.8
+    
+    ind = np.arange(len(names))+0.1
+
+    numSeries = float(len(values))
+    bars = []
+    for i in range(len(values)):
+        barwidth = width/numSeries
+        bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=COLORLIST[i]))
+    
+    ax.set_xlim(0, len(names))
+    ax.set_xticks(ind+(width/2.0))
+    ax.set_xticklabels(names, rotation="vertical")
+    
+    if "legendColumns" in kwargs:
+        ax.legend(bars, legendNames, loc="upper center", ncol=kwargs["legendColumns"])
+    else:
+        ax.legend(bars, legendNames, loc="upper center", ncol=2)
+    
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"])
+    
+    if "ylabel" in kwargs:
+        ax.set_ylabel(kwargs["ylabel"])
+    
+    
+    if "filename" in kwargs:
+        if kwargs["filename"] != None:
+            plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
+            return
+    plt.show()
+    
 def plotBenchmarkBarChart(names, values, errors, **kwargs):
     import numpy as np
     import matplotlib
