@@ -281,6 +281,8 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     fig = plt.figure(figsize=(8,3))
     ax = fig.add_subplot(111)
     
+    plt.axhline(0, color='black')
+    
     labels = None
     if "titles" in kwargs:
         if len(kwargs["titles"]) != len(ydataseries):
@@ -731,6 +733,8 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     ax.set_xticks(ind+(width/2.0))
     ax.set_xticklabels(names, rotation="vertical")
     
+    plt.axhline(0, color='black')
+    
     if "legendColumns" in kwargs:
         ax.legend(bars, legendNames, loc="upper center", ncol=kwargs["legendColumns"])
     else:
@@ -742,6 +746,15 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     if "ylabel" in kwargs:
         ax.set_ylabel(kwargs["ylabel"])
     
+    if "yrange" in kwargs:
+        if kwargs["yrange"] != None:
+            try:
+                min,max = kwargs["yrange"].split(",")
+                min = int(min)
+                max = int(max)
+            except:
+                raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
+            plt.ylim(min,max)
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
