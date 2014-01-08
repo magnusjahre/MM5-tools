@@ -25,6 +25,7 @@ def parseArgs():
     parser.add_option("--yrange", action="store", dest="yrange", type="string", default=None, help="Comma separated min,max pair")
     parser.add_option("--remove-columns", action="store", dest="removeColumns", type="string", default="", help="Comma separated list of columns to remove (Zero indexed)")
     parser.add_option("--only-type", action="store", dest="onlyType", type="string", default="", help="Only include lines that have a workload key that contains this letter (a, b, c or n)")
+    parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -63,6 +64,14 @@ def main():
     header, data = readDataFile(datafile, opts.removeColumns, opts.onlyType)
     
     dataseries = createDataSeries(data, len(header))
+    
+    if opts.avg:
+        for i in range(len(dataseries)):
+            if i == 0:
+                dataseries[i].append("AVG")
+            else:
+                avg = float(sum(dataseries[i])) / float(len(dataseries[i]))
+                dataseries[i].append(avg)
     
     if opts.margins != "":
         margList = opts.margins.split(",")
