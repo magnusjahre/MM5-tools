@@ -131,6 +131,7 @@ class BatchCommands:
             print >> output, "rm -Rf "+command.id # take care of restarts
             print >> output, "mkdir "+command.id
             print >> output, "cd "+command.id
+            print >> output, "echo \" \" > .rundir"
             print >> output, command.cmd + '\n\n'
             print >> output, "cd .."
         
