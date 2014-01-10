@@ -340,7 +340,7 @@ def plotRawBoxPlot(data, **kwargs):
     import numpy as np
     import matplotlib
     
-    fontsize = 16
+    fontsize = 10
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
     matplotlib.rc('font', size=fontsize)
@@ -356,7 +356,7 @@ def plotRawBoxPlot(data, **kwargs):
     else:
         outSymbol = "b+"
     
-    fig = plt.figure()
+    fig = plt.figure(figsize=(8,3))
     ax = fig.add_subplot(111)
     
     boxplot(data, sym=outSymbol)
@@ -368,10 +368,9 @@ def plotRawBoxPlot(data, **kwargs):
     if "titles" in kwargs:
         if len(kwargs["titles"]) != len(data):
             raise Exception("The tiltles list must have the same length as the data list")
-        
-        ax.set_xticklabels(kwargs["titles"])
+  
+        ax.set_xticklabels(kwargs["titles"], rotation="vertical")
     ax.set_xlim(0.5, len(data)+0.5)
-
 
     if "rotate" in kwargs:
         for label in ax.get_xticklabels():
@@ -392,7 +391,7 @@ def plotRawBoxPlot(data, **kwargs):
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
-            plt.savefig(kwargs["filename"], type="pdf")
+            plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
             return
     
     plt.show()
