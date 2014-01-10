@@ -272,7 +272,7 @@ def parseUtilArgs(programName, commands):
     
     return opts,args
 
-def readDataFile(datafile, removeColumns, onlyWlType):
+def readDataFile(datafile, columns, onlyWlType):
     header = datafile.readline().strip().split()
     data = []
     for l in datafile:
@@ -304,20 +304,20 @@ def readDataFile(datafile, removeColumns, onlyWlType):
     if len(header) != len(data[0])-1:
         fatal("Datafile parse error, header has length "+str(len(header))+", data length is "+str(len(data[0])))
     
-    if removeColumns != "":
-        colstrs = removeColumns.split(",")
-        removelist = [float(s) for s in colstrs]
+    if columns != "":
+        colstrs = columns.split(",")
+        includelist = [float(s) for s in colstrs]
         
         newheader = []
         for i in range(len(header)):
-            if i not in removelist:
+            if i in includelist:
                 newheader.append(header[i])
         
         newdata = []
         for l in data:
             newline = [l[0]]
             for i in range(len(header)):
-                if i not in removelist:
+                if i in includelist:
                     newline.append(l[i+1])
             newdata.append(newline)
         

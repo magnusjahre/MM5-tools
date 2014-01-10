@@ -22,7 +22,7 @@ def parseArgs():
     parser.add_option("-y", "--ytitle", action="store", dest="ytitle", type="string", default="Y axis title", help="Y axis title")
     parser.add_option("-x", "--xtitle", action="store", dest="xtitle", type="string", default="X axis title", help="X axis title")
     parser.add_option("--yrange", action="store", dest="yrange", type="string", default=None, help="Comma separated min,max pair")
-    parser.add_option("--remove-columns", action="store", dest="removeColumns", type="string", default="", help="Comma separated list of columns to remove (Zero indexed)")
+    parser.add_option("--columns", action="store", dest="columns", type="string", default="", help="Comma separated list of columns to include (Zero indexed)")
     parser.add_option("--only-type", action="store", dest="onlyType", type="string", default="", help="Only include lines that have a workload key that contains this letter (a, b, c or n)")
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
 
@@ -60,7 +60,7 @@ def main():
     print "Data file plot of file "+args[0]
     print "Processing data..."
     
-    header, data = readDataFile(datafile, opts.removeColumns, opts.onlyType)
+    header, data = readDataFile(datafile, opts.columns, opts.onlyType)
     
     dataseries = createDataSeries(data, len(header))
     
