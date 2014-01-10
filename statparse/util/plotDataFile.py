@@ -15,7 +15,6 @@ def parseArgs():
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
-    parser.add_option("--rotate", action="store", dest="rotate", type="int", default=0, help="Rotate labels by x degrees")
     parser.add_option("--legend-columns", action="store", dest="legendColumns", type="int", default=2, help="Number of columns in legend")
     parser.add_option("--margins", action="store", dest="margins", type="string", default="", help="Comma separated plot margins: left,right,top,bottom ")
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Output filename (Default: plot.pdf)")
@@ -109,7 +108,6 @@ def main():
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries[1:],
                        titles=header,
-                       rotate=opts.rotate,
                        plotmargins=margs,
                        filename=opts.outfile,
                        xlabel=opts.xtitle,
