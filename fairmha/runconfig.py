@@ -24,7 +24,7 @@ class ComputerParams:
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
-            self.ppn = {1:8, 2:8, 4:8, 8:8, 16:4}
+            self.ppn = {1:16, 2:16, 4:16, 8:16, 16:8}
             self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             self.projectNum = "nn4650k"
         
