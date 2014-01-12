@@ -6,7 +6,7 @@ from statparse.tracefile.errorStatistics import plotBoxFromDict, dumpAllErrors
 import statparse.tracefile.errorStatistics as errorStats
 from statparse.printResults import numberToString, printData
 
-commands = ["IPC", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp", "writestall", "erob", "model", "privmemstall"]
+commands = ["IPC", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp", "writestall", "erob", "model", "privmemstall", "missrate"]
 modelComponentCmds = ["compute", "memind", "writestall", "erob", "privmemstall", "stall"]
 modelComponentNames = ["Compute Cycle Error", "Memory Independent Stall Error", "Write Stall Error", "Empty ROB Stall Error" , "Private Memsys Stall Error", "Shared Memsys Stall Error"]
 
@@ -42,6 +42,7 @@ class ColumnMatches:
         self.colstore["erob"] = ColumnPair("Empty ROB Stall Cycles", "Alone Empty ROB Stall Estimate")
         
         self.colstore["privmemstall"] = ColumnPair("Private Blocked Stall Cycles", "Alone Private Blocked Stall Estimate")
+        self.colstore["missrate"] = ColumnPair("Measured Private Mode Miss Rate", "Private Mode Miss Rate Estimate")
         
     def hasKey(self, key):
         return key in self.colstore
