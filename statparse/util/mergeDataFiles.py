@@ -43,6 +43,7 @@ def parseArgs():
     parser.add_option("--print-spec", action="store", dest="printSpec", type="string", default="", help="A comma separated list of one-indexed column IDs include in output (e.g. 2,3,1)")
     parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")
     parser.add_option("--print-names", action="store_true", dest="printColumnNames", default=False, help="Print the column ID to column name mapping for the provided files")
+    parser.add_option("--col-prefix", action="store", dest="columnPrefix", default="", help="Prefix the columns from each file with the following prefix (Comma separated)")
     parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
@@ -63,7 +64,8 @@ def readFiles(filenames, opts):
     
     data = []
     
-    for filename in filenames:
+    for fileID in range(len(filenames)):
+        filename = filenames[fileID]
         curFile = open(filename)
         
         first = True
@@ -88,6 +90,15 @@ def readFiles(filenames, opts):
                 
         if not (firstLength == numVals or firstLength == numVals-1):
             fatal("Unknown header format in file "+filename+", possibly a parse error") 
+        
+        if opts.columnPrefix != "":
+            try:
+                prefix = opts.columnPrefix.split(",")[fileID]
+            except:
+                fatal("Column prefix parse error in string"+opts.columnPrefix)
+            
+            for i in range(len(head)):
+                head[i] = prefix+head[i]
         
         data.append( (head, fileRows, numVals, filename) )
     
