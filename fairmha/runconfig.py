@@ -20,17 +20,17 @@ class ComputerParams:
         
         self.queue = opts.queue
         self.projectNum = None
-        self.perProcMem = {1:1900, 2:1900, 4:1900, 8:1900, 16:4032}
+        self.perProcMem = {1:1900, 2:1900, 4:1900, 8:2300, 16:4032}
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
-            self.ppn = {1:16, 2:16, 4:16, 8:16, 16:8}
+            self.ppn = {1:16, 2:16, 4:16, 8:14, 16:8}
             self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             self.projectNum = "nn4650k"
         
         elif re.search("rocks.hpc.ntnu.no", compname):
             info("Kongull run detected...")
-            self.ppn = {1:12, 2:12, 4:12, 8:12, 16:6}
+            self.ppn = {1:12, 2:12, 4:12, 8:10, 16:6}
             self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             if opts.queue == "default":
                 self.projectNum = "acc-idi"
