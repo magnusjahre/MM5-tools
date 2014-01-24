@@ -9,7 +9,7 @@ from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot, plotDataFileB
 import optcomplete
 
 def parseArgs():
-    parser = OptionParser(usage="plotDataFile.py [options] filename")
+    parser = OptionParser(usage="plotDataFile.py [options] filename [filename ...]")
 
     plotTypes = ["boxplot", "lineplot", "bars"]
 
@@ -30,19 +30,24 @@ def parseArgs():
 
     opts, args = parser.parse_args()
     
-    try:
-        datafile = open(args[0])
-    except:
+    datafiles = []
+    for a in args:
         try:
-            fatal("Cannot open file "+str(args[0]))
+            datafiles.append(open(a))
         except:
-            print parser.usage
-            fatal("Command line error")
+            try:
+                fatal("Cannot open file "+str(a))
+            except:
+                print parser.usage
+                fatal("Command line error")
     
     if opts.plotType not in plotTypes:
         fatal("Plot type needs to be one of "+str(plotTypes))
     
-    return opts, args, datafile
+    if opts.plotType != "boxplot" and len(datafiles) > 1:
+        fatal("Plotting of multiple data files only make sense for boxplots")
+    
+    return opts, args, datafiles
 
 def createDataSeries(rawdata, datacols):
     dataseries =[[] for i in range(datacols+1)]
@@ -55,14 +60,27 @@ def createDataSeries(rawdata, datacols):
     
 def main():
 
-    opts, args, datafile = parseArgs()
+    opts, args, datafiles = parseArgs()
     
-    print "Data file plot of file "+args[0]
-    print "Processing data..."
+    print "Data file plot script"
     
-    header, data = readDataFile(datafile, opts.columns, opts.onlyType)
-    
-    dataseries = createDataSeries(data, len(header))
+    dataseries = []
+    header = []
+    for i in range(len(datafiles)):
+        print "Processing file plot of file "+args[i]
+        
+        thisHeader, thisData = readDataFile(datafiles[i], opts.columns, opts.onlyType)
+        series = createDataSeries(thisData, len(thisHeader))
+        
+        if len(datafiles) == 1:
+            dataseries = series
+            header = thisHeader
+        else:
+            for s in series[1:]:
+                dataseries.append(s)
+                
+            for h in thisHeader:
+                header.append(h)
     
     if opts.avg:
         for i in range(len(dataseries)):
@@ -106,7 +124,7 @@ def main():
                              yrange=opts.yrange)
     else:
         assert opts.plotType == "boxplot"
-        plotRawBoxPlot(dataseries[1:],
+        plotRawBoxPlot(dataseries,
                        titles=header,
                        plotmargins=margs,
                        filename=opts.outfile,
