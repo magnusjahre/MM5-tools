@@ -367,7 +367,7 @@ def plotRawBoxPlot(data, **kwargs):
 
     if "titles" in kwargs:
         if len(kwargs["titles"]) != len(data):
-            raise Exception("The tiltles list must have the same length as the data list")
+            raise Exception("The titles list must have the same length as the data list")
   
         ax.set_xticklabels(kwargs["titles"], rotation="vertical")
     ax.set_xlim(0.5, len(data)+0.5)
