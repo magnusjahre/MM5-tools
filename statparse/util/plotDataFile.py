@@ -72,7 +72,7 @@ def main():
         thisHeader, thisData = readDataFile(datafiles[i], opts.columns, opts.onlyType)
         series = createDataSeries(thisData, len(thisHeader))
         
-        if len(datafiles) == 1:
+        if opts.plotType != "boxplot":
             dataseries = series
             header = thisHeader
         else:
