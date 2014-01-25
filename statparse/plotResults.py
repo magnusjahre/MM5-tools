@@ -723,8 +723,9 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     errorcols = False
     if "errorcols" in kwargs:
         errorcols = kwargs["errorcols"]
-        if len(values) % 2 != 0:
-            raise Exception("Columns must be a multiple of 2 to plot errorcols")
+        if errorcols:
+            if len(values) % 2 != 0:
+                raise Exception("Columns must be a multiple of 2 to plot errorcols")
 
     errorrows = False
     if "errorrows" in kwargs:
