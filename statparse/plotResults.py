@@ -720,6 +720,12 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     ax = fig.add_subplot(111)
     width = 0.8
 
+    for i in range(len(names)):
+        names[i] = names[i].replace("_"," ")
+
+    for i in range(len(legendNames)):
+        legendNames[i] = legendNames[i].replace("_"," ")
+
     errorcols = False
     if "errorcols" in kwargs:
         errorcols = kwargs["errorcols"]
