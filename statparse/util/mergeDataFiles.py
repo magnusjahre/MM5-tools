@@ -44,6 +44,8 @@ def parseArgs():
     parser.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print values relative to this column")
     parser.add_option("--print-names", action="store_true", dest="printColumnNames", default=False, help="Print the column ID to column name mapping for the provided files")
     parser.add_option("--col-prefix", action="store", dest="columnPrefix", default="", help="Prefix the columns from each file with the following prefix (Comma separated)")
+    parser.add_option("--col-names", action="store", dest="columnNames", default="", help="Rename the columns to the names in this list (Comma separated)")
+    parser.add_option("--row-names", action="store", dest="rowNames", default="", help="Rename the rows to the names in this list (Comma separated)")
     parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
@@ -208,7 +210,23 @@ def processData(mergedData, mergeSpec, opts):
             for j in normalizedData[i]:
                 mergedData[i][j] = normalizedData[i][j]
     
-    
+    if opts.columnNames != "":
+        newheader = opts.columnNames.split(",")
+        newheader.insert(0, "")
+
+        if len(newheader) != len(mergedData[0]):
+            fatal("New header must be the same length as the old header")
+        mergedData[0] = newheader        
+        
+    if opts.rowNames != "":
+        newrownames = opts.rowNames.split(",")
+        newrownames.insert(0, "")
+        
+        if len(newrownames) != len(mergedData):
+            fatal("New row header must be the same length as the old row header")
+        for i in range(len(mergedData)):
+            mergedData[i][0] = newrownames[i]
+        
     return mergedData, justify
 
 def printNames(mergedData, columnToFileList):
