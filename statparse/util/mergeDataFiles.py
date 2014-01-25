@@ -49,6 +49,7 @@ def parseArgs():
     parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
+    parser.add_option("--invert", action="store_true", dest="invert", default=False, help="Invert the datafile")
     parser.add_option("--plot-filename", action="store", dest="pltfilename", type="string", default="", help="Provide a filename to store the plot in a file")
     parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
 
@@ -183,10 +184,6 @@ def processData(mergedData, mergeSpec, opts):
             newData.append(newLine)
         mergedData = newData
     
-    numVals = len(mergedData[0])
-    justify = [False for i in range(numVals)]
-    justify[0] = True
-    
     if opts.normalizeTo != -1:
         normalizedData = {}
         for i in range(1, len(mergedData)):
@@ -226,7 +223,12 @@ def processData(mergedData, mergeSpec, opts):
             fatal("New row header must be the same length as the old row header")
         for i in range(len(mergedData)):
             mergedData[i][0] = newrownames[i]
-        
+    
+    if opts.invert:
+        mergedData = [[mergedData[j][i] for j in range(len(mergedData))] for i in range(len(mergedData[0]))]
+    
+    justify = [False for i in range(len(mergedData[0]))]
+    justify[0] = True
     return mergedData, justify
 
 def printNames(mergedData, columnToFileList):
