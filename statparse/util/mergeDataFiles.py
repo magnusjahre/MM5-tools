@@ -46,6 +46,7 @@ def parseArgs():
     parser.add_option("--col-prefix", action="store", dest="columnPrefix", default="", help="Prefix the columns from each file with the following prefix (Comma separated)")
     parser.add_option("--col-names", action="store", dest="columnNames", default="", help="Rename the columns to the names in this list (Comma separated)")
     parser.add_option("--row-names", action="store", dest="rowNames", default="", help="Rename the rows to the names in this list (Comma separated)")
+    parser.add_option("--outfile", action="store", dest="outfile", default="", help="Print output to this file")
     parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
@@ -351,7 +352,13 @@ def main():
     processedData, justify = processData(mergedData, printSpec, opts)
     if opts.doAverage:
         processedData, justify = computeAverage(processedData, justify, opts)
-    printResults.printData(processedData, justify, sys.stdout, opts.decimals, colorCodeOffsets=doColor)
+    
+    if opts.outfile == "":
+        outfile = sys.stdout
+    else:
+        outfile = open(opts.outfile, "w")
+    
+    printResults.printData(processedData, justify, outfile, opts.decimals, colorCodeOffsets=doColor)
     
 
     if opts.plot:
