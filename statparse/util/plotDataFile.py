@@ -23,6 +23,7 @@ def parseArgs():
     parser.add_option("-x", "--xtitle", action="store", dest="xtitle", type="string", default="X axis title", help="X axis title")
     parser.add_option("--yrange", action="store", dest="yrange", type="string", default=None, help="Comma separated min,max pair")
     parser.add_option("--columns", action="store", dest="columns", type="string", default="", help="Comma separated list of columns to include (Zero indexed)")
+    parser.add_option("--errorbars", action="store_true", dest="errorbars", default=False, help="Every second column in the data file is error values")
     parser.add_option("--only-type", action="store", dest="onlyType", type="string", default="", help="Only include lines that have a workload key that contains this letter (a, b, c or n)")
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
 
@@ -121,7 +122,8 @@ def main():
                              xlabel=opts.xtitle,
                              ylabel=opts.ytitle,
                              legendColumns=opts.legendColumns,
-                             yrange=opts.yrange)
+                             yrange=opts.yrange,
+                             errorbars=opts.errorbars)
     else:
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries,

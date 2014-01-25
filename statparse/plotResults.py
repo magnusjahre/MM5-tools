@@ -722,11 +722,24 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     
     ind = np.arange(len(names))+0.1
 
-    numSeries = float(len(values))
+    errorbars = False
+    if "errorbars" in kwargs:
+        errorbars = kwargs["errorbars"]
+        if len(values) % 2 != 0:
+            raise Exception("Columns must be a multiple of 2 to plot errorbars")
+
+    if errorbars:
+        numSeries = len(values)/2
+    else:
+        numSeries = len(values)
+
     bars = []
-    for i in range(len(values)):
-        barwidth = width/numSeries
-        bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=COLORLIST[i]))
+    for i in range(numSeries):
+        barwidth = width/float(numSeries)
+        if errorbars:
+            bars.append(ax.bar(ind+(barwidth*i), values[2*i], barwidth, yerr=values[(2*i)+1], color=COLORLIST[i]))
+        else:
+            bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=COLORLIST[i]))
     
     ax.set_xlim(0, len(names))
     ax.set_xticks(ind+(width/2.0))
