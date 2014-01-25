@@ -730,14 +730,17 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
 
     if errorbars:
         numSeries = len(values)/2
+        localLegend = []
     else:
         numSeries = len(values)
-
+        localLegend = legendNames
+    
     bars = []
     for i in range(numSeries):
         barwidth = width/float(numSeries)
         if errorbars:
             bars.append(ax.bar(ind+(barwidth*i), values[2*i], barwidth, yerr=values[(2*i)+1], color=COLORLIST[i]))
+            localLegend.append(legendNames[2*i])
         else:
             bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=COLORLIST[i]))
     
@@ -748,9 +751,9 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     plt.axhline(0, color='black')
     
     if "legendColumns" in kwargs:
-        ax.legend(bars, legendNames, loc="upper center", ncol=kwargs["legendColumns"])
+        ax.legend(bars, localLegend, loc="upper center", ncol=kwargs["legendColumns"])
     else:
-        ax.legend(bars, legendNames, loc="upper center", ncol=2)
+        ax.legend(bars, localLegend, loc="upper center", ncol=2)
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
