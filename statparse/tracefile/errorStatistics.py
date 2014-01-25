@@ -28,8 +28,8 @@ def getStatnameMessage():
 
 def getTitleLine(relative):
     if relative:
-        return ["Relative Mean Error (%)", "Relative RMS Error (%)", "Relative Standard Deviation (%)"]
-    return  ["Mean Error", "RMS Error", "Standard Deviation"]
+        return ["Relative-Mean-Error-(%)", "Relative-RMS-Error-(%)", "Relative-Standard-Deviation-(%)"]
+    return  ["Mean-Error", "RMS-Error", "Standard-Deviation"]
 
 def getJustifyArray(printAvgVals):
     if printAvgVals:
