@@ -711,42 +711,63 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     import matplotlib
     import matplotlib.pyplot as plt
 
-    fontsize = 10
+    fontsize = 14
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
     matplotlib.rc('font', size=fontsize)
     
-    fig = plt.figure(figsize=(8,3))
+    fig = plt.figure(figsize=(16,4))
     ax = fig.add_subplot(111)
     width = 0.8
-    
-    ind = np.arange(len(names))+0.1
 
-    errorbars = False
-    if "errorbars" in kwargs:
-        errorbars = kwargs["errorbars"]
+    errorcols = False
+    if "errorcols" in kwargs:
+        errorcols = kwargs["errorcols"]
         if len(values) % 2 != 0:
-            raise Exception("Columns must be a multiple of 2 to plot errorbars")
+            raise Exception("Columns must be a multiple of 2 to plot errorcols")
 
-    if errorbars:
+    errorrows = False
+    if "errorrows" in kwargs:
+        errorrows = kwargs["errorrows"]
+        if errorrows:
+            errordata = []
+            newvalues = []
+            for i in range(len(values)):
+                errordata.append([])
+                newvalues.append([])
+                for j in range(len(values[i]))[1::2]:
+                    errordata[i].append(values[i][j])
+                    newvalues[i].append(values[i][j-1])
+                    
+            values = newvalues
+                
+    if errorcols:
         numSeries = len(values)/2
         localLegend = []
     else:
         numSeries = len(values)
         localLegend = legendNames
+        
+        if errorrows:
+            newnames = names[0::2]
+            names = newnames
+    
+    ind = np.arange(len(names))+0.1
     
     bars = []
     for i in range(numSeries):
         barwidth = width/float(numSeries)
-        if errorbars:
-            bars.append(ax.bar(ind+(barwidth*i), values[2*i], barwidth, yerr=values[(2*i)+1], color=COLORLIST[i]))
+        if errorcols:
+            bars.append(ax.bar(ind+(barwidth*i), values[2*i], barwidth, yerr=values[(2*i)+1], ecolor="black", color=COLORLIST[i]))
             localLegend.append(legendNames[2*i])
+        elif errorrows:
+            bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, yerr=errordata[i], ecolor="black", color=COLORLIST[i]))
         else:
             bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=COLORLIST[i]))
     
     ax.set_xlim(0, len(names))
     ax.set_xticks(ind+(width/2.0))
-    ax.set_xticklabels(names, rotation="vertical")
+    ax.set_xticklabels(names, rotation="horizontal")
     
     plt.axhline(0, color='black')
     
