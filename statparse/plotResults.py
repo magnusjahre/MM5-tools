@@ -716,7 +716,12 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     matplotlib.rc('ytick', labelsize=fontsize)
     matplotlib.rc('font', size=fontsize)
     
-    fig = plt.figure(figsize=(16,4))
+    width = 16
+    if "narrow" in kwargs:
+        if kwargs["narrow"]:
+            width = width/2
+
+    fig = plt.figure(figsize=(width,4))
     ax = fig.add_subplot(111)
     width = 0.8
 
@@ -779,7 +784,8 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     plt.axhline(0, color='black')
     
     if "legendColumns" in kwargs:
-        ax.legend(bars, localLegend, loc="upper center", ncol=kwargs["legendColumns"])
+        if kwargs["legendColumns"] > 0:
+            ax.legend(bars, localLegend, loc="upper center", ncol=kwargs["legendColumns"])
     else:
         ax.legend(bars, localLegend, loc="upper center", ncol=2)
     
