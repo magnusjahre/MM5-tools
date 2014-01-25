@@ -91,7 +91,7 @@ def printResults(results, aggRes, sortedparams, statname, opts, outfile):
         errorStats.printParamErrorStatDistribution(results, sortedparams, statname, opts.relativeErrors, opts.decimals, outfile)
     else:
         assert opts.printType == "statistics"
-        errorStats.printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams)            
+        errorStats.printErrorStatDict(aggRes, opts.relativeErrors, opts.decimals, sortedparams, outfile)            
 
 def main():
 

@@ -40,7 +40,7 @@ def getJustifyArray(printAvgVals):
 
     errors: key string -> ErrorStatistics object
 """
-def printErrorStatDict(errors, relative, decimals, sortedkeys = None):
+def printErrorStatDict(errors, relative, decimals, sortedkeys = None, outfile = sys.stdout):
     lines = []
     header = [""]
     for t in getTitleLine(relative):
@@ -63,7 +63,7 @@ def printErrorStatDict(errors, relative, decimals, sortedkeys = None):
         thisLine.append(numberToString(stdev, decimals))
         lines.append(thisLine)
         
-    printData(lines, getJustifyArray(False), sys.stdout, decimals)
+    printData(lines, getJustifyArray(False), outfile, decimals)
 
 """ Prints error dictionary with parameters
 
