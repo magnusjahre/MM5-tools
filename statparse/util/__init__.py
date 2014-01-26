@@ -152,9 +152,11 @@ def findAllParams(dirs, np):
     getTracename: function with signature (string directory, int aloneCPUID, bool sharedMode)
     relative: use relative errors
     quiet: don't print output
-    baselineFuc: function with signature (string shDirID, int aloneCPUID) that returns the tuple (filename, columnName)
+    
+    Keyword arguments
+    baselineFunc: function with signature (string shDirID, int aloneCPUID) that returns the tuple (filename, columnName)
 """
-def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, otherColumnName, useCPUID, compareToAlone, baselineFunc = None):
+def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, otherColumnName, useCPUID, compareToAlone, **kwargs):
     
     results = {}
     
@@ -170,8 +172,9 @@ def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, o
             sharedTraceFilename = getTracename(shDirID, aloneCPUID, True)
             aloneTraceFilename = getTracename(aloneDirIDs[aloneCPUID], 0, False)
             
-            if baselineFunc != None:
-                baselineTraceFilename, baselineColumn = baselineFunc(shDirID, aloneCPUID)
+            if "baselineFunc" in kwargs:
+                if kwargs["baselineFunc"] != None:
+                    baselineTraceFilename, baselineColumn = kwargs["baselineFunc"](shDirID, aloneCPUID)
             
             if useCPUID:
                 cpuID = aloneCPUID
@@ -187,18 +190,19 @@ def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, o
                     warn("File "+sharedTraceFilename+" cannot be opened, skipping...")
                 continue
             
-            if baselineFunc != None:
-                aloneTrace = TracefileData(aloneTraceFilename)
-                aloneTrace.readTracefile()
+            if "baselineFunc" in kwargs:
+                if kwargs["baselineFunc"] != None:
+                    aloneTrace = TracefileData(aloneTraceFilename)
+                    aloneTrace.readTracefile()
+                    
+                    baselineTrace = TracefileData(baselineTraceFilename)
+                    baselineTrace.readTracefile()
                 
-                baselineTrace = TracefileData(baselineTraceFilename)
-                baselineTrace.readTracefile()
-            
-                try:
-                    curStats = computeErrors(aloneTrace, mainColumnName, sharedTrace, otherColumnName, relative, cpuID=cpuID, baselineTrace=baselineTrace, baselineColumnName=baselineColumn)
-                except MalformedTraceFileException:
-                    warn("Malformed tracefile with baseline")
-                    continue
+                    try:
+                        curStats = computeErrors(aloneTrace, mainColumnName, sharedTrace, otherColumnName, relative, cpuID=cpuID, baselineTrace=baselineTrace, baselineColumnName=baselineColumn)
+                    except MalformedTraceFileException:
+                        warn("Malformed tracefile with baseline")
+                        continue
             
             elif compareToAlone:
                 aloneTrace = TracefileData(aloneTraceFilename)
