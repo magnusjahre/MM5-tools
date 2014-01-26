@@ -80,7 +80,7 @@ def handleExperiment(command, filebase, opts):
             tracecontent.readTracefile()
             column = tracecontent.getColumn(opts.column)
             
-            data[sharedID] = getCommandValue(command, column)
+            data[sharedID+"-"+str(i)] = getCommandValue(command, column)
             
     return data
 
