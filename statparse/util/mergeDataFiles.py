@@ -214,6 +214,9 @@ def processData(mergedData, mergeSpec, opts):
 
         if len(newheader) != len(mergedData[0]):
             fatal("New header must be the same length as the old header")
+            
+        for i in range(len(newheader))[1:]:
+            print "Renaming column "+mergedData[0][i]+" to "+newheader[i]
         mergedData[0] = newheader        
         
     if opts.rowNames != "":
@@ -223,6 +226,8 @@ def processData(mergedData, mergeSpec, opts):
         if len(newrownames) != len(mergedData):
             fatal("New row header must be the same length as the old row header")
         for i in range(len(mergedData)):
+            if i != 0:
+                print "Renaming row "+mergedData[i][0]+" to "+newrownames[i]
             mergedData[i][0] = newrownames[i]
     
     if opts.invert:
