@@ -259,10 +259,10 @@ def processData(mergedData, mergeSpec, opts):
     renameColumns(mergedData, opts)
     renameRows(mergedData, opts)
     
+    mergedData = filterData(mergedData, opts)
+    
     if opts.invert:
         mergedData = [[mergedData[j][i] for j in range(len(mergedData))] for i in range(len(mergedData[0]))]
-    
-    mergedData = filterData(mergedData, opts)
     
     justify = [False for i in range(len(mergedData[0]))]
     justify[0] = True
