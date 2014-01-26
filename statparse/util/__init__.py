@@ -69,6 +69,25 @@ def getSingleParamExperimentDirs(np, includeParams, **kwargs):
     
     return experimentdirs
 
+def getPrivateModeDirs():
+    if not os.path.exists("pbsconfig.py"):
+        fatal("pbsconfig.py not found!")
+    
+    pbsconfig = __import__("pbsconfig")
+    configobj = pbsconfig.config
+    
+    dirs = []
+    
+    for cmd, shparams in pbsconfig.commandlines:
+        expNp = configobj.getParam(shparams, "np")
+        if expNp != 1:
+            continue
+        
+        dirs.append(configobj.getFileIdentifier(shparams))
+        
+    return dirs
+        
+
 def getNpExperimentDirs(np):
     if not os.path.exists("pbsconfig.py"):
         fatal("pbsconfig.py not found!")
@@ -117,6 +136,14 @@ def getNpExperimentDirs(np):
     
     return experimentdirs, sortedParamStrs
 
+def getBenchmarkName(dirname):
+    result = re.search("s6-[a-zA-Z0-9]+", dirname)
+    if result:
+        return result.group(0) 
+    
+    spec2000bm = dirname.split("-")[3]
+    return spec2000bm[0:len(spec2000bm)-1]
+
 def getResultKey(wl, aloneCPUID, np, varparams):
     wls = Workloads()
     bmNames = wls.getBms(wl, np, False)
@@ -144,6 +171,36 @@ def findAllParams(dirs, np):
                 allparams.append(varparamkey)
                 
     return allparams
+
+def computePrivateTraceError(dirs, mainColumnName, otherColumnName, getTracename, relative):
+    
+    results = {}
+    aggregateErrors = {}
+    paramkey = "Alone"
+    aggregateErrors[paramkey] = ErrorStatistics(relative)
+    
+    for dir in dirs:
+        traceFileName = getTracename(dir, 0, False)
+        
+        actualFileData = TracefileData(traceFileName)
+        actualFileData.readTracefile()
+        
+        estimateFileData = TracefileData(traceFileName)
+        estimateFileData.readTracefile()
+        
+        curStats = computeErrors(actualFileData, mainColumnName, estimateFileData, otherColumnName, relative)
+        
+        reskey = getBenchmarkName(dir)
+        
+        aggregateErrors[paramkey].aggregate(curStats)
+            
+        if reskey not in results:
+            results[reskey] = {}
+            
+        assert paramkey not in results[reskey]
+        results[reskey][paramkey] = curStats
+    
+    return results, aggregateErrors
 
 """ Computes the deviation between an estimate and the actual value in tracefile columns
 

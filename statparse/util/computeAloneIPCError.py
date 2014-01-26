@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 import sys
-from statparse.util import fatal, getNpExperimentDirs, computeTraceError, parseUtilArgs
+from statparse.util import fatal, getNpExperimentDirs, computeTraceError, parseUtilArgs, getPrivateModeDirs, computePrivateTraceError
 from statparse.tracefile.errorStatistics import plotBoxFromDict, dumpAllErrors
 import statparse.tracefile.errorStatistics as errorStats
 from statparse.printResults import numberToString, printData
 
 commands = ["IPC", "latency", "overlap", "compute", "privlat", "memind", "cpl", "stall", "cwp", "writestall", "erob", "model", "privmemstall", "missrate"]
+privateCommands = ["pm-cpl", "pm-cpl-cwp"]
 modelComponentCmds = ["compute", "memind", "writestall", "erob", "privmemstall", "stall"]
 modelComponentNames = ["Compute Cycle Error", "Memory Independent Stall Error", "Write Stall Error", "Empty ROB Stall Error" , "Private Memsys Stall Error", "Shared Memsys Stall Error"]
 
@@ -43,6 +44,9 @@ class ColumnMatches:
         
         self.colstore["privmemstall"] = ColumnPair("Private Blocked Stall Cycles", "Alone Private Blocked Stall Estimate")
         self.colstore["missrate"] = ColumnPair("Measured Private Mode Miss Rate", "Private Mode Miss Rate Estimate")
+        
+        self.colstore["pm-cpl"] = ColumnPair("Actual Stall", "CPL Stall Estimate")
+        self.colstore["pm-cpl-cwp"] = ColumnPair("Actual Stall", "CPL-CWP Stall Estimate")
         
     def hasKey(self, key):
         return key in self.colstore
@@ -95,13 +99,13 @@ def printResults(results, aggRes, sortedparams, statname, opts, outfile):
 
 def main():
 
-    opts,args = parseUtilArgs("computeAloneIPCError.py", commands)
+    allcommands = commands + privateCommands
+
+    opts,args = parseUtilArgs("computeAloneIPCError.py", allcommands)
     try:
         np = int(args[0])
     except:
         fatal("Number of CPUs must be an integer")
-    
-    
     
     statname = args[1]
     command = None
@@ -114,6 +118,7 @@ def main():
         print
     
     dirs, sortedparams = getNpExperimentDirs(np)
+    privdirs = getPrivateModeDirs()
     traceColMatches = ColumnMatches()
 
     if command == "model":
@@ -123,6 +128,7 @@ def main():
         for cmd in modelComponentCmds: 
             if not opts.quiet:
                 print "Processing command",cmd
+            
             pair = traceColMatches.getPair(cmd)
             res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
             
@@ -137,9 +143,13 @@ def main():
 
     elif command != None:
         pair = traceColMatches.getPair(command)
-        results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
-        
-        printResults(results, aggRes, sortedparams, statname, opts, sys.stdout)
+        if command in commands:
+            results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+            printResults(results, aggRes, sortedparams, statname, opts, sys.stdout)
+        else:
+            assert command in privateCommands
+            results, aggRes = computePrivateTraceError(privdirs, pair.privateColumn, pair.sharedColumn, getTracename, opts.relativeErrors)
+            printResults(results, aggRes, ["Alone"], statname, opts, sys.stdout)
         
         if opts.plotBox:
             plotBoxFromDict(results, opts.hideOutliers, sortedparams)
@@ -155,7 +165,7 @@ def main():
     if opts.relativeErrors:
         relstr = "rel"
     
-    for cmd in commands:
+    for cmd in allcommands:
         if cmd == "model":
             continue
         
@@ -164,8 +174,15 @@ def main():
         if not opts.quiet:
             print "Processing command "+cmd+": Writing output to file "+outname
         pair = traceColMatches.getPair(cmd)
-        res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
-        printResults(res, aggRes, sortedparams, statname, opts, outfile)
+        
+        if cmd in commands:
+            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+            printResults(res, aggRes, sortedparams, statname, opts, outfile)
+        else:
+            assert cmd in privateCommands
+            results, aggRes = computePrivateTraceError(privdirs, pair.privateColumn, pair.sharedColumn, getTracename, opts.relativeErrors)
+            printResults(results, aggRes, ["Alone"], statname, opts, outfile)
+        
         outfile.close()
 
 
