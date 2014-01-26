@@ -793,7 +793,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
         ax.set_xlabel(kwargs["xlabel"])
     
     if "ylabel" in kwargs:
-        ax.set_ylabel(kwargs["ylabel"])
+        ax.set_ylabel(kwargs["ylabel"], multialignment='center')
     
     if "yrange" in kwargs:
         if kwargs["yrange"] != None:
