@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from statparse import printResults, metrics
+from statparse import printResults, metrics, isInt
 from statparse.util import warn
 from optcomplete import DirCompleter
 from statparse.tracefile import isFloat
@@ -51,6 +51,7 @@ def parseArgs():
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
     parser.add_option("--invert", action="store_true", dest="invert", default=False, help="Invert the datafile")
+    parser.add_option("--filter-pattern", action="store", dest="filterPattern", default="", help="Filter output lines with this pattern")
     parser.add_option("--plot-filename", action="store", dest="pltfilename", type="string", default="", help="Provide a filename to store the plot in a file")
     parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
 
@@ -174,6 +175,53 @@ def mergeData(fileData, opts):
     
     return mergedMatrix, columnToFileList
 
+def renameColumns(mergedData, opts):
+    if opts.columnNames != "":
+        newheader = opts.columnNames.split(",")
+        newheader.insert(0, "")
+
+        if len(newheader) != len(mergedData[0]):
+            fatal("New header must be the same length as the old header")
+            
+        for i in range(len(newheader))[1:]:
+            print "Renaming column "+mergedData[0][i]+" to "+newheader[i]
+        mergedData[0] = newheader
+        
+def renameRows(mergedData, opts):
+    if opts.rowNames != "":
+        newrownames = opts.rowNames.split(",")
+        newrownames.insert(0, "")
+        
+        if len(newrownames) != len(mergedData):
+            fatal("New row header must be the same length as the old row header")
+        for i in range(len(mergedData)):
+            if i != 0:
+                print "Renaming row "+mergedData[i][0]+" to "+newrownames[i]
+            mergedData[i][0] = newrownames[i]
+
+def filterData(mergedData, opts):
+    if opts.filterPattern == "":
+        return mergedData
+    
+    header = mergedData[0]
+    newdata = {}
+    for i in range(len(mergedData))[1:]:
+        if re.search(opts.filterPattern, mergedData[i][0]):
+            thisKey = mergedData[i][0] 
+            if isInt(thisKey):
+                thisKey = int(thisKey)
+            
+            newdata[thisKey] = mergedData[i]
+    
+    newdatakeys = sorted(newdata.keys())
+    
+    printData = []
+    printData.append(header)
+    for k in newdatakeys:
+        printData.append(newdata[k])
+    
+    return printData
+
 def processData(mergedData, mergeSpec, opts):
     
     if mergeSpec != []:
@@ -208,30 +256,13 @@ def processData(mergedData, mergeSpec, opts):
             for j in normalizedData[i]:
                 mergedData[i][j] = normalizedData[i][j]
     
-    if opts.columnNames != "":
-        newheader = opts.columnNames.split(",")
-        newheader.insert(0, "")
-
-        if len(newheader) != len(mergedData[0]):
-            fatal("New header must be the same length as the old header")
-            
-        for i in range(len(newheader))[1:]:
-            print "Renaming column "+mergedData[0][i]+" to "+newheader[i]
-        mergedData[0] = newheader        
-        
-    if opts.rowNames != "":
-        newrownames = opts.rowNames.split(",")
-        newrownames.insert(0, "")
-        
-        if len(newrownames) != len(mergedData):
-            fatal("New row header must be the same length as the old row header")
-        for i in range(len(mergedData)):
-            if i != 0:
-                print "Renaming row "+mergedData[i][0]+" to "+newrownames[i]
-            mergedData[i][0] = newrownames[i]
+    renameColumns(mergedData, opts)
+    renameRows(mergedData, opts)
     
     if opts.invert:
         mergedData = [[mergedData[j][i] for j in range(len(mergedData))] for i in range(len(mergedData[0]))]
+    
+    mergedData = filterData(mergedData, opts)
     
     justify = [False for i in range(len(mergedData[0]))]
     justify[0] = True
