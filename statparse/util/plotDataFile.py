@@ -28,6 +28,7 @@ def parseArgs():
     parser.add_option("--only-type", action="store", dest="onlyType", type="string", default="", help="Only include lines that have a workload key that contains this letter (a, b, c or n)")
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
     parser.add_option("--narrow", action="store_true", dest="narrow", default=False, help="Plot with half the regular width")
+    parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis captions")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -127,7 +128,8 @@ def main():
                              yrange=opts.yrange,
                              errorrows=opts.errorrows,
                              errorcols=opts.errorcols,
-                             narrow=opts.narrow)
+                             narrow=opts.narrow,
+                             rotate=opts.rotate)
     else:
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries,
