@@ -27,7 +27,9 @@ def parseArgs():
     parser.add_option("--errorcols", action="store_true", dest="errorcols", default=False, help="Every second column in the data file is error values")
     parser.add_option("--only-type", action="store", dest="onlyType", type="string", default="", help="Only include lines that have a workload key that contains this letter (a, b, c or n)")
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
+    parser.add_option("--fix-wls", action="store_true", dest="fixWls", default=False, help="Improve the readability of workload names")
     parser.add_option("--narrow", action="store_true", dest="narrow", default=False, help="Plot with half the regular width")
+    parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis labels")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -52,12 +54,27 @@ def parseArgs():
     
     return opts, args, datafiles
 
-def createDataSeries(rawdata, datacols):
+def createDataSeries(rawdata, datacols, opts):
     dataseries =[[] for i in range(datacols+1)]
     
     for l in rawdata:
         for i in range(datacols+1):
             dataseries[i].append(l[i])
+
+    if opts.fixWls:
+        newWls = []
+        for wlbm in dataseries[0]:
+            wlbmlist = wlbm.split("-")
+            wl = wlbmlist[1]+"-"+wlbmlist[2]
+            
+            if wlbmlist[-2] == "s6":
+                bm = wlbmlist[-2]+"-"+wlbmlist[-1]
+            else:
+                bm = wlbmlist[-1]
+            
+            newWls.append(wl+"_"+bm)
+            
+        dataseries[0] = newWls
 
     return dataseries
     
@@ -73,7 +90,7 @@ def main():
         print "Processing file plot of file "+args[i]
         
         thisHeader, thisData = readDataFile(datafiles[i], opts.columns, opts.onlyType)
-        series = createDataSeries(thisData, len(thisHeader))
+        series = createDataSeries(thisData, len(thisHeader), opts)
         
         if opts.plotType != "boxplot":
             dataseries = series
@@ -127,7 +144,8 @@ def main():
                              yrange=opts.yrange,
                              errorrows=opts.errorrows,
                              errorcols=opts.errorcols,
-                             narrow=opts.narrow)
+                             narrow=opts.narrow,
+                             rotate=opts.rotate)
     else:
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries,
