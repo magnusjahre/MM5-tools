@@ -779,7 +779,11 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     
     ax.set_xlim(0, len(names))
     ax.set_xticks(ind+(width/2.0))
-    ax.set_xticklabels(names, rotation="horizontal")
+    
+    if "rotate" in kwargs:
+        ax.set_xticklabels(names, rotation=kwargs["rotate"])
+    else:
+        ax.set_xticklabels(names, rotation="horizontal")
     
     plt.axhline(0, color='black')
     
