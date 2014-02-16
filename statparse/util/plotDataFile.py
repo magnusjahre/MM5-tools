@@ -29,7 +29,7 @@ def parseArgs():
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
     parser.add_option("--fix-wls", action="store_true", dest="fixWls", default=False, help="Improve the readability of workload names")
     parser.add_option("--narrow", action="store_true", dest="narrow", default=False, help="Plot with half the regular width")
-    parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis labels")
+    parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis captions")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
