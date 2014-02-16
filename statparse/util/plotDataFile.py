@@ -70,7 +70,7 @@ def createDataSeries(rawdata, datacols, opts):
             if wlbmlist[-2] == "s6":
                 bm = wlbmlist[-2]+"-"+wlbmlist[-1]
             else:
-                bm = wlbmlist[-1]
+                bm = wlbmlist[-1][:-1]
             
             newWls.append(wl+"_"+bm)
             
