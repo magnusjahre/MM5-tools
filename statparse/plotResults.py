@@ -770,7 +770,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     bars = []
     for i in range(numSeries):
         barwidth = width/float(numSeries)
-        thisColor = cm.YlOrBr(1*(float(i)/numSeries))
+        thisColor = cm.Blues(1*(float(i)/numSeries))
         if errorcols:
             bars.append(ax.bar(ind+(barwidth*i), values[2*i], barwidth, yerr=values[(2*i)+1], ecolor="black", color=thisColor))
             localLegend.append(legendNames[2*i])
