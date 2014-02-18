@@ -710,6 +710,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     import numpy as np
     import matplotlib
     import matplotlib.pyplot as plt
+    from matplotlib import cm
 
     fontsize = 14
     matplotlib.rc('xtick', labelsize=fontsize) 
@@ -769,13 +770,14 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     bars = []
     for i in range(numSeries):
         barwidth = width/float(numSeries)
+        thisColor = cm.YlOrBr(1*(float(i)/numSeries))
         if errorcols:
-            bars.append(ax.bar(ind+(barwidth*i), values[2*i], barwidth, yerr=values[(2*i)+1], ecolor="black", color=COLORLIST[i]))
+            bars.append(ax.bar(ind+(barwidth*i), values[2*i], barwidth, yerr=values[(2*i)+1], ecolor="black", color=thisColor))
             localLegend.append(legendNames[2*i])
         elif errorrows:
-            bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, yerr=errordata[i], ecolor="black", color=COLORLIST[i]))
+            bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, yerr=errordata[i], ecolor="black", color=thisColor))
         else:
-            bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=COLORLIST[i]))
+            bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=thisColor))
     
     ax.set_xlim(0, len(names))
     ax.set_xticks(ind+(width/2.0))
