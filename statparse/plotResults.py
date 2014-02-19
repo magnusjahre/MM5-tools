@@ -705,7 +705,16 @@ def plotRawBarChart(data, **kwargs):
             return
     
     plt.show()
+
+def flip(items, ncol):
+    tmp = [items[i::ncol] for i in range(ncol)]
     
+    newitems = []
+    for t in tmp:
+        newitems += t
+    
+    return newitems
+
 def plotDataFileBarChart(names, values, legendNames, **kwargs):
     import numpy as np
     import matplotlib
@@ -790,11 +799,20 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     
     plt.axhline(0, color='black')
     
+    showLegend = True
+    useCols = 2
     if "legendColumns" in kwargs:
         if kwargs["legendColumns"] > 0:
-            ax.legend(bars, localLegend, loc="upper center", ncol=kwargs["legendColumns"])
-    else:
-        ax.legend(bars, localLegend, loc="upper center", ncol=2)
+            useCols = kwargs["legendColumns"]
+        else:
+            showLegend = False
+    
+    if showLegend:
+        numRows = float(len(localLegend)) / useCols
+        if numRows > 1.0:
+            localLegend = flip(localLegend, useCols)
+            bars = flip(bars, useCols)
+        ax.legend(bars, localLegend, loc="upper center", ncol=useCols)    
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
