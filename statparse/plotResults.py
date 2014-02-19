@@ -731,7 +731,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
         if kwargs["narrow"]:
             width = width/2
 
-    fig = plt.figure(figsize=(width,4))
+    fig = plt.figure(figsize=(width,3.5))
     ax = fig.add_subplot(111)
     width = 0.8
 
