@@ -722,6 +722,9 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     from matplotlib import cm
 
     fontsize = 14
+    matplotlib.rc('ps', useafm=True)
+    matplotlib.rc('pdf', use14corefonts=True)
+    matplotlib.rc('text', usetex=True)
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
     matplotlib.rc('font', size=fontsize)
