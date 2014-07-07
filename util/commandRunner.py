@@ -27,12 +27,10 @@ class ThreadedCommand(threading.Thread):
         if self.cmdRunner.dryRun:
             self.cmdRunner.protectedPrint("Thread "+str(self.localID)+": dry run option set, skipping")
         else:
-            os.chdir(self.directory)
             if os.path.exists(self.existsname):
                 self.cmdRunner.protectedPrint("Thread "+str(self.localID)+": File "+self.existsname+" exists, skipping")
-            
             else:
-                subprocess.call(self.command)
+                subprocess.Popen(self.command, cwd=self.directory)
         self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" terminating")
 
 
