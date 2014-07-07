@@ -1,26 +1,30 @@
 
 from math import sqrt
+from numpy import median
 
-def computeStddev(n, sum, sumsq):
+def computeStddev(n, insum, sumsq):
     if n <= 1:
         return 0
     
     n = float(n)
     sumsq = float(sumsq)
-    sum = float(sum)
-    return  sqrt( max(((n * sumsq) - sum * sum) / (n * (n-1)), 0) )
+    insum = float(insum)
+    return  sqrt( max(((n * sumsq) - insum * insum) / (n * (n-1)), 0) )
 
-def computeMean(n, sum):
+def computeMean(n, insum):
     if n == 0:
         return 0
     
     n = float(n)
-    sum = float(sum)
-    return sum / n
+    insum = float(insum)
+    return insum / n
 
 def computeRMS(n, sumsq):
     meanSquare = computeMean(n, sumsq)
     return sqrt(max(meanSquare ,0))
+
+def computeMedian(values):
+    return float(median(values))
 
 def computeDistributionAverage(distribution):
     

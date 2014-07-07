@@ -3,7 +3,7 @@ Created on Dec 7, 2009
 
 @author: jahre
 '''
-from statparse.analysis import computeMean
+from statparse.analysis import computeMean, computeMedian
 from statparse.analysis import computeRMS
 from statparse.analysis import computeStddev
 from statparse.printResults import printData
@@ -13,7 +13,7 @@ import sys
 
 
 
-statNames = ["mean", "rms", "stdev"]
+statNames = ["mean", "rms", "stdev", "median"]
 
 def checkStatName(name):
     if name in statNames:
@@ -28,13 +28,13 @@ def getStatnameMessage():
 
 def getTitleLine(relative):
     if relative:
-        return ["Relative-Mean-Error-(%)", "Relative-RMS-Error-(%)", "Relative-Standard-Deviation-(%)"]
-    return  ["Mean-Error", "RMS-Error", "Standard-Deviation"]
+        return ["Relative-Mean-Error-(%)", "Relative-Median-Error-(%)", "Relative-RMS-Error-(%)", "Relative-Standard-Deviation-(%)"]
+    return  ["Mean-Error", "Median-Error", "RMS-Error", "Standard-Deviation"]
 
 def getJustifyArray(printAvgVals):
     if printAvgVals:
         return [True, False, False, False, False, False]
-    return [True, False, False, False]
+    return [True, False, False, False, False]
 
 """ Prints a error dictionary
 
@@ -55,10 +55,11 @@ def printErrorStatDict(errors, relative, decimals, sortedkeys = None, outfile = 
         keys = sortedkeys
     
     for k in keys:
-        mean, rms, stdev = errors[k].getStats()
+        mean, rms, stdev, median = errors[k].getStats()
         thisLine = [str(k)]
         
         thisLine.append(numberToString(mean, decimals))
+        thisLine.append(numberToString(median, decimals))
         thisLine.append(numberToString(rms, decimals))
         thisLine.append(numberToString(stdev, decimals))
         lines.append(thisLine)
@@ -210,11 +211,13 @@ class ErrorStatistics():
         if name not in statNames:
             raise Exception("Unknown statistic name "+str(name))
         
-        mean,rms,stdev = self.getStats()
+        mean,rms,stdev,median = self.getStats()
         if name == "mean":
             return mean
         if name == "rms":
             return rms
+        if name == "median":
+            return median
         
         assert name == "stdev"
         return stdev
@@ -223,7 +226,8 @@ class ErrorStatistics():
         mean = computeMean(self.numerrs, self.errsum)
         rms = computeRMS(self.numerrs, self.errsqsum)
         stdev = computeStddev(self.numerrs, self.errsum, self.errsqsum)
-        return mean, rms, stdev
+        median = computeMedian(self.allErrors)
+        return mean, rms, stdev, median
     
     def getValues(self):
         valmean = computeMean(self.numerrs, self.valsum)
@@ -256,5 +260,6 @@ class ErrorStatistics():
     def aggregate(self, addErrors):
         self.errsum += addErrors.errsum
         self.errsqsum += addErrors.errsqsum
-        self.numerrs += addErrors.numerrs        
+        self.numerrs += addErrors.numerrs  
+        self.allErrors = self.allErrors + addErrors.allErrors
         
