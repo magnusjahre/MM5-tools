@@ -30,15 +30,20 @@ class ThreadedCommand(threading.Thread):
             if os.path.exists(self.existsname):
                 self.cmdRunner.protectedPrint("Thread "+str(self.localID)+": File "+self.existsname+" exists, skipping")
             else:
-                subprocess.Popen(self.command, cwd=self.directory)
+                p = subprocess.Popen(self.command, cwd=self.directory)
+                p.wait()
+        
         self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" terminating")
+        self.cmdRunner.updateThreadCnt(False)
 
 
 class CommandRunner():
     
     def __init__(self, numThreads, waitTime, dryRun):
         self.printLock = threading.Lock()
+        self.threadCntLock = threading.Lock()
         self.numThreads = numThreads
+        self.numWorkers = 0
         self.waitTime = waitTime
         self.dryRun = dryRun
 
@@ -48,23 +53,33 @@ class CommandRunner():
         sys.stdout.flush()
         self.printLock.release()
 
+    def updateThreadCnt(self, inc):
+        self.threadCntLock.acquire()
+        if inc:
+            self.numWorkers += 1
+        else:
+            self.numWorkers -= 1
+        self.threadCntLock.release()
+
     def runCommands(self, commands):
         
         threadCounter = 0
         while commands != []:
-            numActive = threading.activeCount()
-            if numActive > self.numThreads:
-                self.protectedPrint("Number of worker threads is "+str(numActive-1)+", sleeping")
+            if self.numWorkers >= self.numThreads:
+                self.protectedPrint("Number of working threads is "+str(self.numWorkers)+", sleeping")
                 time.sleep(self.waitTime)
             else:
                 cmd = commands.pop(0)
                 thread = ThreadedCommand(threadCounter, cmd, self)            
                 thread.start()
+                self.updateThreadCnt(True)
                 threadCounter += 1
                 
-        while threading.activeCount() > 1:
-            self.protectedPrint("Waiting for workers to finish, number of active worker threads is "+str(numActive-1)+", sleeping")
+        while self.numWorkers > 1:
+            self.protectedPrint("Waiting for workers to finish, number of active worker threads is "+str(self.numWorkers)+", sleeping")
             time.sleep(self.waitTime)
+
+        self.protectedPrint("Done!")
 
 def parseArgs():
     
@@ -104,12 +119,10 @@ def parseArgs():
 def main():
     commands, opts = parseArgs()
     
-    print "Running commands..."
+    print "CommandRunner started with "+str(len(commands))+" potential commands"
     
     cmdRunner = CommandRunner(opts.threads, opts.sleep, opts.dryRun)
     cmdRunner.runCommands(commands)
-    
-    print "Done!"    
     
 if __name__ == '__main__':
     main()
