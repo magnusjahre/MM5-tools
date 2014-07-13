@@ -10,8 +10,7 @@ from statparse.printResults import printData
 from statparse.printResults import numberToString
 from statparse.plotResults import plotRawBoxPlot
 import sys
-
-
+import math
 
 statNames = ["mean", "rms", "stdev", "median"]
 
@@ -197,7 +196,11 @@ class ErrorStatistics():
             except ZeroDivisionError:
                 tmperr = 0
         else:
-            tmperr = float(error)
+            assert baseline == -1
+            try:
+                tmperr = (math.fabs(error) / math.fabs(actual)) * 100
+            except ZeroDivisionError:
+                tmperr = 0
         
         self.errsum += tmperr
         self.errsqsum += tmperr*tmperr
