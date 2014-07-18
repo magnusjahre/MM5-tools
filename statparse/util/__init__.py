@@ -313,7 +313,8 @@ def parseUtilArgs(programName, commands):
     parser.add_option("--relative", action="store_true", dest="relativeErrors", default=False, help="Print relative errors (Default: absolute)")
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
     parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")
-    parser.add_option("--all-error-file", action="store", dest="allErrorFile", default="", help="Write all errors to this file")   
+    parser.add_option("--all-error-file", action="store", dest="allErrorFile", default="", help="Write all errors to this file")
+    parser.add_option("--outfile", action="store", dest="outfile", default="", help="Write output to this file")   
     
     optcomplete.autocomplete(parser, CustomListCompleter([commands, errorStats.statNames]))
     opts, args = parser.parse_args()

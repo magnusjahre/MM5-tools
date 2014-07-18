@@ -142,14 +142,22 @@ def main():
         return
 
     elif command != None:
+        if opts.outfile == "":
+            outfile = sys.stdout
+        else:
+            outfile = open(opts.outfile, "w")
+        
         pair = traceColMatches.getPair(command)
         if command in commands:
             results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
-            printResults(results, aggRes, sortedparams, statname, opts, sys.stdout)
+            printResults(results, aggRes, sortedparams, statname, opts, outfile)
         else:
             assert command in privateCommands
             results, aggRes = computePrivateTraceError(privdirs, pair.privateColumn, pair.sharedColumn, getTracename, opts.relativeErrors)
-            printResults(results, aggRes, ["Alone"], statname, opts, sys.stdout)
+            printResults(results, aggRes, ["Alone"], statname, opts, outfile)
+        
+        if opts.outfile != "":
+            outfile.close()
         
         if opts.plotBox:
             plotBoxFromDict(results, opts.hideOutliers, sortedparams)
