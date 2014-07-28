@@ -11,6 +11,39 @@ def togglRequest(baseurl, params):
     data = ast.literal_eval(content)
     return data
 
+
+def getExpectedHours(dayrange, year):
+
+    hrsPerDay = 7.5
+    hrs = 0.0
+
+    day, sun = dayrange
+    sat = sun-relativedelta(days=1)
+
+    while day != sat:
+        if day.year != year:
+            hrs += 0.0
+        elif isRedDay(day, day.year):
+            hrs += 0.0
+        elif isHalfDay(day, day.year):
+            hrs += hrsPerDay / 2.0
+        else:
+            hrs += hrsPerDay
+
+        day = day+relativedelta(days=1)
+
+    return hrs
+
+def isRedDay(day, year):
+    if day in getRedDays(year):
+        return True
+    return False
+
+def isHalfDay(day, year):
+    if day in getHalfDays(year):
+        return True
+    return False
+
 def getWeekDayRange(year, weeknum):
     first = date(year, 1, 1)
     firstThurs = first+relativedelta(weekday=TH)
@@ -25,6 +58,7 @@ def getRedDays(year):
     reddays.append(date(year, 1, 1))
     reddays = reddays + getEasterRedDays(year)
     reddays.append(date(year, 5, 1))
+    reddays.append(date(year, 5, 17))
     reddays.append(date(year, 12, 25))
     reddays.append(date(year, 12, 26))
     return reddays
