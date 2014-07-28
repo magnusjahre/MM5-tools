@@ -11,6 +11,15 @@ def togglRequest(baseurl, params):
     data = ast.literal_eval(content)
     return data
 
+def getWeekDayRange(year, weeknum):
+    first = date(year, 1, 1)
+    firstThurs = first+relativedelta(weekday=TH)
+    firstMon = firstThurs+relativedelta(weekday=MO(-1))
+    firstSun = firstThurs+relativedelta(weekday=SU)
+    weekMon = firstMon+relativedelta(weeks=(weeknum-1))
+    weekSun = firstSun+relativedelta(weeks=(weeknum-1))
+    return [weekMon, weekSun]
+
 def getRedDays(year):
     reddays = []
     reddays.append(date(year, 1, 1))

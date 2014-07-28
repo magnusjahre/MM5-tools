@@ -24,6 +24,6 @@ if __name__ == '__main__':
     #params = {"workspace_id": "626815", "user_agent": "api_test"}
     #data = togglRequest("https://toggl.com/reports/api/v2/weekly", params)
     redDays = getRedDays(year)
-    print redDays
     halfDays = getHalfDays(year)
-    print halfDays
+    for i in range(1,54):
+        print i, getWeekDayRange(year, i)
