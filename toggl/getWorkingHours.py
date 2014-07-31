@@ -4,6 +4,7 @@ import sys
 from optparse import OptionParser
 from toggl import *
 from statparse.printResults import printData, numberToString
+from datetime import *
 
 def parseArgs():
     
@@ -37,6 +38,9 @@ def printHours(year, opts, reductions):
     yearBalance = 0
     for i in range(1,54):
         dayrange = getWeekDayRange(year, i)
+        if dayrange[0] > date.today():
+            break
+
         params = {"workspace_id": "626815", 
                   "user_agent": "magnus.jahre@idi.ntnu.no", 
                   "since": str(dayrange[0]),
