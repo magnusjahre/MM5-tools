@@ -11,6 +11,7 @@ def parseArgs():
     parser.add_option("--decimals", action="store", dest="decimals", default=1, type="float", help="Number of decimals")
     parser.add_option("--leave", action="store", dest="leave", default="", help="Leave: comma separated list of week-number:days pairs")
     parser.add_option("--holiday", action="store", dest="holiday", default="", help="Holiday: comma separated list of week-number:days pairs")
+    parser.add_option("--input-hours", action="store", dest="inputHours", default=0, type="int", help="Number of hours balance from previous year")
     opts, args = parser.parse_args()
     
     if len(args) != 1:
@@ -30,8 +31,10 @@ def getReducedDays(week, reductions):
     return days
 
 def printHours(year, opts, reductions):
-    printdata = [["Week", "Start Date", "Hours Worked", "Expected Hours", "Difference", "Comment"]]
-    leftJust = [True, True, False, False, False, True]
+    printdata = [["Week", "Date", "Worked", "Expected", "Diff", "Bal. (y)", "Bal. (t)", "Comment"]]
+    leftJust = [True, False, False, False, False, False, False, True]
+    balance = opts.inputHours
+    yearBalance = 0
     for i in range(1,54):
         dayrange = getWeekDayRange(year, i)
         params = {"workspace_id": "626815", 
@@ -46,6 +49,8 @@ def printHours(year, opts, reductions):
         reducedDays = getReducedDays(i, reductions)
         expectedHrs = getExpectedHours(dayrange, year, reducedDays)
         diff = weekHrs[-1] - expectedHrs
+        yearBalance += diff
+        balance += diff
 
         comment = ""
         if reducedDays > 0:
@@ -56,6 +61,8 @@ def printHours(year, opts, reductions):
                           numberToString(weekHrs[-1], opts.decimals),
                           numberToString(expectedHrs, opts.decimals),
                           numberToString(diff, opts.decimals),
+                          numberToString(yearBalance, opts.decimals),
+                          numberToString(balance, opts.decimals),
                           comment])
     
     printData(printdata, leftJust, sys.stdout, opts.decimals)
