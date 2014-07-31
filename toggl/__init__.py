@@ -12,7 +12,7 @@ def togglRequest(baseurl, params):
     return data
 
 
-def getExpectedHours(dayrange, year):
+def getExpectedHours(dayrange, year, reductions):
 
     hrsPerDay = 7.5
     hrs = 0.0
@@ -32,6 +32,8 @@ def getExpectedHours(dayrange, year):
 
         day = day+relativedelta(days=1)
 
+    hrs = hrs - reductions*hrsPerDay
+    assert hrs >= 0.0
     return hrs
 
 def isRedDay(day, year):
