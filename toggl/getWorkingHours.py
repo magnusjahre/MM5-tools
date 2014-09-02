@@ -3,7 +3,7 @@
 import sys
 from optparse import OptionParser
 from toggl import *
-from statparse.printResults import printData, numberToString
+from statparse.printResults import numberToString
 from datetime import *
 
 def parseArgs():
@@ -13,6 +13,7 @@ def parseArgs():
     parser.add_option("--leave", action="store", dest="leave", default="", help="Leave: comma separated list of week-number:days pairs")
     parser.add_option("--holiday", action="store", dest="holiday", default="", help="Holiday: comma separated list of week-number:days pairs")
     parser.add_option("--input-hours", action="store", dest="inputHours", default=0, type="int", help="Number of hours balance from previous year")
+    parser.add_option("--outfile", action="store", dest="outfile", default="workinghours.html", help="File to results to (Default: workinghours.html)")
     opts, args = parser.parse_args()
     
     if len(args) != 1:
@@ -33,10 +34,10 @@ def getReducedDays(week, reductions):
 
 def printHours(year, opts, reductions):
     printdata = [["Week", "Date", "Worked", "Expected", "Diff", "Bal. (y)", "Bal. (t)", "Comment"]]
-    leftJust = [True, False, False, False, False, False, False, True]
     balance = opts.inputHours
     yearBalance = 0
     for i in range(1,54):
+        print "Processing week",i
         dayrange = getWeekDayRange(year, i)
         if dayrange[0] > date.today():
             break
@@ -69,7 +70,25 @@ def printHours(year, opts, reductions):
                           numberToString(balance, opts.decimals),
                           comment])
     
-    printData(printdata, leftJust, sys.stdout, opts.decimals)
+    print "Writing output to file", opts.outfile
+    printHTML(printdata, opts.outfile)
+    
+def printHTML(data, filename):
+    f = open(filename, "w")
+    
+    print >> f, "<html><head><title>Working hours</title></head><body>"
+    print >> f, "<table>"
+    
+    for line in data:
+        print >> f, "<tr>"
+        for element in line:
+            print >> f, "<td>",element,"</td>"
+        print >> f, "</tr>"
+    
+    print >> f, "</table>"
+    print >> f, "</body></html>"
+    
+    f.close()
 
 def parseHourReductionString(text):
     if text == "":
@@ -100,6 +119,11 @@ def parseReductions(opts):
 
 if __name__ == '__main__':
     opts, year = parseArgs()
+    
+    print
+    print "Toggle Working Hours with Norwegian Holidays"
+    print
+    
     reductions = parseReductions(opts)
     printHours(year, opts, reductions)
     
