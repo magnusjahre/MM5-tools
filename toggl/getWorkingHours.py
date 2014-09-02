@@ -33,7 +33,7 @@ def getReducedDays(week, reductions):
     return days
 
 def printHours(year, opts, reductions):
-    printdata = [["Week", "Date", "Worked", "Expected", "Diff", "Bal. (y)", "Bal. (t)", "Comment"]]
+    printdata = [["Week", "Start Date", "Worked Hours", "Expected Hours", "Difference", "Yearly Balance", "Overall Balance", "Comment"]]
     balance = opts.inputHours
     yearBalance = 0
     for i in range(1,54):
@@ -76,13 +76,57 @@ def printHours(year, opts, reductions):
 def printHTML(data, filename):
     f = open(filename, "w")
     
-    print >> f, "<html><head><title>Working hours</title></head><body>"
-    print >> f, "<table>"
+    print >> f, "<html><head>"
+    print >> f, "<title>Working hours</title>"
+    print >> f,"""<style>
+                table {
+                    width:100%;
+                }
+                table, th, td {
+                    border: 1px solid black;
+                    border-collapse: collapse;
+                }
+                th, td {
+                    padding: 5px;
+                    text-align: center;
+                }
+                table.names tr:nth-child(even) {
+                    background-color: #f1f1c1;
+                }
+                table.names tr:nth-child(odd) {
+                   background-color:#ffffff;
+                }
+                table.names th    {
+                    background-color: #c1c1c1;
+                }
+                #greencell {
+                    color: green;
+                }
+                #redcell {
+                    color: red;
+                }
+                </style>"""
+    print >> f, "</head><body>"
+    print >> f, "<table class=\"names\">"
     
-    for line in data:
+    print >> f, "<tr>"
+    for element in data[0]:
+        print >> f, "<th>",element,"</th>",
+    print >> f, "</tr>"
+    
+    for line in data[1:]:
         print >> f, "<tr>"
+        cnt = 0
         for element in line:
-            print >> f, "<td>",element,"</td>"
+            if cnt == 4:
+                val = float(element)
+                if val < 0:
+                    print >> f, "<td id=\"redcell\">",element,"</td>",
+                else:
+                    print >> f, "<td id=\"greencell\">",element,"</td>",
+            else:
+                print >> f, "<td>",element,"</td>",
+            cnt += 1
         print >> f, "</tr>"
     
     print >> f, "</table>"
