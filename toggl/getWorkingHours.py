@@ -5,6 +5,7 @@ from optparse import OptionParser
 from toggl import *
 from statparse.printResults import numberToString
 from datetime import *
+import time
 
 def parseArgs():
     
@@ -130,6 +131,7 @@ def printHTML(data, filename):
         print >> f, "</tr>"
     
     print >> f, "</table>"
+    print >> f,"<br><br><i>Working hours overview generated "+time.strftime("%d.%m.%Y %H:%M")+"</i><br><br>"
     print >> f, "</body></html>"
     
     f.close()
