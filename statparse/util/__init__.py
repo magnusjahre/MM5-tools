@@ -87,6 +87,30 @@ def getPrivateModeDirs():
         
     return dirs
 
+def getSingleCoreExpDirs():
+    if not os.path.exists("pbsconfig.py"):
+        fatal("pbsconfig.py not found!")
+       
+    pbsconfig = __import__("pbsconfig")
+    configobj = pbsconfig.config
+    
+    experimentdirs = []
+    for cmd, params in pbsconfig.commandlines:
+        
+        expNp = configobj.getParam(params, "np")
+        if expNp != 1:
+            raise Exception("getSingleCoreExpDirs() only handles single core experiments")
+        
+        varparams = configobj.getVariableParameters(params)
+        benchmark = configobj.getParam(params, "bm")
+        fileID = configobj.getFileIdentifier(params)
+
+        experimentdirs.append( (benchmark, varparams, fileID) )
+    
+    sortedParamStrs = getSortedParams()
+    
+    return experimentdirs, sortedParamStrs    
+
 def getSortedParams():
     if not os.path.exists("pbsconfig.py"):
         fatal("pbsconfig.py not found!")
@@ -184,6 +208,10 @@ def findAllParams(dirs, np):
                 allparams.append(varparamkey)
                 
     return allparams
+
+def computeSingleCoreTraceError(dirs, mainColumnName, otherColumnName, getTracename, relative):
+    
+    fatal("not impl")
 
 def computePrivateTraceError(dirs, mainColumnName, otherColumnName, getTracename, relative):
     
