@@ -181,6 +181,9 @@ def getBenchmarkName(dirname):
     spec2000bm = dirname.split("-")[3]
     return spec2000bm[0:len(spec2000bm)-1]
 
+def getSingleCoreResKey(bm):
+    return bm
+
 def getResultKey(wl, aloneCPUID, np, varparams):
     wls = Workloads()
     bmNames = wls.getBms(wl, np, False)
@@ -191,6 +194,9 @@ def getResultKey(wl, aloneCPUID, np, varparams):
         prefix += "sp"+str(varparams["USE-SIMPOINT"])+"-"
     
     return prefix+postfix
+
+def getSimpleVarparamKey(varparams):
+    return getVarparamKey(None, -1, -1, varparams)
 
 def getVarparamKey(wl, aloneCPUID, np, varparams):
     paramcopy = deepcopy(varparams)
@@ -209,9 +215,35 @@ def findAllParams(dirs, np):
                 
     return allparams
 
-def computeSingleCoreTraceError(dirs, mainColumnName, otherColumnName, getTracename, relative):
+def computeSingleCoreTraceError(dirs, mainColumnName, otherColumnName, getTracename, relative, params):
     
-    fatal("not impl")
+    results = {}    
+    aggregateErrors = {}
+    
+    for p in params:
+        aggregateErrors[p] = ErrorStatistics(relative) 
+    
+    for bm, varparams, dirID in dirs:
+        traceFileName = getTracename(dirID, 0, False)
+        
+        fileData = TracefileData(traceFileName)
+        fileData.readTracefile()
+        
+        curStats = computeErrors(fileData, mainColumnName, fileData, otherColumnName, relative)
+        
+        reskey = getSingleCoreResKey(bm)
+        paramkey = getSimpleVarparamKey(varparams)
+        
+        assert paramkey in aggregateErrors
+        aggregateErrors[paramkey].aggregate(curStats)
+            
+        if reskey not in results:
+            results[reskey] = {}
+            
+        assert paramkey not in results[reskey]
+        results[reskey][paramkey] = curStats
+    
+    return results, aggregateErrors
 
 def computePrivateTraceError(dirs, mainColumnName, otherColumnName, getTracename, relative):
     

@@ -29,8 +29,6 @@ def getTracename(dir, cpuID, sharedMode):
     prefix = "globalPolicyCommittedInsts"
     postfix = ".txt"
     
-    print dir, cpuID, sharedMode
-    
     return dir+"/"+prefix+"0"+postfix
 
 def computePerfModelError(command, statname, dirs, sortedparams, opts):
@@ -43,7 +41,13 @@ def computePerfModelError(command, statname, dirs, sortedparams, opts):
         
     pair = traceColMatches.getPair(command)
     
-    results, aggRes = computeSingleCoreTraceError(dirs, pair.actualColumn, pair.modelColumn, getTracename, opts.relativeErrors) 
+    results, aggRes = computeSingleCoreTraceError(dirs,
+                                                  pair.actualColumn,
+                                                  pair.modelColumn,
+                                                  getTracename,
+                                                  opts.relativeErrors,
+                                                  sortedparams)
+     
     printResults(results, aggRes, sortedparams, statname, opts, outfile)
             
     if opts.outfile != "":
