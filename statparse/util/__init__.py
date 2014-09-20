@@ -86,7 +86,30 @@ def getPrivateModeDirs():
         dirs.append(configobj.getFileIdentifier(shparams))
         
     return dirs
+
+def getSortedParams():
+    if not os.path.exists("pbsconfig.py"):
+        fatal("pbsconfig.py not found!")
+    
+    pbsconfig = __import__("pbsconfig")
+    configobj = pbsconfig.config
+    
+    allparams = []
+    for cmd, shparams in pbsconfig.commandlines:
+        varparams = configobj.getVariableParameters(shparams)
+        vpcopy = deepcopy(varparams)
+        if "USE-SIMPOINT" in vpcopy:
+            del vpcopy["USE-SIMPOINT"]
         
+        if vpcopy not in allparams:
+            allparams.append(vpcopy)
+    
+    sortedParams = createSortedParamList(allparams)
+    sortedParamStrs = []
+    for p in sortedParams:
+        sortedParamStrs.append(paramsToString(p))
+        
+    return sortedParamStrs       
 
 def getNpExperimentDirs(np):
     if not os.path.exists("pbsconfig.py"):
@@ -98,7 +121,6 @@ def getNpExperimentDirs(np):
     pbsconfig = __import__("pbsconfig")
     configobj = pbsconfig.config
     
-    allparams = []
     experimentdirs = []
     for cmd, shparams in pbsconfig.commandlines:
         
@@ -107,12 +129,6 @@ def getNpExperimentDirs(np):
             continue
         
         varparams = configobj.getVariableParameters(shparams)
-        vpcopy = deepcopy(varparams)
-        if "USE-SIMPOINT" in vpcopy:
-            del vpcopy["USE-SIMPOINT"]
-        
-        if vpcopy not in allparams:
-            allparams.append(vpcopy)
         
         wl = configobj.getParam(shparams, "wl")
         
@@ -129,10 +145,7 @@ def getNpExperimentDirs(np):
         
         experimentdirs.append( (wl, varparams, sharedFileID, aloneFileIDs) )
     
-    sortedParams = createSortedParamList(allparams)
-    sortedParamStrs = []
-    for p in sortedParams:
-        sortedParamStrs.append(paramsToString(p))
+    sortedParamStrs = getSortedParams()
     
     return experimentdirs, sortedParamStrs
 
