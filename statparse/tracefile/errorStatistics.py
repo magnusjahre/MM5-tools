@@ -197,10 +197,12 @@ class ErrorStatistics():
                 tmperr = 0
         else:
             assert baseline == -1
-            try:
-                tmperr = (math.fabs(error) / math.fabs(actual)) * 100
-            except ZeroDivisionError:
-                tmperr = 0
+#            try:
+#                tmperr = (math.fabs(error) / math.fabs(actual)) * 100
+#            except ZeroDivisionError:
+#                tmperr = 0
+                
+            tmperr = error
         
         self.errsum += tmperr
         self.errsqsum += tmperr*tmperr
