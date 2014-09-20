@@ -319,7 +319,7 @@ def parseUtilArgs(programName, commands):
     optcomplete.autocomplete(parser, CustomListCompleter([commands, errorStats.statNames]))
     opts, args = parser.parse_args()
     
-    if len(args) < 1 and len(args) > 3:
+    if len(args) < 2 or len(args) > 3:
         fatal("command line error\nUsage: "+parser.usage)
     
     if not errorStats.checkStatName(args[1]):
