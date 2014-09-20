@@ -245,7 +245,7 @@ class ErrorStatistics():
         
     def toString(self, decimals):
         
-        mean, rms, stddev = self.getStats()
+        mean, rms, stddev, median = self.getStats()
         
         if self.relative:
             prefix = "Relative "
@@ -258,6 +258,7 @@ class ErrorStatistics():
         retstr += prefix+"Mean Error:        "+(("%."+str(decimals)+"f") % mean).rjust(5+decimals)+post
         retstr += prefix+"RMS Error:         "+(("%."+str(decimals)+"f") % rms).rjust(5+decimals)+post
         retstr += prefix+"Standard Deviation:"+(("%."+str(decimals)+"f") % stddev).rjust(5+decimals)+post
+        retstr += prefix+"Median:            "+(("%."+str(decimals)+"f") % median).rjust(5+decimals)+post
         return retstr
     
     def aggregate(self, addErrors):
