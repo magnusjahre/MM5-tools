@@ -4,7 +4,7 @@ import sys
 from statparse.util import fatal, getSingleCoreExpDirs, parseUtilArgs, computeSingleCoreTraceError
 from statparse.util.computeAloneIPCError import printResults
 
-commands = ["little", "graph", "graph-histogram"]
+commands = ["little", "graph-burst", "graph-sat", "histogram-burst", "histogram-sat"]
 
 class ColumnPair:
     def __init__(self, actualcol, modelcol):
@@ -18,8 +18,10 @@ class ColumnMatches:
         
     def populateColstore(self):
         self.colstore["little"] = ColumnPair("Actual Bus Latency", "Little's Law Bus Latency")
-        self.colstore["graph"] = ColumnPair("Actual Bus Latency", "Graph Model Bus Latency")
-        self.colstore["graph-histogram"] = ColumnPair("Actual Bus Latency", "Histogram Model Bus Latency")
+        self.colstore["graph-burst"] = ColumnPair("Actual Bus Latency", "Graph Model Bus Latency \(burst\)")
+        self.colstore["graph-sat"] = ColumnPair("Actual Bus Latency", "Graph Model Bus Latency \(sat\)")
+        self.colstore["histogram-burst"] = ColumnPair("Actual Bus Latency", "Histogram Model Bus Latency \(burst\)")
+        self.colstore["histogram-sat"] = ColumnPair("Actual Bus Latency", "Histogram Model Bus Latency \(sat\)")
 
     def hasKey(self, key):
         return key in self.colstore
