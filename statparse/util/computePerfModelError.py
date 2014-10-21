@@ -17,11 +17,11 @@ class ColumnMatches:
         self.populateColstore()
         
     def populateColstore(self):
-        self.colstore["little"] = ColumnPair("Actual Bus Latency", "Little's Law Bus Latency")
-        self.colstore["graph-burst"] = ColumnPair("Actual Bus Latency", "Graph Model Bus Latency \(burst\)")
-        self.colstore["graph-sat"] = ColumnPair("Actual Bus Latency", "Graph Model Bus Latency \(sat\)")
-        self.colstore["histogram-burst"] = ColumnPair("Actual Bus Latency", "Histogram Model Bus Latency \(burst\)")
-        self.colstore["histogram-sat"] = ColumnPair("Actual Bus Latency", "Histogram Model Bus Latency \(sat\)")
+        self.colstore["little"] = ColumnPair("Actual Bus Latency", "Little")
+        self.colstore["graph-burst"] = ColumnPair("Actual Bus Latency", "Graph Model 1")
+        self.colstore["graph-sat"] = ColumnPair("Actual Bus Latency", "Graph Model 2")
+        self.colstore["histogram-burst"] = ColumnPair("Actual Bus Latency", "Histogram Model 1")
+        self.colstore["histogram-sat"] = ColumnPair("Actual Bus Latency", "Histogram Model 2")
 
     def hasKey(self, key):
         return key in self.colstore
@@ -30,7 +30,7 @@ class ColumnMatches:
         return self.colstore[key]
     
 def getTracename(dir, cpuID, sharedMode):
-    prefix = "globalPolicyCommittedInsts"
+    prefix = "globalPolicyPerfModel"
     postfix = ".txt"
     
     return dir+"/"+prefix+"0"+postfix
