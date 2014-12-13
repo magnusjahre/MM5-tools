@@ -166,6 +166,22 @@ def dumpAllErrors(results, filename):
     
     outfile.flush()
     outfile.close()
+    
+def computeError(estimate, actual, relative, baseline):
+    error = estimate - actual
+    if relative:
+        try:
+            if baseline == -1:
+                tmperr = (float(error) / float(actual)) * 100
+            else:
+                tmperr = (float(error) / float(baseline)) * 100
+        except ZeroDivisionError:
+            tmperr = 0
+    else:
+        assert baseline == -1
+        tmperr = error
+            
+    return tmperr
 
 class ErrorStatistics():
 
@@ -186,29 +202,13 @@ class ErrorStatistics():
         self.valsum += estimate
         self.baselinesum += actual
         
-        error = estimate - actual
-        if self.relative:
-            try:
-                if baseline == -1:
-                    tmperr = (float(error) / float(actual)) * 100
-                else:
-                    tmperr = (float(error) / float(baseline)) * 100
-            except ZeroDivisionError:
-                tmperr = 0
-        else:
-            assert baseline == -1
-#            try:
-#                tmperr = (math.fabs(error) / math.fabs(actual)) * 100
-#            except ZeroDivisionError:
-#                tmperr = 0
-                
-            tmperr = error
+        error = computeError(estimate, actual, self.relative, baseline)
         
-        self.errsum += tmperr
-        self.errsqsum += tmperr*tmperr
+        self.errsum += error
+        self.errsqsum += error*error
         self.numerrs += 1
         
-        self.allErrors.append(tmperr)
+        self.allErrors.append(error)
     
     
     def getStatByName(self, name):

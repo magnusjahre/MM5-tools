@@ -414,6 +414,28 @@ class TracefileData():
                 
         return matchID
     
+    """ Searches after column titles that matches {pattern}-{float}
+    
+        Returns:
+            - A dict of {float} to column ID mappings 
+            - None if the pattern is not found
+    """
+    def findColumnIDs(self, pattern, separator):
+        cols = self.headers.keys()
+        
+        colmap = {}
+        for c in cols:
+            if re.search(pattern, self.headers[c]):
+                splitted = self.headers[c].split(separator)
+                try:
+                    key = float(splitted[1])
+                except:
+                    raise Exception("Column key parse error on key "+str(self.headers[c]))
+                assert key not in colmap
+                colmap[key] = c
+                
+        return colmap
+    
     def getValue(self, columnID, elementID):
         return self.data[columnID][elementID]
     
