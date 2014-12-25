@@ -17,11 +17,12 @@ class ColumnMatches:
         self.populateColstore()
         
     def populateColstore(self):
-        self.colstore["little"] = ColumnPair("Actual Bus Latency", "Little")
-        self.colstore["graph-burst"] = ColumnPair("Actual Bus Latency", "Graph Model 1")
-        self.colstore["graph-sat"] = ColumnPair("Actual Bus Latency", "Graph Model 2")
-        self.colstore["histogram-burst"] = ColumnPair("Actual Bus Latency", "Histogram Model 1")
-        self.colstore["histogram-sat"] = ColumnPair("Actual Bus Latency", "Histogram Model 2")
+        baseline = "Actual Bus Queue Latency"
+        self.colstore["little"] = ColumnPair(baseline, "Little")
+        self.colstore["graph-burst"] = ColumnPair(baseline, "Graph-1")
+        self.colstore["graph-sat"] = ColumnPair(baseline, "Graph-2")
+        self.colstore["histogram-burst"] = ColumnPair(baseline, "Histogram-1")
+        self.colstore["histogram-sat"] = ColumnPair(baseline, "Histogram-2")
 
     def hasKey(self, key):
         return key in self.colstore
