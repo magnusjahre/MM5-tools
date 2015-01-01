@@ -6,6 +6,7 @@ import math
 from optparse import OptionParser
 from statparse.tracefile.tracefileData import TracefileData
 from statparse.tracefile.errorStatistics import computeError, ErrorStatistics
+from statparse.util import getSingleCoreResKey, getSimpleVarparamKey
 
 ORACLE_MODELS = {"graph": "Graph",
                  "histogram": "Histogram"}
@@ -59,13 +60,39 @@ def generateOracleData(actual, schemeData, relative):
         dynOracle.sample(actual[i], mindata, minerrval)
         
     return dynOracle
+
+def getExperimentData(dirs, actualColumnName, getTracename, relative, model, params):
+    results = {}    
+    aggregateErrors = {}
     
-def getDynamicOracle(filename, model, opts):
+    for p in params:
+        aggregateErrors[p] = ErrorStatistics(relative) 
+    
+    for bm, varparams, dirID in dirs:
+        traceFileName = getTracename(dirID, 0, False)
+
+        dynOracle = getDynamicOracle(traceFileName, model, relative, actualColumnName)
+        
+        reskey = getSingleCoreResKey(bm)
+        paramkey = getSimpleVarparamKey(varparams)
+        
+        aggregateErrors[paramkey].aggregate(dynOracle.errstats)
+            
+        if reskey not in results:
+            results[reskey] = {}
+            
+        assert paramkey not in results[reskey]
+        results[reskey][paramkey] = dynOracle.errstats
+    
+        
+    return results, aggregateErrors
+    
+def getDynamicOracle(filename, model, relative, actualColName):
     tracecontent = TracefileData(filename)
     tracecontent.readTracefile()    
     
     colmap = tracecontent.findColumnIDs(ORACLE_MODELS[model], "-")
-    actualcol = tracecontent.findColumnID("Actual Bus Queue Latency", -1)
+    actualcol = tracecontent.findColumnID(actualColName, -1)
 
     data = {}
     for k in sorted(colmap.keys()):
@@ -74,12 +101,12 @@ def getDynamicOracle(filename, model, opts):
     
     actualdata = tracecontent.getColumn(actualcol)
     
-    return generateOracleData(actualdata, data, opts.relative)    
+    return generateOracleData(actualdata, data, relative)    
 
 def main():
     
     opts,args = parseArgs()    
-    dynOracle = getDynamicOracle(args[0], args[1], opts)
+    dynOracle = getDynamicOracle(args[0], args[1], opts.relative, "Actual Bus Queue Latency")
     
     print
     print "Dynamic oracle statistics for file "+args[0]+" and "+args[1]+" model:"

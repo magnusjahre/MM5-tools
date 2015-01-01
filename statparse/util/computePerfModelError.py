@@ -3,13 +3,15 @@
 import sys
 from statparse.util import fatal, getSingleCoreExpDirs, parseUtilArgs, computeSingleCoreTraceError
 from statparse.util.computeAloneIPCError import printResults
+from statparse.util.busModelOracle import getExperimentData
 
-commands = ["little", "graph-burst", "graph-sat", "histogram-burst", "histogram-sat"]
+commands = ["little", "graph-burst", "graph-sat", "graph-dyn-oracle", "histogram-burst", "histogram-sat", "histogram-dyn-oracle"]
 
 class ColumnPair:
-    def __init__(self, actualcol, modelcol):
+    def __init__(self, actualcol, modelcol, oracle = False):
         self.actualColumn = actualcol
         self.modelColumn = modelcol
+        self.oracle = oracle
 
 class ColumnMatches:
     def __init__(self):
@@ -21,8 +23,10 @@ class ColumnMatches:
         self.colstore["little"] = ColumnPair(baseline, "Little")
         self.colstore["graph-burst"] = ColumnPair(baseline, "Graph-1")
         self.colstore["graph-sat"] = ColumnPair(baseline, "Graph-2")
+        self.colstore["graph-dyn-oracle"] = ColumnPair(baseline, "graph", True)
         self.colstore["histogram-burst"] = ColumnPair(baseline, "Histogram-1")
         self.colstore["histogram-sat"] = ColumnPair(baseline, "Histogram-2")
+        self.colstore["histogram-dyn-oracle"] = ColumnPair(baseline, "histogram", True)
 
     def hasKey(self, key):
         return key in self.colstore
@@ -46,12 +50,21 @@ def computePerfModelError(command, statname, dirs, sortedparams, opts):
         
     pair = traceColMatches.getPair(command)
     
-    results, aggRes = computeSingleCoreTraceError(dirs,
-                                                  pair.actualColumn,
-                                                  pair.modelColumn,
-                                                  getTracename,
-                                                  opts.relativeErrors,
-                                                  sortedparams)
+    
+    if pair.oracle:
+        results, aggRes = getExperimentData(dirs,
+                                            pair.actualColumn,
+                                            getTracename,
+                                            opts.relativeErrors,
+                                            pair.modelColumn,
+                                            sortedparams)
+    else:
+        results, aggRes = computeSingleCoreTraceError(dirs,
+                                                      pair.actualColumn,
+                                                      pair.modelColumn,
+                                                      getTracename,
+                                                      opts.relativeErrors,
+                                                      sortedparams)
      
     printResults(results, aggRes, sortedparams, statname, opts, outfile)
             
