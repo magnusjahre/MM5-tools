@@ -89,8 +89,6 @@ def getStaticOracleData(actual, schemeData, relative):
     return statOracle
 
 def getExperimentData(oracletype, dirs, actualColumnName, getTracename, relative, model, params):
-    print oracletype
-    
     results = {}    
     aggregateErrors = {}
     
