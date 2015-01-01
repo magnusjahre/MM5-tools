@@ -3,12 +3,20 @@
 import sys
 from statparse.util import fatal, getSingleCoreExpDirs, parseUtilArgs, computeSingleCoreTraceError
 from statparse.util.computeAloneIPCError import printResults
-from statparse.util.busModelOracle import getExperimentData
+from statparse.util.busModelOracle import getExperimentData, ORACLE_DYNAMIC, ORACLE_STATIC, ORACLE_INVALID
 
-commands = ["little", "graph-burst", "graph-sat", "graph-dyn-oracle", "histogram-burst", "histogram-sat", "histogram-dyn-oracle"]
+commands = ["little",
+            "graph-burst",
+            "graph-sat",
+            "graph-dyn-oracle",
+            "graph-stat-oracle",
+            "histogram-burst",
+            "histogram-sat",
+            "histogram-dyn-oracle",
+            "histogram-stat-oracle"]
 
 class ColumnPair:
-    def __init__(self, actualcol, modelcol, oracle = False):
+    def __init__(self, actualcol, modelcol, oracle = ORACLE_INVALID):
         self.actualColumn = actualcol
         self.modelColumn = modelcol
         self.oracle = oracle
@@ -23,10 +31,12 @@ class ColumnMatches:
         self.colstore["little"] = ColumnPair(baseline, "Little")
         self.colstore["graph-burst"] = ColumnPair(baseline, "Graph-1")
         self.colstore["graph-sat"] = ColumnPair(baseline, "Graph-2")
-        self.colstore["graph-dyn-oracle"] = ColumnPair(baseline, "graph", True)
+        self.colstore["graph-dyn-oracle"] = ColumnPair(baseline, "graph", ORACLE_DYNAMIC)
+        self.colstore["graph-stat-oracle"] = ColumnPair(baseline, "graph", ORACLE_STATIC)
         self.colstore["histogram-burst"] = ColumnPair(baseline, "Histogram-1")
         self.colstore["histogram-sat"] = ColumnPair(baseline, "Histogram-2")
-        self.colstore["histogram-dyn-oracle"] = ColumnPair(baseline, "histogram", True)
+        self.colstore["histogram-dyn-oracle"] = ColumnPair(baseline, "histogram", ORACLE_DYNAMIC)
+        self.colstore["histogram-stat-oracle"] = ColumnPair(baseline, "histogram", ORACLE_STATIC)
 
     def hasKey(self, key):
         return key in self.colstore
@@ -51,8 +61,9 @@ def computePerfModelError(command, statname, dirs, sortedparams, opts):
     pair = traceColMatches.getPair(command)
     
     
-    if pair.oracle:
-        results, aggRes = getExperimentData(dirs,
+    if pair.oracle != ORACLE_INVALID:
+        results, aggRes = getExperimentData(pair.oracle,
+                                            dirs,
                                             pair.actualColumn,
                                             getTracename,
                                             opts.relativeErrors,

@@ -11,6 +11,10 @@ from statparse.util import getSingleCoreResKey, getSimpleVarparamKey
 ORACLE_MODELS = {"graph": "Graph",
                  "histogram": "Histogram"}
 
+ORACLE_INVALID = 0
+ORACLE_STATIC = 1
+ORACLE_DYNAMIC = 2
+
 def parseArgs():
     parser = OptionParser(usage="busModelOracle.py [options] filename model")
 
@@ -29,7 +33,7 @@ def parseArgs():
     
     return opts,args
 
-class DynamicBusOracle:
+class BusOracle:
     
     def __init__(self, relative):
         self.data = []
@@ -44,7 +48,7 @@ class DynamicBusOracle:
 
 def generateOracleData(actual, schemeData, relative):
     
-    dynOracle = DynamicBusOracle(relative)
+    dynOracle = BusOracle(relative)
     
     for i in range(len(actual)):
         minerr = 1000000000000000.0
@@ -61,7 +65,32 @@ def generateOracleData(actual, schemeData, relative):
         
     return dynOracle
 
-def getExperimentData(dirs, actualColumnName, getTracename, relative, model, params):
+def getStaticOracleData(actual, schemeData, relative):
+    statOracle = BusOracle(relative)
+    
+    minerr = 1000000000000000.0
+    minkey = -1
+    
+    for k in schemeData:
+        tmperr = ErrorStatistics(relative)
+        
+        for i in range(len(actual)):
+            tmperr.sample(schemeData[k][i], actual[i])
+        
+        absmean = math.fabs(tmperr.getStatByName("mean"))
+        if absmean < minerr:
+            minerr = absmean
+            minkey = k
+            
+    assert minkey != -1
+    for i in range(len(actual)):
+        statOracle.sample(actual[i], schemeData[minkey][i], minkey)
+    
+    return statOracle
+
+def getExperimentData(oracletype, dirs, actualColumnName, getTracename, relative, model, params):
+    print oracletype
+    
     results = {}    
     aggregateErrors = {}
     
@@ -71,23 +100,22 @@ def getExperimentData(dirs, actualColumnName, getTracename, relative, model, par
     for bm, varparams, dirID in dirs:
         traceFileName = getTracename(dirID, 0, False)
 
-        dynOracle = getDynamicOracle(traceFileName, model, relative, actualColumnName)
+        oracle = getOracle(oracletype, traceFileName, model, relative, actualColumnName)
         
         reskey = getSingleCoreResKey(bm)
         paramkey = getSimpleVarparamKey(varparams)
         
-        aggregateErrors[paramkey].aggregate(dynOracle.errstats)
+        aggregateErrors[paramkey].aggregate(oracle.errstats)
             
         if reskey not in results:
             results[reskey] = {}
             
         assert paramkey not in results[reskey]
-        results[reskey][paramkey] = dynOracle.errstats
+        results[reskey][paramkey] = oracle.errstats
     
-        
     return results, aggregateErrors
     
-def getDynamicOracle(filename, model, relative, actualColName):
+def getOracle(oracle, filename, model, relative, actualColName):
     tracecontent = TracefileData(filename)
     tracecontent.readTracefile()    
     
@@ -101,12 +129,25 @@ def getDynamicOracle(filename, model, relative, actualColName):
     
     actualdata = tracecontent.getColumn(actualcol)
     
-    return generateOracleData(actualdata, data, relative)    
+    if oracle == ORACLE_DYNAMIC:
+        return generateOracleData(actualdata, data, relative)  
+    return getStaticOracleData(actualdata, data, relative)
 
 def main():
     
     opts,args = parseArgs()    
-    dynOracle = getDynamicOracle(args[0], args[1], opts.relative, "Actual Bus Queue Latency")
+    dynOracle = getOracle(ORACLE_DYNAMIC, args[0], args[1], opts.relative, "Actual Bus Queue Latency")
+    staticOracle = getOracle(ORACLE_STATIC, args[0], args[1], opts.relative, "Actual Bus Queue Latency")
+    
+    print
+    print "Static oracle statistics for file "+args[0]+" and "+args[1]+" model:"
+    print
+    print staticOracle.errstats
+    
+    print "Static oracle selections are:"
+    for v in staticOracle.values:
+        print v,
+    print
     
     print
     print "Dynamic oracle statistics for file "+args[0]+" and "+args[1]+" model:"
