@@ -11,8 +11,8 @@ def parseArgs():
     
     parser = OptionParser(usage="getWorkingHours.py [options] year")
     parser.add_option("--decimals", action="store", dest="decimals", default=1, type="float", help="Number of decimals")
-    parser.add_option("--leave", action="store", dest="leave", default="", help="Leave: comma separated list of week-number:days pairs")
-    parser.add_option("--holiday", action="store", dest="holiday", default="", help="Holiday: comma separated list of week-number:days pairs")
+    parser.add_option("--sick", action="store", dest="sick", default="", help="Sick: comma separated list of week-number:days pairs")
+    parser.add_option("--holiday", action="store", dest="holiday", default="", help="Holiday/Leave: comma separated list of week-number:days pairs")
     parser.add_option("--input-hours", action="store", dest="inputHours", default=0, type="int", help="Number of hours balance from previous year")
     parser.add_option("--outfile", action="store", dest="outfile", default="workinghours.html", help="File to results to (Default: workinghours.html)")
     opts, args = parser.parse_args()
@@ -26,14 +26,13 @@ def parseArgs():
 
     return opts, year
 
-def getReducedDays(week, reductions):
+def getReducedDays(week, reductionDict):
     days = 0
-    for r in reductions:
-        if week in r:
-            days += r[week]
+    if week in reductionDict:
+        days += reductionDict[week]
     return days
 
-def printHours(year, opts, reductions):
+def printHours(year, opts, holiday, sick):
     printdata = [["Week", "Start Date", "Worked Hours", "Expected Hours", "Difference", "Yearly Balance", "Overall Balance", "Comment"]]
     balance = opts.inputHours
     yearBalance = 0
@@ -52,15 +51,20 @@ def printHours(year, opts, reductions):
         weekTotals = data['week_totals']
         weekHrs = [float(d)/(1000.0*60.0*60.0) for d in weekTotals]
 
-        reducedDays = getReducedDays(i, reductions)
-        expectedHrs = getExpectedHours(dayrange, year, reducedDays)
+        holidayDays = getReducedDays(i, holiday)
+        sickDays = getReducedDays(i, sick)
+        expectedHrs = getExpectedHours(dayrange, year, holidayDays+sickDays)
         diff = weekHrs[-1] - expectedHrs
         yearBalance += diff
         balance += diff
 
         comment = ""
-        if reducedDays > 0:
-            comment = str(reducedDays)+" days holiday/leave"
+        if holidayDays > 0 and sickDays > 0:
+            comment = str(holidayDays)+" days holiday/leave and "+str(sickDays)+" days sick"
+        elif holidayDays > 0:
+            comment = str(holidayDays)+" days holiday/leave"
+        elif sickDays > 0:
+            comment = str(sickDays)+" days sick"
 
         printdata.append([str(i),
                           str(dayrange[0]),
@@ -154,14 +158,9 @@ def parseHourReductionString(text):
     return reductions
 
 def parseReductions(opts):
-    reductionList = []
-    leave = parseHourReductionString(opts.leave)
-    if leave != {}:
-        reductionList.append(leave)
     holiday = parseHourReductionString(opts.holiday)
-    if holiday != {}:
-        reductionList.append(holiday)
-    return reductionList
+    sick = parseHourReductionString(opts.sick)
+    return holiday, sick
 
 if __name__ == '__main__':
     opts, year = parseArgs()
@@ -170,6 +169,6 @@ if __name__ == '__main__':
     print "Toggle Working Hours with Norwegian Holidays"
     print
     
-    reductions = parseReductions(opts)
-    printHours(year, opts, reductions)
+    holiday, sick = parseReductions(opts)
+    printHours(year, opts, holiday, sick)
     

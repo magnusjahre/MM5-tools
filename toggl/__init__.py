@@ -1,5 +1,6 @@
 import requests
 import ast
+import sys
 from datetime import *
 from dateutil.easter import *
 from dateutil.relativedelta import *
@@ -33,7 +34,9 @@ def getExpectedHours(dayrange, year, reductions):
         day = day+relativedelta(days=1)
 
     hrs = hrs - reductions*hrsPerDay
-    assert hrs >= 0.0
+    if hrs < 0.0:
+        print "FATAL: The number of days off exceeds the working days for week starting @ "+str(dayrange[0])
+        sys.exit()-1
     return hrs
 
 def isRedDay(day, year):
