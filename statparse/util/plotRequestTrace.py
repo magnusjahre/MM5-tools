@@ -273,7 +273,11 @@ def findCompute(requests):
         if r.requestCausedStall:
             stallreqs.append(r)
     
-    computeNodes.append(Compute(0, stallreqs[0].requestCausedStallAt, "Init"))
+    if stallreqs == []:
+        computeNodes.append(Compute(0, 42, "Init"))
+    else:
+        computeNodes.append(Compute(0, stallreqs[0].requestCausedStallAt, "Init"))
+    
     for i in range(1, len(stallreqs)):
         computeNodes.append(Compute(stallreqs[i-1].requestStallResumedAt, stallreqs[i].requestCausedStallAt-1, stallreqs[i-1].id))
     #del stallreqs[-1]
@@ -394,7 +398,10 @@ def computeBurstStats(burstdata, avglat, opts, totalStall, cpl):
     print "Sum interburst overlap: "+str(overlapsum)
     print "Sum comp burst overlap: "+str(burstdata.sumBurstCompOverlap)
     print "Model stall estimate:   "+str(modelStallEst)
-    print "Model stall error:      "+str(((modelStallEst-totalStall)/totalStall)*100)+" %"
+    if totalStall == 0:
+        print "Model stall error:      Div 0"
+    else:
+        print "Model stall error:      "+str(((modelStallEst-totalStall)/totalStall)*100)+" %"
     print "Requests in burstlist:  "+str(numReqs) # the roots are missing, so this is not the exact number of reqs
 
 def mergeNodes(compnodes, requests):
