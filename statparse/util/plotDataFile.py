@@ -46,6 +46,9 @@ def parseArgs():
                 print parser.usage
                 fatal("Command line error")
     
+    if datafiles == []:
+        fatal("The name of at least one data file needs to be supplied")
+    
     if opts.plotType not in plotTypes:
         fatal("Plot type needs to be one of "+str(plotTypes))
     
