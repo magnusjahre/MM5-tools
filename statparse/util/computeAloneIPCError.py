@@ -130,7 +130,7 @@ def main():
                 print "Processing command",cmd
             
             pair = traceColMatches.getPair(cmd)
-            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True, filterType=opts.onlyType)
             
             if first:
                 workloads = res.keys()
@@ -149,7 +149,7 @@ def main():
         
         pair = traceColMatches.getPair(command)
         if command in commands:
-            results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+            results, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True, filterType=opts.onlyType)
             printResults(results, aggRes, sortedparams, statname, opts, outfile)
         else:
             assert command in privateCommands
@@ -184,7 +184,7 @@ def main():
         pair = traceColMatches.getPair(cmd)
         
         if cmd in commands:
-            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True)
+            res, aggRes = computeTraceError(dirs, np, getTracename, opts.relativeErrors, opts.quiet, pair.privateColumn, pair.sharedColumn, False, True, filterType=opts.onlyType)
             printResults(res, aggRes, sortedparams, statname, opts, outfile)
         else:
             assert cmd in privateCommands

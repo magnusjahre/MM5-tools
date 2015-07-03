@@ -16,6 +16,8 @@ ALL = 0
 FAIR_WL = 1
 TYPED_WL = 2
 
+typedWorkloadIdentifiers = ["a", "c", "b", "n"]
+
 def makeTypeTitle(type, num):
     return "t-"+type+"-"+str(num)
 
@@ -24,6 +26,20 @@ def getTypeIDFromTitle(title):
         return title.split("-")[1]
     except:
         raise Exception("Typed workload parse error on workload "+str(title))
+
+
+def isWorkloadType(wltitle, typeletter):
+    if typeletter == None:
+        return True
+    
+    if typeletter not in typedWorkloadIdentifiers:
+        raise Exception("No workload type identifier "+str(typeletter)+". Candidates are "+str(typedWorkloadIdentifiers))
+    
+    wltype = getTypeIDFromTitle(wltitle)
+    if wltype == typeletter:
+        return True
+    else:
+        return False
 
 def parseTypeString(typestr):
     if typestr == "all":
