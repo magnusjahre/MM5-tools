@@ -14,6 +14,8 @@ from optparse import OptionParser
 import optcomplete
 import statparse.tracefile.errorStatistics as errorStats
 
+NO_WORKLOAD_TYPE_FILTER = "all"
+
 def fatal(message):
     print
     print "ERROR: "+message
@@ -224,7 +226,8 @@ def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, o
     
     onlyWlType = None
     if "filterType" in kwargs:
-        onlyWlType = kwargs["filterType"]
+        if kwargs["filterType"] != NO_WORKLOAD_TYPE_FILTER:
+            onlyWlType = kwargs["filterType"]
     
     for wl, varparams, shDirID, aloneDirIDs in dirs:
         
@@ -321,7 +324,7 @@ def parseUtilArgs(programName, commands):
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
     parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")
     parser.add_option("--all-error-file", action="store", dest="allErrorFile", default="", help="Write all errors to this file")
-    parser.add_option("--only-type", action="store", dest="onlyType", default=None, help="Only retrieve errors from this workload type. Type identifiers are "+str(typedWorkloadIdentifiers))
+    parser.add_option("--only-type", action="store", dest="onlyType", default=NO_WORKLOAD_TYPE_FILTER, help="Only retrieve errors from this workload type. Type identifiers are "+str(typedWorkloadIdentifiers+[NO_WORKLOAD_TYPE_FILTER]))
     parser.add_option("--outfile", action="store", dest="outfile", default="", help="Write output to this file")   
     
     optcomplete.autocomplete(parser, CustomListCompleter([commands, errorStats.statNames]))
