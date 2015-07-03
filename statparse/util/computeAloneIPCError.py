@@ -177,7 +177,11 @@ def main():
         if cmd == "model":
             continue
         
-        outname = "error-"+str(np)+"-"+statname+"-"+opts.printType+"-"+relstr+"-"+cmd+".txt"
+        typestr = "alltypes"
+        if opts.onlyType != None:
+            typestr = opts.onlyType
+        
+        outname = "error-"+str(np)+"-"+statname+"-"+opts.printType+"-"+typestr+"-"+relstr+"-"+cmd+".txt"
         outfile = open(outname, "w") 
         if not opts.quiet:
             print "Processing command "+cmd+": Writing output to file "+outname
