@@ -44,7 +44,7 @@ def main():
         except:
             pass
         
-        print wl.ljust(15)+str(lines)+" complete of "+str(cores)+(str((float(lines)*100)/float(cores))+"%").rjust(10)
+        print wl.ljust(10)+expid.ljust(60)+str(lines)+" / "+str(cores)+(str((float(lines)*100)/float(cores))+"%").rjust(10)
     
     
 if __name__ == '__main__':
