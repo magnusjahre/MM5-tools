@@ -26,11 +26,15 @@ def parseArgs():
 
 def main():
     commands, opts, pbsconfig = parseArgs()
+
+    expectedCores = 0
+    completedCores = 0
     
     print "Experiment status:"
     for cmd, params in pbsconfig.commandlines:
         expid = pbsconfig.get_unique_id(params)
         cores = pbsconfig.get_np(params)
+        expectedCores += cores
         if cores == 1:
             wl = pbsconfig.get_benchmark(params)
         else:
@@ -44,8 +48,12 @@ def main():
         except:
             pass
         
+        completedCores += lines
+
         print wl.ljust(15)+expid.ljust(55)+str(lines)+" / "+str(cores)+(str((float(lines)*100)/float(cores))+"%").rjust(10)
     
+    print "Summmary:", completedCores,"out of",expectedCores,"complete",
+    print "("+("%.2f" % ((float(completedCores)*100)/float(expectedCores)))+"%)"
     
 if __name__ == '__main__':
     main()
