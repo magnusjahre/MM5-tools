@@ -727,6 +727,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     matplotlib.rc('text', usetex=True)
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('legend', fontsize=fontsize)
     matplotlib.rc('font', size=fontsize)
     
     width = 16
