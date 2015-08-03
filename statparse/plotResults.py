@@ -2,6 +2,7 @@
 import statparse.metrics as metrics
 from statparse import experimentConfiguration
 from matplotlib.pyplot import xticks
+from statparse.printResults import numberToString
 
 COLORLIST = []
 baseRGBOptions = [0.0, 1.0, 0.5]
@@ -791,10 +792,10 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
             bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, yerr=errordata[i], ecolor="black", color=thisColor))
         else:
             bars.append(ax.bar(ind+(barwidth*i), values[i], barwidth, color=thisColor))
-    
+        
     ax.set_xlim(0, len(names))
     ax.set_xticks(ind+(width/2.0))
-        
+         
     rotation = "horizontal"
     if "rotate" in kwargs:
         rotation = kwargs["rotate"]
@@ -824,6 +825,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     if "ylabel" in kwargs:
         ax.set_ylabel(kwargs["ylabel"], multialignment='center')
     
+    ymax = -1
     if "yrange" in kwargs:
         if kwargs["yrange"] != None:
             try:
@@ -833,6 +835,29 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
             except:
                 raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
             plt.ylim(min,max)
+            ymax = max
+    
+    if "datalabels" in kwargs:
+        if kwargs["datalabels"] != "":
+            for datalabel in kwargs["datalabels"].split(":"):
+                try:
+                    labelvalues = datalabel.split(",")
+                    seriesindex = int(labelvalues[0])
+                    itemindex = int(labelvalues[1])
+                    decimals = int(labelvalues[2])
+                except:
+                    raise Exception("Could not parse datalabel string "+datalabel)
+                
+                yoffset = 100
+                if ymax != -1:
+                    yoffset = 0.05 * ymax
+                
+                for i in range(len(values)):
+                    xcoords = ind+(barwidth*i)+(0.5*barwidth)
+                    for j in range(len(xcoords)):
+                        if i == seriesindex and j == itemindex:
+                            plt.text(xcoords[j], yoffset, numberToString(values[i][j], decimals), rotation="vertical", ha="center", va="bottom")
+
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
