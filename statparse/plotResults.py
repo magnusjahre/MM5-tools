@@ -850,7 +850,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
                 
                 yoffset = 100
                 if ymax != -1:
-                    yoffset = 0.05 * ymax
+                    yoffset = 0.02 * ymax
                 
                 for i in range(len(values)):
                     xcoords = ind+(barwidth*i)+(0.5*barwidth)
