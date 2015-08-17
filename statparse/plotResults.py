@@ -722,7 +722,18 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     import matplotlib.pyplot as plt
     from matplotlib import cm
 
-    fontsize = 14
+    fontsize = 12
+    width = 16
+    height = 3.5
+    if "narrow" in kwargs:
+        if kwargs["narrow"]:
+            width = width/2
+            fontsize = 14
+            
+    if "low" in kwargs:
+        if kwargs["low"]:
+            height = 2.5   
+    
     matplotlib.rc('ps', useafm=True)
     matplotlib.rc('pdf', use14corefonts=True)
     matplotlib.rc('text', usetex=True)
@@ -731,12 +742,8 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     matplotlib.rc('legend', fontsize=fontsize)
     matplotlib.rc('font', size=fontsize)
     
-    width = 16
-    if "narrow" in kwargs:
-        if kwargs["narrow"]:
-            width = width/2
 
-    fig = plt.figure(figsize=(width,3.5))
+    fig = plt.figure(figsize=(width,height))
     ax = fig.add_subplot(111)
     width = 0.8
 
