@@ -24,6 +24,7 @@ def computeRMS(n, sumsq):
     return sqrt(max(meanSquare ,0))
 
 def computeMedian(values):
+    assert values != []
     return float(median(values))
 
 def computeDistributionAverage(distribution):
