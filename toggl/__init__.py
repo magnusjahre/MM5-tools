@@ -36,6 +36,9 @@ def getExpectedHours(dayrange, year, reductions):
         sys.exit()-1
     return hrs
 
+def toHours(millis):
+    return float(millis)/(1000.0*60.0*60.0)
+
 def isRedDay(day, year):
     if day in getRedDays(year):
         return True

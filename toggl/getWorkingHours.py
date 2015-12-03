@@ -54,7 +54,7 @@ def printHours(year, opts, holiday, sick):
             if d == None:
                 weekHrs.append(0.0)
             else:
-                weekHrs.append(float(d)/(1000.0*60.0*60.0) )
+                weekHrs.append(toHours(d))
 
         holidayDays = getReducedDays(i, holiday)
         sickDays = getReducedDays(i, sick)
