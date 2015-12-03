@@ -49,7 +49,12 @@ def printHours(year, opts, holiday, sick):
         data = togglRequest("https://toggl.com/reports/api/v2/weekly", params)
         
         weekTotals = data['week_totals']
-        weekHrs = [float(d)/(1000.0*60.0*60.0) for d in weekTotals]
+        weekHrs = []
+        for d in weekTotals:
+            if d == None:
+                weekHrs.append(0.0)
+            else:
+                weekHrs.append(float(d)/(1000.0*60.0*60.0) )
 
         holidayDays = getReducedDays(i, holiday)
         sickDays = getReducedDays(i, sick)

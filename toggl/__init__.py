@@ -1,5 +1,5 @@
 import requests
-import ast
+import json
 import sys
 from datetime import *
 from dateutil.easter import *
@@ -7,11 +7,8 @@ from dateutil.relativedelta import *
 
 def togglRequest(baseurl, params):
     r = requests.get(baseurl, params=params, auth=('223867917969fce808959853d3776185', 'api_token'))
-    content = r.content
-    content = content.replace("null", "0") #FIXME: not particularly safe, e.g. the string nullify
-    data = ast.literal_eval(content)
+    data = json.loads(r.text)
     return data
-
 
 def getExpectedHours(dayrange, year, reductions):
 
