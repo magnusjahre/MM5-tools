@@ -27,6 +27,9 @@ def parseArgs():
 PROJECTS = ["READEX", "TULIPP"]
 WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
+PROJECT_NUMBERS = {"READEX":{"WP2":90030602,"WP3":90030604,"WP4":90030606,"WP6":90030609},
+                   "TULIPP":{}}
+
 class ProjectTask:
     
     def __init__(self, wp, text):
@@ -91,7 +94,13 @@ def getProjectHours(project, weeknum, year):
         
     return tasks
 
-def printTasks(tasks, opts):
+def getProjectNumber(project, wp):
+    if wp not in PROJECT_NUMBERS[project]:
+        print "ERROR: work package "+wp+" is not available in project "+project
+        sys.exit(-1)
+    return str(PROJECT_NUMBERS[project][wp])
+
+def printTasks(project, tasks, opts):
     headings = ["WP", "Maconomy Project", "Description"]+WEEKDAYS
     leftJust = [True, True, True]
     for d in WEEKDAYS:
@@ -105,7 +114,7 @@ def printTasks(tasks, opts):
         assert t == tasks[t].text
         line = []
         line.append(tasks[t].wp)
-        line.append("")
+        line.append(getProjectNumber(project, tasks[t].wp))
         line.append(t)
         for h in tasks[t].hours:
             totalHours += h
@@ -123,7 +132,7 @@ if __name__ == '__main__':
     print
     
     tasks = getProjectHours(project, weeknum, year)
-    totalHours = printTasks(tasks, opts)
+    totalHours = printTasks(project, tasks, opts)
     
     print
     print "Total hours logged: "+numberToString(totalHours, opts.decimals)
