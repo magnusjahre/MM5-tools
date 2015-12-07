@@ -46,7 +46,7 @@ def printData(textarray, leftJust, outfile, decimals, **kwargs):
     
     for i in range(len(textarray)):
         for j in range(len(textarray[i])):
-            if type(textarray[i][j]) != type(str()):
+            if not (isinstance(textarray[i][j], str) or isinstance(textarray[i][j], unicode)):
                 raise TypeError("all printed elements must be strings")
             
             if len(textarray[i][j]) + padding > colwidths[j]:
