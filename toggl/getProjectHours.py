@@ -76,6 +76,7 @@ def getProjectHours(project, weeknum, year):
     params = {"workspace_id": "626815", 
               "user_agent": "magnus.jahre@idi.ntnu.no", 
               "since": str(dayrange[0]),
+              "until": str(dayrange[-1]),
               "client_ids": "15314619",
               "task_ids": taskID}
     data = togglRequest("https://toggl.com/reports/api/v2/details", params)
