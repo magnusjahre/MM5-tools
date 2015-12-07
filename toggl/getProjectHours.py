@@ -3,14 +3,14 @@
 import sys
 from optparse import OptionParser
 from toggl import *
-from statparse.printResults import numberToString
+from statparse.printResults import numberToString, printData
 from datetime import *
-import time
+import dateutil.parser
 
 def parseArgs():
     
     parser = OptionParser(usage="getProjectHours.py [options] project weeknum year")
-    parser.add_option("--decimals", action="store", dest="decimals", default=1, type="float", help="Number of decimals")
+    parser.add_option("--decimals", action="store", dest="decimals", default=1, type="int", help="Number of decimals")
     opts, args = parser.parse_args()
     
     if len(args) != 3:
@@ -23,6 +23,40 @@ def parseArgs():
     year = int(args[2])
 
     return opts, project, weeknum, year
+
+PROJECTS = ["READEX", "TULIPP"]
+WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+
+class ProjectTask:
+    
+    def __init__(self, wp, text):
+        self.wp = wp
+        self.text = text
+        self.hours = [0.0 for i in range(0,7)]
+        
+    def addHours(self, wp, hours, weekday):
+        assert wp == self.wp
+        self.hours[weekday] += hours
+
+def getWeekday(num):
+    return WEEKDAYS[num]    
+
+def parseTaskString(taskstring, togglProject):
+    try:
+        splitted = taskstring.split()
+        project = splitted[0]
+        wp = splitted[1]
+        taskname = " ".join(splitted[2:])
+                
+    except:
+        print "Malformed task: "+str(taskstring)
+        print "Skipping" 
+        return None
+    
+    assert project in PROJECTS
+    assert project == togglProject
+    return wp, taskname
+    
 
 def getProjectHours(project, weeknum, year):
     
@@ -43,9 +77,43 @@ def getProjectHours(project, weeknum, year):
               "task_ids": taskID}
     data = togglRequest("https://toggl.com/reports/api/v2/details", params)
     
+    tasks = {}
+    
     for task in data["data"]:
         assert task["task"] == project
-        print task["task"], task["description"], toHours(task["dur"])
+        startTimeStamp = dateutil.parser.parse(task["start"])
+        duration = toHours(task["dur"])
+        wp, taskname = parseTaskString(task["description"], task["task"])
+          
+        if taskname not in tasks:
+            tasks[taskname] = ProjectTask(wp, taskname)
+        tasks[taskname].addHours(wp, duration, startTimeStamp.weekday())
+        
+    return tasks
+
+def printTasks(tasks, opts):
+    headings = ["WP", "Maconomy Project", "Description"]+WEEKDAYS
+    leftJust = [True, True, True]
+    for d in WEEKDAYS:
+        leftJust.append(False)
+    
+    totalHours = 0
+    
+    lines = []
+    lines.append(headings)
+    for t in tasks:
+        assert t == tasks[t].text
+        line = []
+        line.append(tasks[t].wp)
+        line.append("")
+        line.append(t)
+        for h in tasks[t].hours:
+            totalHours += h
+            line.append(numberToString(h, opts.decimals))
+        lines.append(line)
+        
+    printData(lines, leftJust, sys.stdout, opts.decimals)
+    return totalHours
 
 if __name__ == '__main__':
     opts, project, weeknum, year = parseArgs()
@@ -54,4 +122,8 @@ if __name__ == '__main__':
     print "Hours for Project "+project+", week "+str(weeknum)+" of year "+str(year)
     print
     
-    getProjectHours(project, weeknum, year)
+    tasks = getProjectHours(project, weeknum, year)
+    totalHours = printTasks(tasks, opts)
+    
+    print
+    print "Total hours logged: "+numberToString(totalHours, opts.decimals)
