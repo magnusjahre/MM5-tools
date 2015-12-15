@@ -3,7 +3,7 @@ from statparse.printResults import createSortedParamList, paramsToString
 from statparse.tracefile.errorStatistics import ErrorStatistics
 from statparse.tracefile.tracefileData import TracefileData, computeErrors, MalformedTraceFileException
 
-from workloadfiles.workloads import Workloads
+from workloadfiles.workloads import Workloads, isWorkloadType, typedWorkloadIdentifiers
 
 import sys
 import os
@@ -13,6 +13,8 @@ from copy import deepcopy
 from optparse import OptionParser
 import optcomplete
 import statparse.tracefile.errorStatistics as errorStats
+
+NO_WORKLOAD_TYPE_FILTER = "all"
 
 def fatal(message):
     print
@@ -295,7 +297,15 @@ def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, o
     for p in allParams:
         aggregateErrors[p] = ErrorStatistics(relative) 
     
+    onlyWlType = None
+    if "filterType" in kwargs:
+        if kwargs["filterType"] != NO_WORKLOAD_TYPE_FILTER:
+            onlyWlType = kwargs["filterType"]
+    
     for wl, varparams, shDirID, aloneDirIDs in dirs:
+        
+        if not isWorkloadType(wl, onlyWlType):
+            continue
         
         for aloneCPUID in range(len(aloneDirIDs)):
             
@@ -387,6 +397,7 @@ def parseUtilArgs(programName, commands):
     parser.add_option("--plot-box", action="store_true", dest="plotBox", default=False, help="Visualize data with box and whiskers plot")
     parser.add_option("--hide-outliers", action="store_true", dest="hideOutliers", default=False, help="Removes outliers from box and whiskers plot")
     parser.add_option("--all-error-file", action="store", dest="allErrorFile", default="", help="Write all errors to this file")
+    parser.add_option("--only-type", action="store", dest="onlyType", default=NO_WORKLOAD_TYPE_FILTER, help="Only retrieve errors from this workload type. Type identifiers are "+str(typedWorkloadIdentifiers+[NO_WORKLOAD_TYPE_FILTER]))
     parser.add_option("--outfile", action="store", dest="outfile", default="", help="Write output to this file")   
     
     optcomplete.autocomplete(parser, CustomListCompleter([commands, errorStats.statNames]))

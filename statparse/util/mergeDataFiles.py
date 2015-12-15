@@ -51,6 +51,7 @@ def parseArgs():
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
     parser.add_option("--invert", action="store_true", dest="invert", default=False, help="Invert the datafile")
+    parser.add_option("--disable-row-sort", action="store_true", dest="disableRowSort", default=False, help="Don't sort the rows in the merged file")
     parser.add_option("--filter-pattern", action="store", dest="filterPattern", default="", help="Filter output lines with this pattern")
     parser.add_option("--plot-filename", action="store", dest="pltfilename", type="string", default="", help="Provide a filename to store the plot in a file")
     parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
@@ -126,6 +127,7 @@ def mergeData(fileData, opts):
             totalHeaders.append(h)
             columnToFileList.append(filename)
         
+        lineOrder = []
         for v in values:
             assert len(v) == numVals
             
@@ -150,6 +152,7 @@ def mergeData(fileData, opts):
                 sp = False
             
             linekey = wl
+            lineOrder.append(linekey)
             if sp:
                 linekey = wl+"-"+sp
             
@@ -161,7 +164,11 @@ def mergeData(fileData, opts):
     
     wls = mergedData.keys()
     wls.sort()
-    
+    if opts.disableRowSort:
+        sortedLineOrder = sorted(lineOrder)
+        assert sortedLineOrder == wls
+        wls = lineOrder
+            
     mergedMatrix = []
     mergedMatrix.append(totalHeaders)
     

@@ -29,7 +29,9 @@ def parseArgs():
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
     parser.add_option("--fix-wls", action="store_true", dest="fixWls", default=False, help="Improve the readability of workload names")
     parser.add_option("--narrow", action="store_true", dest="narrow", default=False, help="Plot with half the regular width")
+    parser.add_option("--low", action="store_true", dest="low", default=False, help="Plot with low height")
     parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis captions")
+    parser.add_option("--datalabels", action="store", dest="datalabels", type="string", default="", help="Show data values on selected bars (Format: seriesindex,valueindex,decimals[: ... ])")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -148,7 +150,9 @@ def main():
                              errorrows=opts.errorrows,
                              errorcols=opts.errorcols,
                              narrow=opts.narrow,
-                             rotate=opts.rotate)
+                             rotate=opts.rotate,
+                             datalabels=opts.datalabels,
+                             low=opts.low)
     else:
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries,
