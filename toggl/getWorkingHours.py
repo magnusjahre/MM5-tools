@@ -45,7 +45,7 @@ def printHours(year, opts, holiday, sick):
         params = {"workspace_id": "626815", 
                   "user_agent": "magnus.jahre@idi.ntnu.no", 
                   "since": str(dayrange[0]),
-                  "client_ids": "15314619"}
+                  "billable": "yes"}
         data = togglRequest("https://toggl.com/reports/api/v2/weekly", params)
         
         weekTotals = data['week_totals']
