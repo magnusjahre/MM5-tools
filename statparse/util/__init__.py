@@ -109,33 +109,10 @@ def getSingleCoreExpDirs():
 
         experimentdirs.append( (benchmark, varparams, fileID) )
     
-    sortedParamStrs = getSortedParams()
+    allparams = findAllParams(experimentdirs, 1)
+    allparams.sort()
     
-    return experimentdirs, sortedParamStrs    
-
-def getSortedParams():
-    if not os.path.exists("pbsconfig.py"):
-        fatal("pbsconfig.py not found!")
-    
-    pbsconfig = __import__("pbsconfig")
-    configobj = pbsconfig.config
-    
-    allparams = []
-    for cmd, shparams in pbsconfig.commandlines:
-        varparams = configobj.getVariableParameters(shparams)
-        vpcopy = deepcopy(varparams)
-        if "USE-SIMPOINT" in vpcopy:
-            del vpcopy["USE-SIMPOINT"]
-        
-        if vpcopy not in allparams:
-            allparams.append(vpcopy)
-    
-    sortedParams = createSortedParamList(allparams)
-    sortedParamStrs = []
-    for p in sortedParams:
-        sortedParamStrs.append(paramsToString(p))
-        
-    return sortedParamStrs       
+    return experimentdirs, allparams           
 
 def getNpExperimentDirs(np):
     if not os.path.exists("pbsconfig.py"):
@@ -171,9 +148,10 @@ def getNpExperimentDirs(np):
         
         experimentdirs.append( (wl, varparams, sharedFileID, aloneFileIDs) )
     
-    sortedParamStrs = getSortedParams()
+    allparams = findAllParams(experimentdirs, np)
+    allparams.sort()
     
-    return experimentdirs, sortedParamStrs
+    return experimentdirs, allparams
 
 def getBenchmarkName(dirname):
     result = re.search("s6-[a-zA-Z0-9]+", dirname)
