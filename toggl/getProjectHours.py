@@ -27,8 +27,18 @@ def parseArgs():
 PROJECTS = ["READEX", "TULIPP"]
 WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
-PROJECT_NUMBERS = {"READEX":{"WP2":90030602,"WP3":90030604,"WP4":90030606,"WP6":90030609},
-                   "TULIPP":{}}
+PROJECT_NUMBERS = {"READEX":{"WP2":90030602,
+                             "WP3":90030604,
+                             "WP4":90030606,
+                             "WP6":90030609},
+                   "TULIPP":{"WP1":90075401,
+                             "WP2":90075403,
+                             "WP3":90075404,
+                             "WP4":90075406,
+                             "WP5":90075408,
+                             "WP6":90075410,
+                             "WP7":90075412}
+                   }
 
 class ProjectTask:
     
