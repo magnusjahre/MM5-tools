@@ -7,7 +7,8 @@ from dateutil.relativedelta import *
 
 def togglRequest(baseurl, params):
     r = requests.get(baseurl, params=params, auth=('223867917969fce808959853d3776185', 'api_token'))
-    data = json.loads(r.text)
+    r.encoding = "utf8"
+    data = json.loads(unicode(r.text), "utf8")
     return data
 
 def getExpectedHours(dayrange, year, reductions):
