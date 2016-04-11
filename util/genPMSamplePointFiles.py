@@ -1,15 +1,18 @@
 #!/usr/bin/python
 
 import sys
+import os
 from optparse import OptionParser
-from util import fatal
+from statparse.util import getNpExperimentDirs
 from statparse.tracefile.tracefileData import TracefileData
+from workloadfiles.workloads import Workloads
 
 def parseArgs():
     
     parser = OptionParser(usage="genPMSamplePointFiles.py [options] [trace-file-name]")
     #parser.add_option("--max-insts", action="store", dest="maxInsts", default=100000000, type="int", help="Size of a private mode experiment in committed instructions (Default: 100 million)")
     parser.add_option("--outfile", action="store", dest="outfile", default="sample-ints.txt", type="string", help="Output file name (Default: sample-insts.txt)")
+    parser.add_option("--np", action="store", dest="np", default=4, type="int", help="Number of CPUs used in the experiment (Default: 4)")
     opts, args = parser.parse_args()
     
     if len(args) > 1:
@@ -49,8 +52,21 @@ def main():
         writeSamplePointFile(samplePoints, opts.outfile)
         return 0
     
-    fatal("experiment mode not implemented")
-
+    expDirs, expParams = getNpExperimentDirs(opts.np)
+    workloads = Workloads()
+    for d in expDirs:
+        wlID, params, smDir, pmIDs = d
+        assert params == {}, "Support for multi-parameter runs is not implemented" 
+        print "Processing workload "+wlID
+        os.chdir(smDir)
+        bms = workloads.getBms(wlID, opts.np)
+        bmID = 0
+        for bm in bms:
+            samplePoints = readSharedModeInstSamples("globalPolicyCommittedInsts"+str(bmID)+".txt")
+            writeSamplePointFile(samplePoints, "pm-sample-points-"+wlID+"-"+str(bmID)+"-"+bm+".txt")
+            bmID += 1
+            
+        os.chdir("..")
 
 if __name__ == '__main__':
     main()
