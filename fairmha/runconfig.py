@@ -8,6 +8,7 @@ import re
 from optparse import OptionParser
  
 PBS_DIR_NAME = "pbsfiles"
+PBS_PM_DIR_NAME = PBS_DIR_NAME+"-priv-mode"
 
 class ComputerParams:
     
@@ -101,28 +102,32 @@ class BatchCommands:
         self.issuedCommands = 0
         self.currentNp = -1
         
-    def addCommand(self, command, np):
+    def addCommand(self, command, np, privModeExperiment):
         
         if self.currentNp == -1:
             self.currentNp = np
         elif self.currentNp != np:
             info("New CPU count ("+str(self.currentNp)+" vs. "+str(np)+"), flushing commands...")
-            self.issueBatchJob()
+            self.issueBatchJob(privModeExperiment)
             self.currentNp = np
         
         assert len(self.commands) < self.compenv.ppn[self.currentNp]
         self.commands.append(command)
         
         if len(self.commands) == self.compenv.ppn[self.currentNp]:
-            self.issueBatchJob()
+            self.issueBatchJob(privModeExperiment)
             assert len(self.commands) == 0 
         
-    def issueBatchJob(self):
+    def issueBatchJob(self, privModeExperiment):
     
         if self.commands == []:
             return
     
-        runfilepath = PBS_DIR_NAME+'/runfile'+str(self.fileID)+'.pbs'
+        usedir = PBS_DIR_NAME
+        if privModeExperiment:
+            usedir = PBS_PM_DIR_NAME
+    
+        runfilepath = usedir+'/runfile'+str(self.fileID)+'.pbs'
     
         output = open(runfilepath,'w')
         output.write(self.compenv.getHeader(self.currentNp))
@@ -164,6 +169,7 @@ def parseParams():
     parser = OptionParser(usage="runconfig.py [options]")
     
     parser.add_option("--dry-run", action="store_true", dest="dryrun", default=False, help="Do not submit jobs to the cluster")
+    parser.add_option("--inst-samp-priv-mode", action="store_true", dest="instSampPrivMode", default=False, help="Submit private mode jobs with sample points taken from a shared mode experiment")
     parser.add_option("--queue", action="store", dest="queue", default=None, help="PBS queue to submit jobs to")
     parser.add_option("--walltime", action="store", type="int", dest="walltime", default=0, help="PBS walltime limit in hours")
     opts, args = parser.parse_args()
@@ -185,16 +191,23 @@ def main():
 
     pbsconfig = __import__("pbsconfig")
 
-    try:    
-        os.mkdir(PBS_DIR_NAME)
+    try:
+        if opts.instSampPrivMode:
+            os.mkdir(PBS_PM_DIR_NAME)
+        else:
+            os.mkdir(PBS_DIR_NAME)
     except:
-        fatal("Directory "+PBS_DIR_NAME+" exists, cannot continue")
+        fatal("Could not create directory for pbsfiles because it already exists")
+    
+    commandlines = pbsconfig.commandlines
+    if opts.instSampPrivMode:
+        commandlines = pbsconfig.privModeCommandlines
     
     batchCommands = BatchCommands(computerEnv, opts)
-    for commandline, param in pbsconfig.commandlines:
+    for commandline, param in commandlines:
         command = M5Command(commandline,  pbsconfig.get_unique_id(param))
-        batchCommands.addCommand(command, pbsconfig.get_np(param))        
-    batchCommands.issueBatchJob()
+        batchCommands.addCommand(command, pbsconfig.get_np(param), opts.instSampPrivMode)        
+    batchCommands.issueBatchJob(opts.instSampPrivMode)
 
     print "Submitted "+str(batchCommands.issuedCommands)+" experiments in "+str(batchCommands.fileID)+" files"
     

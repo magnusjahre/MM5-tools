@@ -1,5 +1,6 @@
 
 import sys
+import os
 import copy
 
 import workloadfiles
@@ -236,7 +237,7 @@ class ExperimentConfiguration:
             return "-E"+argument
         return "-E"+argument+"="+str(value)
     
-    def generateCommonCommands(self, args, np, workload, params, bm, bmid, siminsts):
+    def generateCommonCommands(self, args, np, workload, params, bm, bmid, siminsts, pmInstSampPath):
         
         if bmid == self.noBMIndentifier:
             args.append(self.makeArgument("NP", np))
@@ -252,10 +253,10 @@ class ExperimentConfiguration:
         else:
             assert siminsts
             args.append(self.makeArgument("NP", 1))
-            args.append(self.makeArgument("BENCHMARK", bm+"0"))
+            args.append(self.makeArgument("BENCHMARK", bm))
             args.append(self.makeArgument("SIMINSTS", str(siminsts)))
-            args.append(self.makeArgument("MEMORY-ADDRESS-OFFSET", str(bmid)))
-            args.append(self.makeArgument("MEMORY-ADDRESS-PARTS", str(np)))
+            args.append(self.makeArgument("COMMIT-TRACE-INSTRUCTION-FILE", pmInstSampPath))
+            args.append(self.makeArgument("MEMORY-ADDRESS-OFFSET", 0))
             
         args.append(self.makeArgument("STATSFILE", self.getFileIdentifier(params))+".txt")
         return args
@@ -270,9 +271,9 @@ class ExperimentConfiguration:
         sortedNps.sort()
         for np in sortedNps:
             for wl in self.workloads[np]:
-                
+
                 if self.baselineParameters == None or np > 1:
-                
+                    
                     for varArgs in allCombs:
                         
                         if np > 1:
@@ -327,11 +328,46 @@ class ExperimentConfiguration:
         
         return commandlines
     
-    def getCommand(self, np, wl, params, bm, bmid, insts, varargs):
+    def getPMInstSampCommandLines(self):
+        commandlines = []
+        
+        allCombs = self.generateAllArgumentCombinations(self.variableSimulatorArguments)
+        
+        sortedNps = self.workloads.keys()
+        sortedNps.sort()
+        for np in sortedNps:
+            for varArgs in allCombs:
+                for wl in self.workloads[np]:
+                    wlCPUID = 0
+                    wlParams = self.getParams(np, wl, self.noBMIndentifier, self.noBMIndentifier, varArgs)
+                    wlExpID = self.getFileIdentifier(wlParams)
+
+                    for bm in workloads.getBms(wl, np, True):
+                        
+                        instSampFilePath = wlExpID+"/pm-sample-points-"+wl+"-"+str(wlCPUID)+"-"+bm+".txt"
+                        if not os.path.exists(instSampFilePath):
+                            raise Exception("Private mode instruction file not found at path "+instSampFilePath)
+                        
+                        instSampFile = open(instSampFilePath)
+                        instSampPointStrings = instSampFile.readline().split(",")
+                        instSampPoints = [int(p) for p in instSampPointStrings]
+                        siminsts = max(instSampPoints)
+                        
+                        singleParams = self.getParams(np, wl, bm, wlCPUID, self.baselineParameters)
+                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, siminsts, self.baselineParameters, "../"+instSampFilePath)
+                        commandlines.append( (singleCommand, singleParams) ) 
+                        
+                        wlCPUID += 1
+
+        return commandlines
+    
+    def getCommand(self, np, wl, params, bm, bmid, insts, varargs, pmInstSampPath=""):
         args = []        
-        args = self.generateCommonCommands(args, np, wl, params, bm, bmid, insts)
+        args = self.generateCommonCommands(args, np, wl, params, bm, bmid, insts, pmInstSampPath)
         
         for arg in self.fixedSimulatorArguments:
+            if pmInstSampPath == "" and arg == "SIMINSTS":
+                continue
             args.append(self.makeArgument(arg, self.fixedSimulatorArguments[arg]))
         
         if np == 1:
