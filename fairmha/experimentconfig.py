@@ -357,7 +357,7 @@ class ExperimentConfiguration:
                         #instSampPoints = [int(p) for p in instSampPointStrings]
                         #siminsts = max(instSampPoints)
                         
-                        singleParams = self.getParams(np, wl, bm, wlCPUID, self.baselineParameters)
+                        singleParams = self.getParams(np, wl, bm, wlCPUID, varArgs)
                         singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, -1, self.baselineParameters, "../"+instSampFilePath)
                         commandlines.append( (singleCommand, singleParams) ) 
                         
