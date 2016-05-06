@@ -346,7 +346,9 @@ class ExperimentConfiguration:
                         
                         instSampFilePath = wlExpID+"/pm-sample-points-"+wl+"-"+str(wlCPUID)+"-"+bm+".txt"
                         if not os.path.exists(instSampFilePath):
-                            raise Exception("Private mode instruction file not found at path "+instSampFilePath)
+                            print "Warning: Instruction sampling file not found, quitting private mode sample point generation"
+                            print "         Checked path is "+instSampFilePath
+                            return []
                         
                         instSampFile = open(instSampFilePath)
                         instSampPointStrings = instSampFile.readline().split(",")
