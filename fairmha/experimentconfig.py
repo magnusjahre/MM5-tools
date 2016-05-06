@@ -368,7 +368,7 @@ class ExperimentConfiguration:
         args = self.generateCommonCommands(args, np, wl, params, bm, bmid, insts, pmInstSampPath)
         
         for arg in self.fixedSimulatorArguments:
-            if pmInstSampPath == "" and arg == "SIMINSTS":
+            if pmInstSampPath != "" and arg == "SIMINSTS":
                 continue
             args.append(self.makeArgument(arg, self.fixedSimulatorArguments[arg]))
         
