@@ -251,10 +251,10 @@ class ExperimentConfiguration:
             if self.simticks != -1:
                 args.append(self.makeArgument("SIMULATETICKS", str(self.simticks)))
         else:
-            assert siminsts
             args.append(self.makeArgument("NP", 1))
             args.append(self.makeArgument("BENCHMARK", bm))
-            args.append(self.makeArgument("SIMINSTS", str(siminsts)))
+            if siminsts != -1:
+                args.append(self.makeArgument("SIMINSTS", str(siminsts)))
             args.append(self.makeArgument("COMMIT-TRACE-INSTRUCTION-FILE", pmInstSampPath))
             args.append(self.makeArgument("MEMORY-ADDRESS-OFFSET", 0))
             
@@ -350,13 +350,15 @@ class ExperimentConfiguration:
                             print "         Checked path is "+instSampFilePath
                             return []
                         
-                        instSampFile = open(instSampFilePath)
-                        instSampPointStrings = instSampFile.readline().split(",")
-                        instSampPoints = [int(p) for p in instSampPointStrings]
-                        siminsts = max(instSampPoints)
+                        # NOTE: Code below implements gathering samples for the whole shared mode run. However, for the stats to be
+                        #       comparable, we need the exact same number of instructions to be represented in the stat file
+                        #instSampFile = open(instSampFilePath)
+                        #instSampPointStrings = instSampFile.readline().split(",")
+                        #instSampPoints = [int(p) for p in instSampPointStrings]
+                        #siminsts = max(instSampPoints)
                         
                         singleParams = self.getParams(np, wl, bm, wlCPUID, self.baselineParameters)
-                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, siminsts, self.baselineParameters, "../"+instSampFilePath)
+                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, -1, self.baselineParameters, "../"+instSampFilePath)
                         commandlines.append( (singleCommand, singleParams) ) 
                         
                         wlCPUID += 1
@@ -368,8 +370,6 @@ class ExperimentConfiguration:
         args = self.generateCommonCommands(args, np, wl, params, bm, bmid, insts, pmInstSampPath)
         
         for arg in self.fixedSimulatorArguments:
-            if pmInstSampPath != "" and arg == "SIMINSTS":
-                continue
             args.append(self.makeArgument(arg, self.fixedSimulatorArguments[arg]))
         
         if np == 1:
