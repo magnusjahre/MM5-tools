@@ -7,7 +7,6 @@ Created on Nov 19, 2009
 from statparse.tracefile import isInt
 from statparse.tracefile import isFloat
 
-import statparse.plotResults as plotResults
 from statparse.printResults import printData
 from statparse.printResults import numberToString
 from statparse.tracefile.errorStatistics import ErrorStatistics
@@ -151,8 +150,6 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             ylabel = kwargs["ylabel"]
         if "title" in kwargs:
             title = kwargs["title"]
-            
-        
         
         xColSpec = parseColumnSpec(xCol)        
         yColSpec = parseColumnSpec(yCols)
@@ -179,6 +176,7 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             else:
                 legendTitles.append(str(yFileID)+":"+tracefiles[yFileID].headers[yColID])
         
+        import statparse.plotResults as plotResults
         if kwargs["plotType"] == "line":
             plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel, title=title)
         elif kwargs["plotType"] == "scatter":
