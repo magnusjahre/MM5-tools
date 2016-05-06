@@ -138,13 +138,21 @@ def getNpExperimentDirs(np):
         sharedFileID = configobj.getFileIdentifier(shparams)
         
         aloneFileIDs = []
-        for i in range(np):
-            aparams = configobj.getSPMParameters(shparams, wl, i)
-            if "USE-SIMPOINT" in varparams:
-                aparams.append(varparams["USE-SIMPOINT"])
-            
-            aloneFileID = configobj.getFileIdentifier(aparams)
-            aloneFileIDs.append(aloneFileID)
+        if pbsconfig.privModeCommandlines != []:
+            wls = Workloads()
+            bms = wls.getBms(wl, np, True)
+            for i in range(np):
+                aparams = configobj.getParams(np, wl, bms[i], i, varparams)
+                aloneFileID = configobj.getFileIdentifier(aparams)
+                aloneFileIDs.append(aloneFileID)
+        else:
+            for i in range(np):
+                aparams = configobj.getSPMParameters(shparams, wl, i)
+                if "USE-SIMPOINT" in varparams:
+                    aparams.append(varparams["USE-SIMPOINT"])
+                
+                aloneFileID = configobj.getFileIdentifier(aparams)
+                aloneFileIDs.append(aloneFileID)
         
         experimentdirs.append( (wl, varparams, sharedFileID, aloneFileIDs) )
     
