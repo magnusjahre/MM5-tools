@@ -102,15 +102,11 @@ def main():
     pbsconfig = __import__("pbsconfig")
     for cmd, params in pbsconfig.commandlines:
         resID = pbsconfig.get_unique_id(params)
-        
         resfiles.append(resID+"/"+resID+".txt")
-    
-#         if pbsconfig.get_np(params) > 1:
-#             wl = pbsconfig.get_workload(params)
-#             for i in range(pbsconfig.get_np(params)):
-#                 aloneparams = pbsconfig.get_alone_params(wl,i,params)
-#                 aloneid = pbsconfig.get_unique_id(aloneparams)
-#                 alonefiles.append(aloneid+"/"+aloneid+".txt")
+
+    for cmd, params in pbsconfig.privModeCommandlines:
+        resID = pbsconfig.get_unique_id(params)
+        resfiles.append(resID+"/"+resID+".txt")
     
     print "done!"
     
