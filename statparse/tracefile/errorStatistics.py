@@ -8,7 +8,7 @@ from statparse.analysis import computeRMS
 from statparse.analysis import computeStddev
 from statparse.printResults import printData
 from statparse.printResults import numberToString
-from statparse.plotResults import plotRawBoxPlot
+
 import sys
 import math
 
@@ -154,6 +154,7 @@ def plotBoxFromDict(results, hideOutliers, titles):
     for t in titles:
         allErrorLists.append(allErrors[t])
     
+    from statparse.plotResults import plotRawBoxPlot
     plotRawBoxPlot(allErrorLists, hideOutliers=hideOutliers, titles=titles)
 
 def dumpAllErrors(results, filename):
