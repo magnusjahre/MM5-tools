@@ -57,24 +57,25 @@ class StatfileIndex():
             assert configid not in self.resultstore[statkey]
             self.resultstore[statkey][configid] = value
 
-    def addFile(self, statsfilename, orderfilename, np, wlOrBm, params = {}):
+    def addFile(self, statsfilename, orderfilename, np, wl, bm, params = {}):
         
         if np > 1:
-            wls = workloads.getBms(wlOrBm, np, True)
+            assert bm == None
+            wls = workloads.getBms(wl, np, True)
             order = self._findParseOrder(orderfilename)
             if len(order) != np:
-                raise Exception("Malformed statistics dump order file for workload "+str(wlOrBm))
+                raise Exception("Malformed statistics dump order file for workload "+str(wl))
             
             configIDs = []
             for cpuid in order: 
-                expConf = ExperimentConfiguration(np, params, wls[cpuid], wlOrBm)
+                expConf = ExperimentConfiguration(np, params, wls[cpuid], wl)
                 
                 self.configurations.append(expConf)
                 configIDs.append(expConf.experimentID)
             
             self._parseFile(statsfilename, configIDs)        
         else:
-            expConf = ExperimentConfiguration(np, params, wlOrBm)
+            expConf = ExperimentConfiguration(np, params, bm, wl)
             self.configurations.append(expConf)
             self._parseFile(statsfilename, [expConf.experimentID])
     

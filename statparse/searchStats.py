@@ -127,10 +127,11 @@ def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, t
     filepath = fileID+"/"+fileID+".txt"
     orderpath = fileID+"/statsDumpOrder.txt"
     
-    if np > 1:
-        wlOrBm = pbsconfig.get_workload(params)
+    wl = pbsconfig.get_workload(params)
+    if np == 1:
+        bm = pbsconfig.get_benchmark(params)
     else:
-        wlOrBm = pbsconfig.get_benchmark(params)
+        bm = None
     
     if os.path.exists(filepath):
         if not opts.quiet:
@@ -140,9 +141,9 @@ def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, t
         
         varparams = pbsconfig.get_variable_params(params)
         try:
-            index.addFile(filepath, orderpath, np, wlOrBm, varparams)
+            index.addFile(filepath, orderpath, np, wl, bm, varparams)
         except Exception as e:
-            print "Parsing failed for experiment "+str(np)+", "+wlOrBm
+            print "Parsing failed for experiment "+str(np)+", "+wl+" "+bm
             print "Message: "+str(e)
             if opts.showStackTrace:
                 print "Stacktrace:"
