@@ -616,7 +616,9 @@ class StatResults():
                     else:
                         tmpconfig = experimentConfiguration.buildMatchAllConfig()
                         tmpconfig.copy(self.baseconfig)
+                   
                     tmpconfig.benchmark = bm
+                    tmpconfig.workload = wl
                     
                     singleRes = processResults.filterResultsWithConfig(results, tmpconfig)
                 
