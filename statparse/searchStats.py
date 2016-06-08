@@ -122,6 +122,34 @@ def getIndexmodule(basename):
     indexmodulename = indexmodule+".pkl"
     return indexmodule, indexmodulename
 
+def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, totalLines):
+    fileID = pbsconfig.get_unique_id(params)
+    filepath = fileID+"/"+fileID+".txt"
+    orderpath = fileID+"/statsDumpOrder.txt"
+    
+    if np > 1:
+        wlOrBm = pbsconfig.get_workload(params)
+    else:
+        wlOrBm = pbsconfig.get_benchmark(params)
+    
+    if os.path.exists(filepath):
+        if not opts.quiet:
+            percProgress = (float(curConfigNum) / totalLines) * 100
+            print ("Adding file "+filepath).ljust(70),
+            print ("%.2f" % percProgress)+" % complete"
+        
+        varparams = pbsconfig.get_variable_params(params)
+        try:
+            index.addFile(filepath, orderpath, np, wlOrBm, varparams)
+        except Exception as e:
+            print "Parsing failed for experiment "+str(np)+", "+wlOrBm
+            print "Message: "+str(e)
+            if opts.showStackTrace:
+                print "Stacktrace:"
+                traceback.print_exc(file=sys.stdout)
+                print
+                
+
 def createFileIndex(opts, args):
     
     if opts.searchFile != "":
@@ -175,35 +203,14 @@ def createFileIndex(opts, args):
                 index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
         else:
             assert pbsconfig != None
-            totalLines = float(len(pbsconfig.commandlines))
+            totalLines = float(len(pbsconfig.commandlines))+float(len(pbsconfig.privModeCommandlines))
             curConfigNum = 0
+            for cmd, params in pbsconfig.privModeCommandlines:
+                processExperimentCommand(pbsconfig, 1, params, opts, index, curConfigNum, totalLines)
+                curConfigNum += 1
+            
             for cmd, params in pbsconfig.commandlines:
-                fileID = pbsconfig.get_unique_id(params)
-                filepath = fileID+"/"+fileID+".txt"
-                orderpath = fileID+"/statsDumpOrder.txt"
-                
-                np = pbsconfig.get_np(params)
-                if np > 1:
-                    wlOrBm = pbsconfig.get_workload(params)
-                else:
-                    wlOrBm = pbsconfig.get_benchmark(params)
-                
-                if os.path.exists(filepath):
-                    if not opts.quiet:
-                        percProgress = (float(curConfigNum) / totalLines) * 100
-                        print ("Adding file "+filepath).ljust(70),
-                        print ("%.2f" % percProgress)+" % complete"
-                    
-                    varparams = pbsconfig.get_variable_params(params)
-                    try:
-                        index.addFile(filepath, orderpath, np, wlOrBm, varparams)
-                    except Exception as e:
-                        print "Parsing failed for experiment "+str(np)+", "+wlOrBm
-                        print "Message: "+str(e)
-                        if opts.showStackTrace:
-                            print "Stacktrace:"
-                            traceback.print_exc(file=sys.stdout)
-                            print
+                processExperimentCommand(pbsconfig, pbsconfig.get_np(params), params, opts, index, curConfigNum, totalLines)
                 curConfigNum += 1
         
         if not opts.quiet:
