@@ -56,8 +56,7 @@ def main():
     workloads = Workloads()
     for d in expDirs:
         wlID, params, smDir, pmIDs = d
-        assert params == {}, "Support for multi-parameter runs is not implemented" 
-        print "Processing workload "+wlID
+        print "Processing directory "+smDir
         os.chdir(smDir)
         bms = workloads.getBms(wlID, opts.np)
         bmID = 0
