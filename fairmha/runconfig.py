@@ -197,7 +197,7 @@ def main():
         else:
             os.mkdir(PBS_DIR_NAME)
     except:
-        fatal("Could not create directory for pbsfiles because it already exists")
+        fatal("Could not create directory for "+PBS_DIR_NAME+"/"+PBS_PM_DIR_NAME+" because it already exists")
     
     commandlines = pbsconfig.commandlines
     if opts.instSampPrivMode:
