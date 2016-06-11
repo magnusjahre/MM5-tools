@@ -358,9 +358,8 @@ class ExperimentConfiguration:
                         #siminsts = max(instSampPoints)
                         
                         singleParams = self.getParams(np, wl, bm, wlCPUID, varArgs)
-                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, -1, self.baselineParameters, "../"+instSampFilePath)
+                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, -1, self.baselineParameters+varArgs, "../"+instSampFilePath)
                         commandlines.append( (singleCommand, singleParams) ) 
-                        
                         wlCPUID += 1
 
         return commandlines
@@ -378,7 +377,6 @@ class ExperimentConfiguration:
         
         for arg, val in varargs:
             args.append(self.makeArgument(arg, val))
-        
         
         command = self.binaryPath
         for a in args:
