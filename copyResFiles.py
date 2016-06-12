@@ -105,10 +105,14 @@ def main():
         resID = pbsconfig.get_unique_id(params)
         resfiles.append(resID+"/"+resID+".txt")
 
-    for cmd, params in pbsconfig.privModeCommandlines:
-        resID = pbsconfig.get_unique_id(params)
-        resfiles.append(resID+"/"+resID+".txt")
-    
+    try:
+        for cmd, params in pbsconfig.privModeCommandlines:
+            resID = pbsconfig.get_unique_id(params)
+            resfiles.append(resID+"/"+resID+".txt")
+    except:
+        print "Warning: PBS-file does not contain a privModeCommandlines variable"
+
+
     print "done!"
     
     shutil.copy("pbsconfig.py", resdir)
