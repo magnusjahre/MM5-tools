@@ -138,7 +138,7 @@ def getNpExperimentDirs(np):
         sharedFileID = configobj.getFileIdentifier(shparams)
         
         aloneFileIDs = []
-        if pbsconfig.privModeCommandlines != []:
+        if hasattr(pbsconfig, "privModeCommandlines") and pbsconfig.privModeCommandlines != []:
             wls = Workloads()
             bms = wls.getBms(wl, np, True)
             for i in range(np):
