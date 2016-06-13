@@ -98,22 +98,19 @@ def main():
     resfiles = []
     alonefiles = []
     
-    print "Retrieving result filenames.. ",
+    print "Retrieving result filenames.. "
     
     pbsconfig = __import__("pbsconfig")
     for cmd, params in pbsconfig.commandlines:
         resID = pbsconfig.get_unique_id(params)
         resfiles.append(resID+"/"+resID+".txt")
 
-    try:
+    if hasattr(pbsconfig, "privModeCommandlines"):
         for cmd, params in pbsconfig.privModeCommandlines:
             resID = pbsconfig.get_unique_id(params)
             resfiles.append(resID+"/"+resID+".txt")
-    except:
+    else:
         print "Warning: PBS-file does not contain a privModeCommandlines variable"
-
-
-    print "done!"
     
     shutil.copy("pbsconfig.py", resdir)
     
