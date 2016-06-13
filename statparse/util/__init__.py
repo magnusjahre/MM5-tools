@@ -132,9 +132,11 @@ def getNpExperimentDirs(np):
             continue
         
         varparams = configobj.getVariableParameters(shparams)
-        
+        varparamlist = []
+        for vparg in varparams:
+            varparamlist.append( (vparg, varparams[vparg]) )
+                
         wl = configobj.getParam(shparams, "wl")
-        
         sharedFileID = configobj.getFileIdentifier(shparams)
         
         aloneFileIDs = []
@@ -142,7 +144,7 @@ def getNpExperimentDirs(np):
             wls = Workloads()
             bms = wls.getBms(wl, np, True)
             for i in range(np):
-                aparams = configobj.getParams(np, wl, bms[i], i, varparams)
+                aparams = configobj.getParams(np, wl, bms[i], i, varparamlist)
                 aloneFileID = configobj.getFileIdentifier(aparams)
                 aloneFileIDs.append(aloneFileID)
         else:
