@@ -434,6 +434,17 @@ class TracefileData():
                 
         return colmap
     
+    def getRowIDByValue(self, columnID, rowValue):
+        found = False
+        index = -1
+        for i in range(len(self.data[columnID])):
+            if int(self.data[columnID][i]) == int(rowValue):
+                assert not found, "Value does not uniquely identify a row"
+                index = i
+                found = True
+            
+        return index
+    
     def getValue(self, columnID, elementID):
         return self.data[columnID][elementID]
     
