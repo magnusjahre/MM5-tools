@@ -3,7 +3,7 @@
 import sys
 from optparse import OptionParser
 from statparse.util import fatal
-from statparse.tracefile.tracefileData import TracefileData
+from statparse.tracefile.tracefileData import TracefileData, computeErrors
 from statparse.printResults import printData, numberToString
 from statparse.tracefile.errorStatistics import computeError
 
@@ -44,16 +44,20 @@ def getEstimateMap():
     return estimateMap
 
 def parseArgs():
-    parser = OptionParser("privModePerfEstBreakdown.py [options] sample-inst-committed shared-mode-trace private-mode-trace")
+    parser = OptionParser("privModePerfEstBreakdown.py [options] shared-mode-trace private-mode-trace")
 
     parser.add_option("--absolute", action="store_false", dest="relative", default=True, help="Use absolute error (relative error is default)")
     parser.add_option("--graphCPL", action="store_true", dest="graphCPL", default=False, help="Use graph CPL (table CPL is default)")
     parser.add_option("--useCWP", action="store_true", dest="useCWP", default=False, help="Use cycles while pending in estimate")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
+    parser.add_option("--insts", action="store", dest="insts", type="int", default=-1, help="Print detailed error breakdown for sample identified by this instruction count")
+    parser.add_option("--component", action="store", dest="component", default="IPC", help="The component to print the error breakdown for")
+    parser.add_option("--colIdent", action="store", dest="colIdent", default="Error", help="Identifier for the error column (useful to highlight the differences between files)")
+    parser.add_option("--outfile", action="store", dest="outfile", default="", help="Name of the outputfile (default is standard out)")
     
     opts, args = parser.parse_args()
     
-    if len(args) != 3:
+    if len(args) != 2:
         fatal("command line error\nUsage: "+parser.usage)
     
     return opts,args
@@ -188,15 +192,9 @@ def printStallEstimateErrors(smValues, pmValues, opts):
     
     printErrorTable(smValues, pmValues, opts, components, False)
 
-def main():
-    opts, args = parseArgs()
-    
-    instSample = args[0]
-    sharedTrace = readTraceFile(args[1])
-    privateTrace = readTraceFile(args[2])
-    
-    smValues = retrieveValues(sharedTrace, instSample, ValueMap.SHARED_MODE)
-    pmValues = retrieveValues(privateTrace, instSample, ValueMap.PRIVATE_MODE)
+def printDetailedErrorReport(sharedTrace, privateTrace, opts):
+    smValues = retrieveValues(sharedTrace, opts.insts, ValueMap.SHARED_MODE)
+    pmValues = retrieveValues(privateTrace, opts.insts, ValueMap.PRIVATE_MODE)
     
     print
     print "Core Alone IPC Estimate Errors:"
@@ -207,6 +205,43 @@ def main():
     print
     printStallEstimateErrors(smValues, pmValues, opts)
     print
+    
+def printErrorDistribution(sharedTrace, privateTrace, opts):
+    estMap = getEstimateMap()
+    if opts.component not in estMap:
+        fatal("Unknown estimate component "+opts.component)
+    errors = computeErrors(privateTrace, estMap[opts.component].pmColumnName, sharedTrace, estMap[opts.component].smColumnName, opts.relative)
+    allErrors = errors.getAllErrors()
+    
+    instColID = sharedTrace.findColumnID(estMap["I"].smColumnName, -1)
+    allInsts = sharedTrace.getColumn(instColID)
+
+
+    header = ["", opts.colIdent+"-"+opts.component]
+    justify = [True, False]
+    
+    outfile = sys.stdout
+    if opts.outfile != "":
+        outfile = open(opts.outfile, "w")
+    
+    data = [header]
+    for i in range(len(allErrors)):
+        line = []
+        line.append(numberToString(allInsts[i], 0))
+        line.append(numberToString(allErrors[i], opts.decimals))
+        data.append(line)
+    printData(data, justify, outfile, opts.decimals)
+
+def main():
+    opts, args = parseArgs()
+    
+    sharedTrace = readTraceFile(args[0])
+    privateTrace = readTraceFile(args[1])
+    
+    if opts.insts != -1:
+        printDetailedErrorReport(sharedTrace, privateTrace, opts)
+    else:
+        printErrorDistribution(sharedTrace, privateTrace, opts)
 
 if __name__ == '__main__':
     main()
