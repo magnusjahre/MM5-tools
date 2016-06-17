@@ -37,6 +37,7 @@ def getEstimateMap():
     estimateMap["table-CPL"] = ValueMap("Table CPL", "Table CPL")
     estimateMap["graph-CPL"] = ValueMap("Graph CPL", "Graph CPL")
     estimateMap["S-priv-memsys"] = ValueMap("Private Stall Cycles","Private Stall Cycles")
+    estimateMap["S-shared-memsys"] = ValueMap("Stall Cycles", "Stall Cycles")
     estimateMap["L-avg-shared"] = ValueMap("Estimated Private Latency","Alone Memory Latency")
     estimateMap["L-avg-priv"] = ValueMap("Average Shared Private Memsys Latency","Average Alone Private Memsys Latency")
     estimateMap["CWP"] = ValueMap("CWP","CWP")
@@ -83,7 +84,7 @@ def getDataValue(trace, columnTitle, rowID):
     colID = trace.findColumnID(columnTitle, -1)
     return trace.getValue(colID, rowID)
 
-def retrieveValues(trace, instSample, mode):
+def retrieveValues(trace, instSample, mode, opts):
     valueMap = {}
     
     rowID = findRowID(trace, instSample)
@@ -99,6 +100,8 @@ def retrieveValues(trace, instSample, mode):
         valueMap["I"] = valueMap["I"] - prevComInsts
         
     valueMap["CPI"] = 1.0 / valueMap["IPC"]
+    if mode == ValueMap.SHARED_MODE:
+        valueMap["S-shared-memsys"] = computeSharedStallEstimate(valueMap, opts)
     return valueMap
 
 def printErrorTable(smValues, pmValues, opts, components, doCPIAnalysis):
@@ -162,8 +165,8 @@ def printCoreErrors(smValues, pmValues, opts):
     
     components = ["I", "C", "S-ind", "S-loads", "S-store", "S-blocked", "S-emptyROB", "IPC", "CPI"]
     printErrorTable(smValues, pmValues, opts, components, True)
- 
-def computeStallEstimate(smValues, opts):
+
+def computeSharedStallEstimate(smValues, opts):
     avgLat = smValues["L-avg-shared"] + smValues["L-avg-priv"]
     if opts.useCWP:
         avgLat = avgLat - smValues["CWP"]
@@ -171,8 +174,11 @@ def computeStallEstimate(smValues, opts):
     cpl = smValues["table-CPL"]
     if opts.graphCPL:
         cpl = smValues["graph-CPL"]
-    
-    return smValues["S-priv-memsys"] + cpl*avgLat
+        
+    return cpl*avgLat
+
+def computeStallEstimate(smValues, opts):
+    return smValues["S-priv-memsys"] + computeSharedStallEstimate(smValues, opts)
     
 def printStallEstimateErrors(smValues, pmValues, opts):
     
@@ -188,13 +194,13 @@ def printStallEstimateErrors(smValues, pmValues, opts):
         
     if opts.useCWP:
         components.append("CWP")
-    components.append("S-loads")
+    components = components + ["S-shared-memsys", "S-loads"]
     
     printErrorTable(smValues, pmValues, opts, components, False)
 
 def printDetailedErrorReport(sharedTrace, privateTrace, opts):
-    smValues = retrieveValues(sharedTrace, opts.insts, ValueMap.SHARED_MODE)
-    pmValues = retrieveValues(privateTrace, opts.insts, ValueMap.PRIVATE_MODE)
+    smValues = retrieveValues(sharedTrace, opts.insts, ValueMap.SHARED_MODE, opts)
+    pmValues = retrieveValues(privateTrace, opts.insts, ValueMap.PRIVATE_MODE, opts)
     
     print
     print "Core Alone IPC Estimate Errors:"
