@@ -34,12 +34,12 @@ def getEstimateMap():
     estimateMap["S-loads"] = ValueMap("Stall Estimate", "Stall Cycles")
     estimateMap["IPC"] = ValueMap("Estimated Alone IPC", "Measured Alone IPC")
     
-    #TODO: Add support for validating the S-loads component
-    #estimateMap["CPL"] = ValueMap()
-    #estimateMap["S-priv-memsys"] = ValueMap()
-    #estimateMap["L-avg-shared"] = ValueMap()
-    #estimateMap["L-avg-priv"] = ValueMap()
-    #estimateMap["CWP"] = ValueMap()
+    estimateMap["table-CPL"] = ValueMap("Table CPL", "Table CPL")
+    estimateMap["graph-CPL"] = ValueMap("Graph CPL", "Graph CPL")
+    estimateMap["S-priv-memsys"] = ValueMap("Private Stall Cycles","Private Stall Cycles")
+    estimateMap["L-avg-shared"] = ValueMap("Estimated Private Latency","Alone Memory Latency")
+    estimateMap["L-avg-priv"] = ValueMap("Average Shared Private Memsys Latency","Average Alone Private Memsys Latency")
+    estimateMap["CWP"] = ValueMap("CWP","CWP")
     
     return estimateMap
 
@@ -47,6 +47,8 @@ def parseArgs():
     parser = OptionParser("privModePerfEstBreakdown.py [options] sample-inst-committed shared-mode-trace private-mode-trace")
 
     parser.add_option("--absolute", action="store_false", dest="relative", default=True, help="Use absolute error (relative error is default)")
+    parser.add_option("--graphCPL", action="store_true", dest="graphCPL", default=False, help="Use graph CPL (table CPL is default)")
+    parser.add_option("--useCWP", action="store_true", dest="useCWP", default=False, help="Use cycles while pending in estimate")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     
     opts, args = parser.parse_args()
@@ -93,11 +95,6 @@ def retrieveValues(trace, instSample, mode):
         valueMap["I"] = valueMap["I"] - prevComInsts
     return valueMap
 
-def computeIPCEstimate(smValues):
-    cyclesOther = smValues["S-store"] + smValues["S-blocked"] + smValues["S-emptyROB"]
-    cyclesAll = smValues["C"] + smValues["S-ind"] + smValues["S-loads"] + cyclesOther
-    return smValues["I"] / cyclesAll
-
 def printErrorTable(smValues, pmValues, opts, components):
     
     header = ["Component", "Shared Mode", "Private Mode"]
@@ -117,12 +114,46 @@ def printErrorTable(smValues, pmValues, opts, components):
     
     printData(data, justify, sys.stdout, opts.decimals)
 
+def computeIPCEstimate(smValues):
+    cyclesOther = smValues["S-store"] + smValues["S-blocked"] + smValues["S-emptyROB"]
+    cyclesAll = smValues["C"] + smValues["S-ind"] + smValues["S-loads"] + cyclesOther
+    return smValues["I"] / cyclesAll
+
 def printCoreErrors(smValues, pmValues, opts):
     
     aloneIPCEst = computeIPCEstimate(smValues)
-    assert "%.6f" % aloneIPCEst == "%.6f" % smValues["IPC"], "Value mismatch for alone IPC estimate"
+    assert "%.3f" % aloneIPCEst == "%.3f" % smValues["IPC"], "Value mismatch for alone IPC estimate"
     
     components = ["I", "C", "S-ind", "S-loads", "S-store", "S-blocked", "S-emptyROB", "IPC"]
+    printErrorTable(smValues, pmValues, opts, components)
+ 
+def computeStallEstimate(smValues, opts):
+    avgLat = smValues["L-avg-shared"] + smValues["L-avg-priv"]
+    if opts.useCWP:
+        avgLat = avgLat - smValues["CWP"]
+    
+    cpl = smValues["table-CPL"]
+    if opts.graphCPL:
+        cpl = smValues["graph-CPL"]
+    
+    return smValues["S-priv-memsys"] + cpl*avgLat
+    
+def printStallEstimateErrors(smValues, pmValues, opts):
+    
+    aloneStallEstimate = computeStallEstimate(smValues, opts)
+    if "%.2f" % aloneStallEstimate != "%.2f" % smValues["S-loads"]:
+        fatal("Value mismatch for alone stall estimate. Are you using the correct policy?")
+    
+    components = ["S-priv-memsys", "L-avg-shared", "L-avg-priv"]
+    if opts.graphCPL:
+        components.append("graph-CPL")
+    else:
+        components.append("table-CPL")
+        
+    if opts.useCWP:
+        components.append("CWP")
+    components.append("S-loads")
+    
     printErrorTable(smValues, pmValues, opts, components)
 
 def main():
@@ -135,7 +166,15 @@ def main():
     smValues = retrieveValues(sharedTrace, instSample, ValueMap.SHARED_MODE)
     pmValues = retrieveValues(privateTrace, instSample, ValueMap.PRIVATE_MODE)
     
+    print
+    print "Core Alone IPC Estimate Errors:"
+    print
     printCoreErrors(smValues, pmValues, opts)
+    print
+    print "Alone Stall Estimate Errors:"
+    print
+    printStallEstimateErrors(smValues, pmValues, opts)
+    print
 
 if __name__ == '__main__':
     main()
