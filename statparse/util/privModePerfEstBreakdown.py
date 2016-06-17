@@ -31,7 +31,7 @@ def getEstimateMap():
     estimateMap["S-store"] = ValueMap("Alone Write Stall Estimate", "Write Stall Cycles")
     estimateMap["S-blocked"] = ValueMap("Alone Private Blocked Stall Estimate", "Private Blocked Stall Cycles")
     estimateMap["S-emptyROB"] = ValueMap("Alone Empty ROB Stall Estimate", "Empty ROB Stall Cycles")
-    estimateMap["S-loads"] = ValueMap("Stall Estimate", "Stall Cycles")
+    estimateMap["S-loads"] = ValueMap("Stall Estimate", "Actual Stall")
     estimateMap["IPC"] = ValueMap("Estimated Alone IPC", "Measured Alone IPC")
     
     estimateMap["table-CPL"] = ValueMap("Table CPL", "Table CPL")
