@@ -218,13 +218,14 @@ def printErrorDistribution(sharedTrace, privateTrace, opts):
         fatal("Unknown estimate component "+opts.component)
     errors = computeErrors(privateTrace, estMap[opts.component].pmColumnName, sharedTrace, estMap[opts.component].smColumnName, opts.relative)
     allErrors = errors.getAllErrors()
+    runningAvg = [sum(allErrors[0:(i+1)])/(i+1) for i in range(len(allErrors))]
     
     instColID = sharedTrace.findColumnID(estMap["I"].smColumnName, -1)
     allInsts = sharedTrace.getColumn(instColID)
 
 
-    header = ["", opts.colIdent+"-"+opts.component]
-    justify = [True, False]
+    header = ["", opts.colIdent+"-"+opts.component, "Running Avg"]
+    justify = [True, False, False]
     
     outfile = sys.stdout
     if opts.outfile != "":
@@ -235,6 +236,7 @@ def printErrorDistribution(sharedTrace, privateTrace, opts):
         line = []
         line.append(numberToString(allInsts[i], 0))
         line.append(numberToString(allErrors[i], opts.decimals))
+        line.append(numberToString(runningAvg[i], opts.decimals))
         data.append(line)
     printData(data, justify, outfile, opts.decimals)
 
