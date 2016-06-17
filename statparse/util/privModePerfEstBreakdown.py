@@ -93,23 +93,55 @@ def retrieveValues(trace, instSample, mode):
     if rowID > 0:
         prevComInsts = getDataValue(trace, "Cummulative Committed Instructions", rowID-1)
         valueMap["I"] = valueMap["I"] - prevComInsts
+        
+    valueMap["CPI"] = 1.0 / valueMap["IPC"]
     return valueMap
 
-def printErrorTable(smValues, pmValues, opts, components):
+def printErrorTable(smValues, pmValues, opts, components, doCPIAnalysis):
     
     header = ["Component", "Shared Mode", "Private Mode"]
     if opts.relative:
         header.append("Error (%)")
     else:
         header.append("Error")
+    if doCPIAnalysis:
+        header.append("Est. CPI Stack Val.")
+        header.append("Est. CPI Stack Share (%)")
+        header.append("Act. CPI Stack Val.")
+        header.append("Act. CPI Stack Share (%)")
+        
+        # The instruction value is cancelled in the relative error computation. Therefore, the relative 
+        # error value is exactly the same as the stall cycle relative error. The absolute error is different
+        # and a good measure of the absolute importance of each stall component.
+        if not opts.relative:
+            header.append("CPI Stack Error")
     
     justify = [True, False, False, False]
+    if doCPIAnalysis:
+        justify = justify + [False, False, False, False]
+        if not opts.relative:
+            justify.append(False)
     data = [header]
     for c in components:
         line = [c]
         line.append(numberToString(smValues[c], opts.decimals))
         line.append(numberToString(pmValues[c], opts.decimals))
         line.append(numberToString(computeError(smValues[c], pmValues[c], opts.relative, -1), opts.decimals))
+        if doCPIAnalysis:
+            if c == "I" or c == "IPC" or c == "CPI":
+                pass
+            else:
+                estCpiComp = smValues[c] / smValues["I"]
+                line.append(numberToString(estCpiComp, opts.decimals))
+                line.append(numberToString(100*estCpiComp / smValues["CPI"], opts.decimals))
+                
+                actCpiComp = pmValues[c] / pmValues["I"]
+                line.append(numberToString(actCpiComp, opts.decimals))
+                line.append(numberToString(100*actCpiComp / pmValues["CPI"], opts.decimals))
+                
+                if not opts.relative:
+                    line.append(numberToString(computeError(estCpiComp, actCpiComp, opts.relative, -1), opts.decimals))
+                
         data.append(line)
     
     printData(data, justify, sys.stdout, opts.decimals)
@@ -124,8 +156,8 @@ def printCoreErrors(smValues, pmValues, opts):
     aloneIPCEst = computeIPCEstimate(smValues)
     assert "%.3f" % aloneIPCEst == "%.3f" % smValues["IPC"], "Value mismatch for alone IPC estimate"
     
-    components = ["I", "C", "S-ind", "S-loads", "S-store", "S-blocked", "S-emptyROB", "IPC"]
-    printErrorTable(smValues, pmValues, opts, components)
+    components = ["I", "C", "S-ind", "S-loads", "S-store", "S-blocked", "S-emptyROB", "IPC", "CPI"]
+    printErrorTable(smValues, pmValues, opts, components, True)
  
 def computeStallEstimate(smValues, opts):
     avgLat = smValues["L-avg-shared"] + smValues["L-avg-priv"]
@@ -154,7 +186,7 @@ def printStallEstimateErrors(smValues, pmValues, opts):
         components.append("CWP")
     components.append("S-loads")
     
-    printErrorTable(smValues, pmValues, opts, components)
+    printErrorTable(smValues, pmValues, opts, components, False)
 
 def main():
     opts, args = parseArgs()
