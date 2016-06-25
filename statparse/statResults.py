@@ -610,15 +610,11 @@ class StatResults():
                     if self.baseconfig != None and self.baselineParameters != None:
                         raise Exception("It does not make sense to specify a baseline when the baseline is set in the pbsconfig file")
                     
-                    
-                    if self.baselineParameters != None:
-                        tmpconfig = ExperimentConfiguration(1, self.baselineParameters, bm)
-                    else:
-                        tmpconfig = experimentConfiguration.buildMatchAllConfig()
-                        tmpconfig.copy(self.baseconfig)
-                   
+                    tmpconfig = experimentConfiguration.buildMatchAllConfig()
+                    tmpconfig.np = 1
                     tmpconfig.benchmark = bm
                     tmpconfig.workload = wl
+                    tmpconfig.parameters = params
                     
                     singleRes = processResults.filterResultsWithConfig(results, tmpconfig)
                 
