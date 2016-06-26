@@ -31,6 +31,10 @@ def readSharedModeInstSamples(tracefilename):
     return instSampPoints
 
 def writeSamplePointFile(samplePoints, outputFileName):
+    if len(samplePoints) == 0:
+        print "WARNING: No sample points for outfile "+outputFileName
+        return
+
     print "Writing instruction sample points to file "+outputFileName
     outfile = open(outputFileName, "w")
     
