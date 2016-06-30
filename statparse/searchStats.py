@@ -204,11 +204,15 @@ def createFileIndex(opts, args):
                 index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
         else:
             assert pbsconfig != None
-            totalLines = float(len(pbsconfig.commandlines))+float(len(pbsconfig.privModeCommandlines))
+            totalLines = float(len(pbsconfig.commandlines))
             curConfigNum = 0
-            for cmd, params in pbsconfig.privModeCommandlines:
-                processExperimentCommand(pbsconfig, 1, params, opts, index, curConfigNum, totalLines)
-                curConfigNum += 1
+            
+            if hasattr(pbsconfig, "privModeCommandlines"):
+                totalLines += float(len(pbsconfig.privModeCommandlines))
+                
+                for cmd, params in pbsconfig.privModeCommandlines:
+                    processExperimentCommand(pbsconfig, 1, params, opts, index, curConfigNum, totalLines)
+                    curConfigNum += 1
             
             for cmd, params in pbsconfig.commandlines:
                 processExperimentCommand(pbsconfig, pbsconfig.get_np(params), params, opts, index, curConfigNum, totalLines)
