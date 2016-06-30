@@ -189,7 +189,7 @@ def parseArgs():
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
     parser.add_option("--bw-threshold", action="store", dest="bwthreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as bandwidth sensitive (Default: 10%)")
     parser.add_option("--cache-threshold", action="store", dest="cachethreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as cache sensitive (Default: 10%)")
-    parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=5, help="The number of workloads to generate of each type (Default: 10)")
+    parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=10, help="The number of workloads to generate of each type (Default: 10)")
     parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pkl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
     parser.add_option("--allow-reuse", action="store_true", dest="allowReuse", default=False, help="Allow a benchmark to used more than once in a workload")
     
@@ -532,7 +532,7 @@ def generateWorkloads(allprofiles, opts):
     workloads = {}
     random.seed(56)
     
-    for np in [2,4,8,16]:
+    for np in [2,4,8]:
         workloads[np] = {}
         for classname in classification:
             workloads[np][classname] = []
@@ -789,7 +789,7 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
     zrangestr = "0,"+str(max(max(profile)))
     
     plotImage(profile,
-              xlabel="NFQ Prioritiy",
+              xlabel="Max Bandwidth Utilization (%)",
               ylabel="Available Cache Ways",
               zlabel="Instructions Per Cycle (IPC)",
               title=title,
