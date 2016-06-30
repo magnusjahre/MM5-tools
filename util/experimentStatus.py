@@ -53,10 +53,10 @@ def main():
     expectedCores = 0
     completedCores = 0
     
-    #print "Experiment status:"
-    #for cmd, params in pbsconfig.commandlines:
-    #    expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, False)
-    #    completedCores += lines
+    print "Experiment status:"
+    for cmd, params in pbsconfig.commandlines:
+        expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, False)
+        completedCores += lines
         
     if os.path.exists("pbsfiles-priv-mode"):
         for cmd, params in pbsconfig.privModeCommandlines:
