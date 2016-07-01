@@ -80,7 +80,6 @@ def mergeFiles(outfile, files):
             cpuID += 1
 
 def prerequisiteFilesExist(workload, np, memsys, simpoint):
-    print workload, np, memsys, simpoint
     curWorkload = workloads.getBms(workload, np, True)
     for bm in curWorkload:
         checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm, simpoint)

@@ -82,7 +82,7 @@ def buildPossibleParams():
     
     params = []
     for np in nps:
-        for wl in workloads.getWorkloads(np):
+        for wl in workloads.getWorkloads(np, wlmod.TYPED_WL):
             for mem in memsys:
                 #for simpoint in range(simpoints.maxk):
                 #    params.append([np, wl, mem, simpoint, fw])
