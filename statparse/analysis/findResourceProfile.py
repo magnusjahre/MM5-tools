@@ -191,12 +191,13 @@ def parseArgs():
     defStreamingThres = 1.2
     defHighThres = 2.0
     defMediumThres = 1.25
+    defWlDistStr = "h:15,m:15,s:5,l:5"
     
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
     parser.add_option("--streaming-threshold", action="store", dest="streamingThreshold", type="float", default=defStreamingThres, help="Speedup threshold used to classify a benchmark as streaming (Default: "+str(defStreamingThres)+")")
     parser.add_option("--medium-threshold", action="store", dest="mediumThreshold", type="float", default=defMediumThres, help="Speedup threshold used to classify a benchmark as having medium resouce sensitivity (Default: "+str(defMediumThres)+")")    
     parser.add_option("--high-threshold", action="store", dest="highThreshold", type="float", default=defHighThres, help="Speedup threshold used to classify a benchmark highly resource sensitive (Default: "+str(defHighThres)+")")
-    parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=10, help="The number of workloads to generate of each type (Default: 10)")
+    parser.add_option("--wl-dist", action="store", dest="wlDistStr", type="string", default=defWlDistStr, help="Comma-divided string containing the number of workloads to generate of each type (Default: "+defWlDistStr+")")
     parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pkl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
     parser.add_option("--allow-reuse", action="store_true", dest="allowReuse", default=False, help="Allow a benchmark to used more than once in a workload")
 
@@ -521,6 +522,20 @@ def printWorkloads(wls, opts):
                 for w in wls[np][cn]:
                     print cn, str(w)
 
+def getWorkloadCounts(typeStr):
+    
+    wlTypeCntStrs = typeStr.split(",")
+    
+    wlTypeCnt = {}
+    for cntStr in wlTypeCntStrs:
+        cntArr = cntStr.split(":")
+        try:
+            wlTypeCnt[cntArr[0]] = int(cntArr[1])
+        except:
+            fatal("Could not parse workload string element "+cntStr)
+    
+    return wlTypeCnt
+
 def generateWorkloads(allprofiles, opts):
     
     classification = {}
@@ -539,12 +554,16 @@ def generateWorkloads(allprofiles, opts):
     
     workloads = {}
     random.seed(56)
+     
+    wlTypeCnts = getWorkloadCounts(opts.wlDistStr)
     
     for np in [2,4,8]:
         workloads[np] = {}
         for classname in classification:
             workloads[np][classname] = []
-            for i in range(opts.numWls):
+            if classname not in wlTypeCnts:
+                fatal("Unknown workload class name "+classname+" provided")
+            for i in range(wlTypeCnts[classname]):
                 newwl = findWorkload(classification[classname], np, opts)
                 if newwl == None:
                     break
