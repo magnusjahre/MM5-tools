@@ -32,23 +32,25 @@ ERRVAL = 0.0
 USE_CACHE_WAYS = 16
 
 class BMClass:
-    BM_NONE = 0
-    BM_CACHE = 1
-    BM_BW = 2
-    BM_BOTH = 3
+    BM_RES_LOW = 0
+    BM_STREAMING = 1
+    BM_RES_MEDIUM = 2
+    BM_RES_HIGH = 3
     
-    def __init__(self, type):
-        self.type = type
+    def __init__(self, wlType, avgBWSpeedup, avgLLCSpeedup):
+        self.type = wlType
+        self.avgBWSpeedup = avgBWSpeedup
+        self.avgLLCSpeedup = avgLLCSpeedup
         
     def __str__(self):
-        if self.type == self.BM_BW:
-            return "b"
-        if self.type == self.BM_CACHE:
-            return "c"
-        if self.type == self.BM_BOTH:
-            return "a"
+        if self.type == self.BM_STREAMING:
+            return "s"
+        if self.type == self.BM_RES_HIGH:
+            return "h"
+        if self.type == self.BM_RES_MEDIUM:
+            return "m"
         
-        return "n"
+        return "l"
 
 class PerformanceModel:
     
@@ -186,14 +188,17 @@ def parseArgs():
     parser.add_option("--queue-lat-function", action="store", dest="queueLatFunction", default="pow", help="Bus queue latency estimation function type (pow or lin)")
     parser.add_option("--greyscale", action="store_true", dest="greyscale", default=False, help="Create grayscale heatmaps")
     
+    defStreamingThres = 1.2
+    defHighThres = 2.0
+    defMediumThres = 1.25
+    
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
-    parser.add_option("--bw-threshold", action="store", dest="bwthreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as bandwidth sensitive (Default: 10%)")
-    parser.add_option("--cache-threshold", action="store", dest="cachethreshold", type="float", default=0.1, help="Threshold used to classify a benchmark as cache sensitive (Default: 10%)")
+    parser.add_option("--streaming-threshold", action="store", dest="streamingThreshold", type="float", default=defStreamingThres, help="Speedup threshold used to classify a benchmark as streaming (Default: "+str(defStreamingThres)+")")
+    parser.add_option("--medium-threshold", action="store", dest="mediumThreshold", type="float", default=defMediumThres, help="Speedup threshold used to classify a benchmark as having medium resouce sensitivity (Default: "+str(defMediumThres)+")")    
+    parser.add_option("--high-threshold", action="store", dest="highThreshold", type="float", default=defHighThres, help="Speedup threshold used to classify a benchmark highly resource sensitive (Default: "+str(defHighThres)+")")
     parser.add_option("--num-wls", action="store", dest="numWls", type="int", default=10, help="The number of workloads to generate of each type (Default: 10)")
     parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pkl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
     parser.add_option("--allow-reuse", action="store_true", dest="allowReuse", default=False, help="Allow a benchmark to used more than once in a workload")
-    
-
 
     allSPECNames = getAllSPECNames()
 
@@ -454,26 +459,27 @@ def classify(profiles, opts):
     cacheConfigs = len(profiles)
     bwConfigs = len(profiles[0])
     
-    cacheRatiosSum = 0.0
+    cacheSpeedupSum = 0.0
     for i in range(bwConfigs):
-        ratio = profiles[0][i] / profiles[cacheConfigs-1][i]
-        cacheRatiosSum += ratio
-    cacheRatioAvg = cacheRatiosSum / float(bwConfigs)
+        speedup = profiles[cacheConfigs-1][i] / profiles[0][i] 
+        cacheSpeedupSum += speedup
+    cacheAvgSpeedup = cacheSpeedupSum / float(bwConfigs)
     
-    bwRatioSum = 0.0
+    bwSpeedupSum = 0.0
     for i in range(cacheConfigs):
-        ratio = profiles[i][0] / profiles[i][bwConfigs-1]
-        bwRatioSum += ratio
-    bwRatioAvg = bwRatioSum / float(cacheConfigs)
+        speedup = profiles[i][bwConfigs-1] / profiles[i][0] 
+        bwSpeedupSum += speedup
+    bwAvgSpeedup = bwSpeedupSum / float(cacheConfigs)
     
-    if (1.0 - bwRatioAvg) > opts.bwthreshold and (1.0 - cacheRatioAvg) > opts.cachethreshold:
-        return BMClass(BMClass.BM_BOTH)
-    if (1.0 - bwRatioAvg) > opts.bwthreshold:
-        return BMClass(BMClass.BM_BW)    
-    if (1.0 - cacheRatioAvg) > opts.cachethreshold:
-        return BMClass(BMClass.BM_CACHE)
-    
-    return BMClass(BMClass.BM_NONE)
+    assert opts.mediumThreshold > opts.streamingThreshold
+    if cacheAvgSpeedup < opts.streamingThreshold and bwAvgSpeedup >= opts.highThreshold:
+        return BMClass(BMClass.BM_STREAMING, bwAvgSpeedup, cacheAvgSpeedup)
+    if cacheAvgSpeedup >= opts.highThreshold and bwAvgSpeedup >= opts.highThreshold:
+        return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup)
+    if cacheAvgSpeedup >= opts.mediumThreshold and bwAvgSpeedup >= opts.mediumThreshold:
+        return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup)    
+
+    return BMClass(BMClass.BM_RES_LOW, bwAvgSpeedup, cacheAvgSpeedup)
 
 def printClassification(classification):
     print
@@ -521,6 +527,8 @@ def generateWorkloads(allprofiles, opts):
     
     for bm in allprofiles:
         cl = classify(allprofiles[bm], opts)
+        if not opts.quiet:
+            print "Classified "+bm+" in category "+str(cl)+", avg bandwidth speedup "+str(cl.avgBWSpeedup)+", avg LLC speedup "+str(cl.avgLLCSpeedup)
         
         if str(cl) not in classification:
             classification[str(cl)] = []
