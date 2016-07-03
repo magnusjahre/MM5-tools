@@ -143,7 +143,7 @@ def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, t
         try:
             index.addFile(filepath, orderpath, np, wl, bm, varparams)
         except Exception as e:
-            print "Parsing failed for experiment "+str(np)+", "+wl+" "+bm
+            print "Parsing failed for experiment "+str(np)+", "+str(wl)+" "+str(bm)
             print "Message: "+str(e)
             if opts.showStackTrace:
                 print "Stacktrace:"
