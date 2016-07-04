@@ -201,7 +201,7 @@ def createFileIndex(opts, args):
             if opts.np == 1:
                 index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.benchmark)
             else:
-                index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload)
+                index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload, None)
         else:
             assert pbsconfig != None
             totalLines = float(len(pbsconfig.commandlines))
