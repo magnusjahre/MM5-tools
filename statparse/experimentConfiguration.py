@@ -98,10 +98,7 @@ class ExperimentConfiguration:
         self.workload = wl
         self.simpoint = simpoint
         
-        if expID == -1:
-            self.experimentID = generateExpID()
-        else:
-            self.experimentID = expID
+        self.experimentID = expID
         
         self.memsys = memsys
         self.parameters = {}
@@ -194,16 +191,10 @@ class ExperimentConfiguration:
         if self.np == 1:
             return 0
         
-        assert self.workload != "*"
+        assert self.experimentID != -1
         assert self.workload != singleWlID
         assert self.np != -1
         bms = workloads.getBms(self.workload, self.np, True)
+        assert self.benchmark == bms[self.experimentID]
         
-        retindex = -1
-        for i in range(len(bms)):
-            if bms[i] == self.benchmark:
-                if retindex != -1:
-                    raise Exception("Benchmark "+bms[i]+" occurs more than once in the workload")
-                retindex = i
-        
-        return retindex
+        return self.experimentID
