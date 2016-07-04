@@ -91,16 +91,36 @@ def findCPUID(wl, bmname, np):
 
 class ExperimentConfiguration:
     
-    def __init__(self, np, params, bm, wl=singleWlID, expID = -1, simpoint = NO_SIMPOINT_VAL, memsys = -1):
+    def __init__(self, np, params, bm, **kwargs):
         
         self.np = np
         self.benchmark = bm
-        self.workload = wl
-        self.simpoint = simpoint
         
-        self.experimentID = expID
+        if "wl" in kwargs:
+            self.workload = kwargs["wl"]
+        else:
+            self.workload = singleWlID
         
-        self.memsys = memsys
+        if "simpoint" in kwargs:
+            self.simpoint = kwargs["simpoint"]
+        else:
+            self.simpoint = NO_SIMPOINT_VAL
+        
+        if "expID" in kwargs:
+            self.experimentID = kwargs["expID"]
+        else:
+            self.experimentID = generateExpID()
+        
+        if "memsys" in kwargs:
+            self.memsys = kwargs["memsys"]
+        else:
+            self.memsys = np
+            
+        if "cpuID" in kwargs:
+            self.cpuID = kwargs["cpuID"]
+        else:
+            self.cpuID = -1
+            
         self.parameters = {}
         for p in params:
             if p == "MEMORY-ADDRESS-PARTS":
@@ -110,9 +130,6 @@ class ExperimentConfiguration:
                 self.simpoint = int(params[p]) 
             else:
                 self.parameters[p] = params[p]
-        
-        if self.memsys == -1:
-            self.memsys = np
     
     def copy(self, oldconfig):
         self.np = oldconfig.np
@@ -122,6 +139,7 @@ class ExperimentConfiguration:
         self.experimentID = oldconfig.experimentID
         self.memsys = oldconfig.memsys
         self.parameters = oldconfig.parameters
+        self.cpuID = oldconfig.cpuID
     
     def compareTo(self, otherConfig):
         
@@ -191,10 +209,10 @@ class ExperimentConfiguration:
         if self.np == 1:
             return 0
         
-        assert self.experimentID != -1
+        assert self.cpuID != -1
         assert self.workload != singleWlID
         assert self.np != -1
         bms = workloads.getBms(self.workload, self.np, True)
-        assert self.benchmark == bms[self.experimentID]
+        assert self.benchmark == bms[self.cpuID]
         
-        return self.experimentID
+        return self.cpuID

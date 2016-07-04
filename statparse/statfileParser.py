@@ -68,14 +68,14 @@ class StatfileIndex():
             
             configIDs = []
             for cpuid in order: 
-                expConf = ExperimentConfiguration(np, params, wls[cpuid], wl, cpuid)
+                expConf = ExperimentConfiguration(np, params, wls[cpuid], wl=wl, cpuID=cpuid)
                 
                 self.configurations.append(expConf)
                 configIDs.append(expConf.experimentID)
             
             self._parseFile(statsfilename, configIDs)        
         else:
-            expConf = ExperimentConfiguration(np, params, bm, wl)
+            expConf = ExperimentConfiguration(np, params, bm, wl=wl)
             self.configurations.append(expConf)
             self._parseFile(statsfilename, [expConf.experimentID])
     

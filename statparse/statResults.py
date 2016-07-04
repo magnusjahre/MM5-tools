@@ -166,7 +166,7 @@ class StatResults():
 
         cpuID = 0
         for bm in workloads.getBms(wlname, np, True):
-            sSearchConf = ExperimentConfiguration(np, {}, bm, wlname)
+            sSearchConf = ExperimentConfiguration(np, {}, bm, wl=wlname)
             aloneSearchConf = ExperimentConfiguration(1, {}, bm)
             
             sconfs = self.index.findConfiguration(sSearchConf)
@@ -299,7 +299,7 @@ class StatResults():
             for params in allParams:
                 for bm in allBms:
                     for memsysNp in allMemsysNPs:
-                        bmconfig = ExperimentConfiguration(1, params, bm, experimentConfiguration.singleWlID)
+                        bmconfig = ExperimentConfiguration(1, params, bm, wl=experimentConfiguration.singleWlID)
                         aggregate[bmconfig] = self._processSingleResults(bm, params, memsysNp)
                         
         else:
@@ -313,7 +313,7 @@ class StatResults():
                 
                 for params in allParams:
                     for wl in allWls:
-                        wlConfig = ExperimentConfiguration(np, params, "*", wl)
+                        wlConfig = ExperimentConfiguration(np, params, "*", wl=wl)
                         assert wlConfig not in aggregate
                         aggregate[wlConfig] = self._aggregateWorkloadResults(np, params, wl)
 
@@ -687,7 +687,7 @@ class StatResults():
             for params in allParams:
                 self.expMetric.clearValues()
                 for wl, bm in iterspace:
-                    wlConfig = ExperimentConfiguration(np, params, bm, wl)
+                    wlConfig = ExperimentConfiguration(np, params, bm, wl=wl)
                     for c in aggregate:
                         if c.compareTo(wlConfig):
                             if len(aggregate[c]) > 1: 

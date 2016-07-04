@@ -83,7 +83,7 @@ def parseArgs():
                 traceback.print_exc(file=sys.stdout)
             sys.exit(-1)
     
-    searchConfig = ExperimentConfiguration(opts.np, params, opts.benchmark, opts.workload)
+    searchConfig = ExperimentConfiguration(opts.np, params, opts.benchmark, wl=opts.workload)
     
     baseparams = {}
     basespec = ()
@@ -99,7 +99,7 @@ def parseArgs():
     baseconfig = None
     if baseparams != {}:
         basenp, basebm, basewl = basespec
-        baseconfig = ExperimentConfiguration(basenp, baseparams, basebm, basewl)
+        baseconfig = ExperimentConfiguration(basenp, baseparams, basebm, wl=basewl)
         
         if not opts.quiet:
             print "Parsed base config string and got spec "+str(basespec)+" and parameters "+str(baseparams)

@@ -64,7 +64,7 @@ class TestStatfileParser(unittest.TestCase):
             if whitespacePat.search(line):
                 pass
             elif startPat.search(line):
-                searchConfig = ExperimentConfiguration(np, params, bms[order[0]], wl)
+                searchConfig = ExperimentConfiguration(np, params, bms[order[0]], wl=wl)
                 matches = index.findConfiguration(searchConfig)
                 self.assertNotEqual(matches, [])
                 self.assertEqual(len(matches), 1)
