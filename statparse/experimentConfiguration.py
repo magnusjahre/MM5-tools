@@ -19,7 +19,7 @@ def generateExpID():
     return generateExpID.static
 
 def buildMatchAllConfig():
-    return ExperimentConfiguration(-1, {}, "*", "*")
+    return ExperimentConfiguration(-1, {}, "*", wl="*")
 
 def parseParameterString(paramString, params = None):
     """ Turns a colon and comma divided string into a valid params dictionary
