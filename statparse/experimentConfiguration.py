@@ -11,6 +11,10 @@ NO_SIMPOINT_VAL = -1
 NO_NP_VAL = -1
 NO_BM = "*"
 NO_WL = "*"
+NO_CPU_ID = -1
+
+def getSubkey(bm, cpuID):
+    return bm+"-"+str(cpuID)
 
 def generateExpID():
     if not "static" in dir(generateExpID):
@@ -19,7 +23,7 @@ def generateExpID():
     return generateExpID.static
 
 def buildMatchAllConfig():
-    return ExperimentConfiguration(-1, {}, "*", wl="*")
+    return ExperimentConfiguration(-1, {}, "*", wl="*", cpuID=-1)
 
 def parseParameterString(paramString, params = None):
     """ Turns a colon and comma divided string into a valid params dictionary
@@ -80,6 +84,7 @@ def isSPB(suspectedSPBConfig, MPBConfig):
     return suspectedSPBConfig.compareTo(matchConfig)
     
 def findCPUID(wl, bmname, np):
+    assert False, "findCPUID does not handle the case where more than one copy of a benchmark occurs in a workload"
     tmpbms = workloads.getBms(wl, np, True)
     id = 0
     for tmpbm in tmpbms:
@@ -161,6 +166,10 @@ class ExperimentConfiguration:
             if otherConfig.simpoint != self.simpoint:
                 isWl = False
         
+        if otherConfig.cpuID != NO_CPU_ID:
+            if otherConfig.cpuID != self.cpuID:
+                isWl = False
+        
         for p in otherConfig.parameters:
             assert p in self.parameters
                     
@@ -191,17 +200,18 @@ class ExperimentConfiguration:
         return initstr
     
     def __str__(self):
-        initstr = str(self.np)+"-"
-        initstr += str(self.workload)+"-"
-        initstr += str(self.benchmark)
-        if self.np == 1:
-            initstr += "-"+str(self.memsys)
+        initstr = "np="+str(self.np)+", "
+        initstr += "wl="+str(self.workload)+", "
+        initstr += "bm="+str(self.benchmark)+", "
+        initstr += "cpuID="+str(self.cpuID)+", "
+        initstr += "expID="+str(self.experimentID)+", "
+        initstr += "memsys="+str(self.memsys)
         
         if self.simpoint != NO_SIMPOINT_VAL:
-            initstr += "-"+str(self.simpoint)
+            initstr += ", "+str(self.simpoint)
         
         for p in self.parameters:
-            initstr += "-"+str(self.parameters[p])
+            initstr += ", "+str(self.parameters[p])
         
         return initstr
     

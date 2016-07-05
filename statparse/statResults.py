@@ -11,7 +11,7 @@ import simpoints.simpoints as simpoints
 from workloadfiles.workloads import Workloads
 workloads = Workloads()
 
-from experimentConfiguration import ExperimentConfiguration
+from experimentConfiguration import ExperimentConfiguration, getSubkey
 
 __metaclass__ = type
 
@@ -588,20 +588,21 @@ class StatResults():
                         
         
         return configRes
-        
+    
     def _computeWorkloadAggregate(self, results, np, params, wl):
-        
         bms = workloads.getBms(wl, np, True)
         
         mpAggregate = {}
         spAggregate = {}
+        cpuID = 0
         for bm in bms:
-            filteredRes = processResults.filterResults(results, np, params, wl, bm, np)
+            mpconfig = experimentConfiguration.ExperimentConfiguration(np, params, bm, wl=wl, cpuID=cpuID) 
+            filteredRes = processResults.filterResultsWithConfig(results, mpconfig)
             
             if self.aggregateSimpoints:
                 mpAggregate = self._aggregateSimpoints(filteredRes, mpAggregate, bm)
             else:
-                mpAggregate = self._createSimpointDict(filteredRes, mpAggregate, bm)
+                mpAggregate = self._createSimpointDict(filteredRes, mpAggregate, getSubkey(bm, cpuID))
             
             if self.wlMetric.spmNeeded:
                 if self.baseconfig == None and self.baselineParameters == None:
@@ -610,12 +611,7 @@ class StatResults():
                     if self.baseconfig != None and self.baselineParameters != None:
                         raise Exception("It does not make sense to specify a baseline when the baseline is set in the pbsconfig file")
                     
-                    tmpconfig = experimentConfiguration.buildMatchAllConfig()
-                    tmpconfig.np = 1
-                    tmpconfig.benchmark = bm
-                    tmpconfig.workload = wl
-                    tmpconfig.parameters = params
-                    
+                    tmpconfig = experimentConfiguration.ExperimentConfiguration(1, params, bm, wl=wl,cpuID=cpuID)                    
                     singleRes = processResults.filterResultsWithConfig(results, tmpconfig)
                 
                 if singleRes == {}:
@@ -624,7 +620,9 @@ class StatResults():
                 if self.aggregateSimpoints:
                     spAggregate = self._aggregateSimpoints(singleRes, spAggregate, bm)
                 else:
-                    spAggregate = self._createSimpointDict(singleRes, spAggregate, bm)
+                    spAggregate = self._createSimpointDict(singleRes, spAggregate, getSubkey(bm, cpuID))
+                
+            cpuID += 1
         
         return mpAggregate, spAggregate
         
@@ -659,7 +657,6 @@ class StatResults():
     
     def _createSimpointDict(self, filteredRes, aggregate, subkey):
         for config in filteredRes:
-            
             if config.simpoint not in aggregate:
                 aggregate[config.simpoint] = {}
             

@@ -116,23 +116,27 @@ class WorkloadMetric():
         
         assert simpointkey not in self.speedups
         self.speedups[simpointkey] = []
+        cpuID = 0
         for bm in benchmarks:
-            if bm not in mpb[simpointkey]:
+            subkey = experimentConfiguration.getSubkey(bm, cpuID)
+            if subkey not in mpb[simpointkey]:
                 self.speedups[simpoint].append(errorString)
                 continue
                 
             if spb != {}:
-                if bm not in spb[simpoint]:
+                if subkey not in spb[simpoint]:
                     #TODO: might want to leave values in as in MPB mode
                     self.speedups[simpoint] = []
                     return
                 
-                if spb[simpoint][bm] == 0.0:
+                if spb[simpoint][subkey] == 0.0:
                     self.speedups[simpointkey].append(errorString)
                 else:
-                    self.speedups[simpointkey].append(float(mpb[simpoint][bm]) / float(spb[simpoint][bm]))
+                    self.speedups[simpointkey].append(float(mpb[simpoint][subkey]) / float(spb[simpoint][subkey]))
             else:
-                self.speedups[simpointkey].append(float(mpb[simpoint][bm]))
+                self.speedups[simpointkey].append(float(mpb[simpoint][subkey]))
+                
+            cpuID += 1
         
     
     def addValue(self, value, np):

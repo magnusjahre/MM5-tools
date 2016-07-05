@@ -14,6 +14,9 @@ from experimentConfiguration import ExperimentConfiguration
 from statfileParser import StatfileIndex
 from statResults import StatResults
 
+from workloadfiles.workloads import Workloads
+workloads = Workloads()
+
 import optcomplete
 
 def parseArgs():
@@ -130,8 +133,12 @@ def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, t
     wl = pbsconfig.get_workload(params)
     if np == 1:
         bm = pbsconfig.get_benchmark(params)
+        sharedModeNp = pbsconfig.get_np(params)
+        cpuID = params[3] #FIXME: Should be a callback through pbsconfig as well
+        assert bm == workloads.getBms(wl, sharedModeNp, True)[cpuID]
     else:
         bm = None
+        cpuID = -1
     
     if os.path.exists(filepath):
         if not opts.quiet:
@@ -141,7 +148,7 @@ def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, t
         
         varparams = pbsconfig.get_variable_params(params)
         try:
-            index.addFile(filepath, orderpath, np, wl, bm, varparams)
+            index.addFile(filepath, orderpath, np, wl, bm, varparams, cpuID)
         except Exception as e:
             print "Parsing failed for experiment "+str(np)+", "+str(wl)+" "+str(bm)
             print "Message: "+str(e)
