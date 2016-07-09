@@ -367,7 +367,7 @@ def main():
     
     if opts.allWlMetrics:
         for m in metrics.mpMetricNames:
-            outfilename = opts.allWlPrefix+"-"+m
+            outfilename = opts.allWlPrefix+"-"+m+".txt"
             if not opts.quiet:
                 print "Writing search results for metric "+m+" to file "+outfilename+"..."
             outfile = open(outfilename, "w")
