@@ -38,6 +38,8 @@ def parseArgs():
     aggregationOptions.add_option("--aggregate-simpoints", action="store_true", dest="aggSimpoints", default=False, help="Aggregate simpoint results into one value representative for the whole execution")
     aggregationOptions.add_option("--aggregate-patterns", action="store_true", dest="aggPatterns", default=False, help="Aggregate values for multiple statistics into one result")
     aggregationOptions.add_option("--baseline-parameters", action="store", dest="baselineParams", type="string", default="", help="Use the specified configuration as the baseline. Format: key1-val1:key2-val2:...")
+    aggregationOptions.add_option("--all-workload-metrics", action="store_true", dest="allWlMetrics", default=False, help="Print all workload metrics to files")
+    aggregationOptions.add_option("--all-workload-prefix", action="store", dest="allWlPrefix", default="perfres", help="Prefix all workload metric files with this string (default: perfres)")
     parser.add_option_group(aggregationOptions)
     
     resultOptions = OptionGroup(parser, "Result Presentation Options")
@@ -238,14 +240,14 @@ def createFileIndex(opts, args):
     
     return index, experimentConfig
 
-def writeSearchResults(statSearch, opts, outfile):
+def writeSearchResults(statSearch, wlAggMetricStr, opts, outfile):
     
-    if opts.wlAggMetric != "" or opts.expAggMetric != "" or opts.aggSimpoints or opts.printAllCores:
+    if wlAggMetricStr != "" or opts.expAggMetric != "" or opts.aggSimpoints or opts.printAllCores:
         
         wlMetric = None
-        if opts.wlAggMetric != "":
+        if wlAggMetricStr != "":
             try:
-                wlMetric = metrics.createMetric(opts.wlAggMetric)
+                wlMetric = metrics.createMetric(wlAggMetricStr)
             except Exception, e:
                 print e
                 metrics.printPossibleMetrics()
@@ -363,7 +365,15 @@ def main():
         print "Printing search results..."
         print
     
-    writeSearchResults(statSearch, opts, outfile)
+    if opts.allWlMetrics:
+        for m in metrics.mpMetricNames:
+            outfilename = opts.allWlPrefix+"-"+m
+            if not opts.quiet:
+                print "Writing search results for metric "+m+" to file "+outfilename+"..."
+            outfile = open(outfilename, "w")
+            writeSearchResults(statSearch, m, opts, outfile)
+    else:
+        writeSearchResults(statSearch, opts.wlAggMetric, opts, outfile)
 
 if __name__ == '__main__':
     main()
