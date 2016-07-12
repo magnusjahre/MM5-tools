@@ -42,7 +42,7 @@ resultfiles = ["interconnect*.txt",
                "overlapTable*.txt",
                "pm-sample-points*.txt",
                "simoutput.txt",
-               "cachePartitioningAllocationTrace.txt"]
+               "cachePartitioning*.txt"]
 
 finResPrintPattern = re.compile("---------- End Simulation Statistics   ----------")
 
