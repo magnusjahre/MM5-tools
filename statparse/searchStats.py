@@ -135,9 +135,12 @@ def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, t
     wl = pbsconfig.get_workload(params)
     if np == 1:
         bm = pbsconfig.get_benchmark(params)
-        sharedModeNp = pbsconfig.get_np(params)
-        cpuID = params[3] #FIXME: Should be a callback through pbsconfig as well
-        assert bm == workloads.getBms(wl, sharedModeNp, True)[cpuID]
+        if wl != pbsconfig.config.noWlIdentifier:
+            sharedModeNp = pbsconfig.get_np(params)
+            cpuID = params[3] #FIXME: Should be a callback through pbsconfig as well
+            assert bm == workloads.getBms(wl, sharedModeNp, True)[cpuID]
+        else:
+            cpuID = -1
     else:
         bm = None
         cpuID = -1
