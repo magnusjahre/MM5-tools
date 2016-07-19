@@ -37,10 +37,11 @@ class BMClass:
     BM_RES_MEDIUM = 2
     BM_RES_HIGH = 3
     
-    def __init__(self, wlType, avgBWSpeedup, avgLLCSpeedup):
+    def __init__(self, wlType, avgBWSpeedup, avgLLCSpeedup, normalizedLLCPerfCurve):
         self.type = wlType
         self.avgBWSpeedup = avgBWSpeedup
         self.avgLLCSpeedup = avgLLCSpeedup
+        self.normalizedLlcPerfCurve = normalizedLLCPerfCurve
         
     def __str__(self):
         if self.type == self.BM_STREAMING:
@@ -472,15 +473,19 @@ def classify(profiles, opts):
         bwSpeedupSum += speedup
     bwAvgSpeedup = bwSpeedupSum / float(cacheConfigs)
     
+    llcPerfCurve = []
+    for i in range(cacheConfigs):
+        llcPerfCurve.append(profiles[i][bwConfigs-1] / profiles[0][bwConfigs-1])
+    
     assert opts.mediumThreshold > opts.streamingThreshold
     if cacheAvgSpeedup < opts.streamingThreshold and bwAvgSpeedup >= opts.highThreshold:
-        return BMClass(BMClass.BM_STREAMING, bwAvgSpeedup, cacheAvgSpeedup)
+        return BMClass(BMClass.BM_STREAMING, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
     if cacheAvgSpeedup >= opts.highThreshold and bwAvgSpeedup >= opts.highThreshold:
-        return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup)
+        return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
     if cacheAvgSpeedup >= opts.mediumThreshold and bwAvgSpeedup >= opts.mediumThreshold:
-        return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup)    
+        return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)    
 
-    return BMClass(BMClass.BM_RES_LOW, bwAvgSpeedup, cacheAvgSpeedup)
+    return BMClass(BMClass.BM_RES_LOW, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
 
 def printClassification(classification):
     print
@@ -544,6 +549,7 @@ def generateWorkloads(allprofiles, opts):
         cl = classify(allprofiles[bm], opts)
         if not opts.quiet:
             print "Classified "+bm+" in category "+str(cl)+", avg bandwidth speedup "+str(cl.avgBWSpeedup)+", avg LLC speedup "+str(cl.avgLLCSpeedup)
+            print "LLC performance curve", cl.normalizedLlcPerfCurve
         
         if str(cl) not in classification:
             classification[str(cl)] = []
