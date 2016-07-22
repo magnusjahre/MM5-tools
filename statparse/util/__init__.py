@@ -132,10 +132,8 @@ def getNpExperimentDirs(np):
             continue
         
         varparams = configobj.getVariableParameters(shparams)
-        varparamlist = []
-        for vparg in varparams:
-            varparamlist.append( (vparg, varparams[vparg]) )
-                
+        varparamlist = configobj.getVariableParametersList(shparams)
+        
         wl = configobj.getParam(shparams, "wl")
         sharedFileID = configobj.getFileIdentifier(shparams)
         

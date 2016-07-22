@@ -208,6 +208,20 @@ class ExperimentConfiguration:
             repr += "-"+str(p)
         return repr[1:]
     
+    def getVariableParametersList(self, params):
+        vararglist = []
+        
+        np = self.getParam(params, "np")
+        if np == 1:
+            nameStore = self.singleVarArgNames
+        else:
+            nameStore = self.varArgNames
+        
+        for i in range(self.typeToParamPos["varargStart"], len(params)):
+            vararglist.append( (nameStore[i], params[i]) )
+            
+        return vararglist
+    
     def getVariableParameters(self, params):
         np = self.getParam(params, "np")
         if np == 1:
