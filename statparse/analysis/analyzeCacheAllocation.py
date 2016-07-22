@@ -46,6 +46,7 @@ def parseArgs():
     parser.add_option("--type", action="store", dest="type", default="speedup", help="Trace type to use, either perf, speedup or misses")
     parser.add_option("--np", action="store", dest="np", default=4, help="Trace type to use, either perf, speedup or misses")
     parser.add_option("--yrange", action="store", dest="yrange", default="", help="Y-axis range")
+    parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file")
     
     opts, args = parser.parse_args()
     
@@ -115,7 +116,7 @@ def plotCurves(curves, usedir, bms, opts, samplePoint, allocPoints, tracetype):
     
     title = tracetype+": "+pretitle+" at "+str(samplePoint/(10**6))+" million clock cycles"
     
-    plotLines(xdata, curves, legendTitles=bms, title=title, yrange=opts.yrange, showPoints=allocPoints)
+    plotLines(xdata, curves, legendTitles=bms, title=title, yrange=opts.yrange, showPoints=allocPoints, filename=opts.plotfile)
 
 def main():
 
