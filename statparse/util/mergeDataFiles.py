@@ -131,25 +131,35 @@ def mergeData(fileData, opts):
         for v in values:
             assert len(v) == numVals
             
+            wltypes = "hmls"
             match = re.search("fair[0-9][0-9]", v[0])
             
             if match == None:
-                match = re.search("[0-9]+-t-[abnc]-[0-9]+", v[0])
+                match = re.search("[0-9]+-t-["+wltypes+"]-[0-9]+", v[0])
             
             if match == None:
-                match = re.search("t-[abnc]-[0-9]*-[0-9].*\S", v[0])            
+                match = re.search("t-["+wltypes+"]-[0-9]*-[0-9].*\S", v[0])       
             
             if match != None:
                 wl = match.group()
-                
+                wlsections = wl.split("-")
+                if len(wlsections) == 4:
+                    wlnum = int(wlsections[3])
+                    wlnumstr = str(wlnum)
+                    if wlnum < 10:
+                        wlnumstr = "0"+str(wlnum)
+                    wl = "-".join(wlsections[0:3])+"-"+wlnumstr
             else:
                 wl = v[0]
             
-            spmatch = re.search("sp[0-9]", v[0])
-            if spmatch != None:
-                sp = spmatch.group()
-            else:
-                sp = False
+            #Since simpoints are not used we don't need it in the output
+            #TODO: Should be fixed in a cleaner way
+            sp = False
+#             spmatch = re.search("sp[0-9]", v[0])
+#             if spmatch != None:
+#                 sp = spmatch.group()
+#             else:
+#                 sp = False
             
             linekey = wl
             lineOrder.append(linekey)
