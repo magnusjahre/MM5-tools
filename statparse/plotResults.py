@@ -132,12 +132,79 @@ def linRegression(xdata, ydata, addZero):
     m,c = np.linalg.lstsq(A, yvec)[0]
     return m,c
 
+def plotArea(xdata, ydata, **kwargs):
+    
+    import matplotlib
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+    import numpy as np
+    
+    fontsize = 16
+    matplotlib.rc('xtick', labelsize=fontsize) 
+    matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('font', size=fontsize)
+    
+    if(len(xdata) == 1):
+        raise Exception("We can only have one x series for an area plot")
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ystacked = np.row_stack(ydata)
+    
+    stacks = ax.stackplot(xdata[0], ystacked)
+    
+    if "xlabel" in kwargs:
+        if kwargs["xlabel"] != "none":
+            ax.set_xlabel(kwargs["xlabel"])
+    if "ylabel" in kwargs:
+        if kwargs["ylabel"] != "none":
+            ax.set_ylabel(kwargs["ylabel"])
+        
+    if "yrange" in kwargs:
+        if kwargs["yrange"] != "":
+            try:
+                yrange = kwargs["yrange"].split(",")
+                ymin = float(yrange[0])
+                ymax = float(yrange[1])
+            except:
+                raise Exception("Invalid yrange string")
+            ax.set_ylim(ymin, ymax)
+            
+    if "xrange" in kwargs:
+        if kwargs["xrange"] != "":
+            try:
+                xrange = kwargs["xrange"].split(",")
+                xmin = float(xrange[0])
+                xmax = float(xrange[1])
+            except:
+                raise Exception("Invalid xrange string")
+            ax.set_xlim(xmin, xmax)
+    
+    if "legend" in kwargs:
+        lcols = 3
+        if "cols" in kwargs:
+            lcols = kwargs["cols"]
+        
+        proxyRects = [Rectangle((0, 0), 1, 1, fc=pc.get_facecolor()[0]) for pc in stacks]
+        ax.legend(proxyRects, kwargs["legend"], "upper center", ncol=lcols)
+        
+    if "title" in kwargs:
+        if kwargs["title"] != "none":
+            ax.set_title(kwargs["title"])
+    
+    if "filename" in kwargs:
+        if kwargs["filename"] != "":
+            plt.savefig(kwargs["filename"], type="pdf")
+        else:
+            plt.show()
+    else:
+        plt.show()
+
 def plotRawScatter(xdata, ydata, **kwargs):
     
     import matplotlib
     import matplotlib.pyplot as plt
-    
-        
+
     fontsize = 16
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)

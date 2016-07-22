@@ -181,8 +181,10 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel, title=title)
         elif kwargs["plotType"] == "scatter":
             plotResults.plotRawScatter(xvalues, yvalues, xrange=xrange, yrange=yrange, legend=legendTitles, xlabel=xlabel, ylabel=ylabel, title=title)
+        elif kwargs["plotType"] == "area":
+            plotResults.plotArea(xvalues, yvalues, xrange=xrange, yrange=yrange, legend=legendTitles, xlabel=xlabel, ylabel=ylabel, title=title, filename=filename, cols=cols)
         else:
-            raise Exception("Supported plot types are line and scatter")
+            raise Exception("Supported plot types are line, scatter and area")
 
 def findLowestEndpoint(value, sortedList):
     min = 0
