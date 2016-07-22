@@ -522,6 +522,10 @@ def plotLines(xvalues, yvalues, **kwargs):
         line = ax.plot(xvalues[id], yvalues[id])
         lines.append(line[0])
         id += 1
+        
+    if "showPoints" in kwargs:
+        for x,y in kwargs["showPoints"]:
+            ax.plot(x,y, "ko")
     
     if "cols" in kwargs:
         cols = kwargs["cols"]
