@@ -176,6 +176,11 @@ def plot(tracefiles, xCol, yCols, **kwargs):
             else:
                 legendTitles.append(str(yFileID)+":"+tracefiles[yFileID].headers[yColID])
         
+        print
+        print "Average values:"
+        for i in range(len(yvalues)):
+            print legendTitles[i], float(sum(yvalues[i])) / float(len(yvalues[i]))
+        
         import statparse.plotResults as plotResults
         if kwargs["plotType"] == "line":
             plotResults.plotLines(xvalues, yvalues, legendTitles=legendTitles, filename=filename, xrange=xrange, yrange=yrange, cols=cols, xlabel=xlabel, ylabel=ylabel, title=title)
