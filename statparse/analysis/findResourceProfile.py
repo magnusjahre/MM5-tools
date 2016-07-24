@@ -30,6 +30,7 @@ from math import log
 
 ERRVAL = 0.0
 USE_CACHE_WAYS = 16
+NO_BW_KEY = "max"
 
 class BMClass:
     BM_RES_LOW = 0
@@ -245,17 +246,24 @@ def gatherPerformanceProfile(results):
     
     for p in allParams:
         
+        if p["MAX-CACHE-WAYS"] not in allWays:
+            allWays.append(p["MAX-CACHE-WAYS"])
+        
         if "MEMORY-BUS-MAX-UTIL" in p:
             useBWKey = "MEMORY-BUS-MAX-UTIL" 
-        else: 
-            assert "NFQ-PRIORITIES" in p
+        elif "NFQ-PRIORITIES" in p:
             useBWKey = "NFQ-PRIORITIES"
+        else:
+            useBWKey = NO_BW_KEY
+            continue
         
         if p[useBWKey] not in allUtils:
             allUtils.append(p[useBWKey])
-        if p["MAX-CACHE-WAYS"] not in allWays:
-            allWays.append(p["MAX-CACHE-WAYS"])
-             
+        
+    
+    if len(allUtils) == 0:
+        allUtils.append(useBWKey)
+    
     allWays.sort()
     allUtils.sort()
     
@@ -266,7 +274,8 @@ def gatherPerformanceProfile(results):
     for i in range(len(allWays)):
         for j in range(len(allUtils)):
             searchConfig.parameters["MAX-CACHE-WAYS"] = allWays[i]
-            searchConfig.parameters[useBWKey] = allUtils[j]
+            if useBWKey != NO_BW_KEY:
+                searchConfig.parameters[useBWKey] = allUtils[j]
             
             configRes = procres.filterConfigurations(results.matchingConfigs, searchConfig)
             
@@ -326,6 +335,9 @@ def doSearch(benchmark, index, opts):
 def convertUtilList(allUtils):
     assert len(allUtils) > 0
     if isFloat(allUtils[0]):
+        return allUtils
+    
+    if allUtils[0] == NO_BW_KEY:
         return allUtils
     
     newUtilList = []
@@ -477,13 +489,20 @@ def classify(profiles, opts):
     for i in range(cacheConfigs):
         llcPerfCurve.append(profiles[i][bwConfigs-1] / profiles[0][bwConfigs-1])
     
-    assert opts.mediumThreshold > opts.streamingThreshold
-    if cacheAvgSpeedup < opts.streamingThreshold and bwAvgSpeedup >= opts.highThreshold:
-        return BMClass(BMClass.BM_STREAMING, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
-    if cacheAvgSpeedup >= opts.highThreshold and bwAvgSpeedup >= opts.highThreshold:
-        return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
-    if cacheAvgSpeedup >= opts.mediumThreshold and bwAvgSpeedup >= opts.mediumThreshold:
-        return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)    
+    if bwConfigs == 1:
+        # Cannot detect streaming behaviour without measurements of bandwidth use
+        if cacheAvgSpeedup >= opts.highThreshold:
+            return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
+        if cacheAvgSpeedup >= opts.mediumThreshold:
+            return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)  
+    else:
+        assert opts.mediumThreshold > opts.streamingThreshold
+        if cacheAvgSpeedup < opts.streamingThreshold and bwAvgSpeedup >= opts.highThreshold:
+            return BMClass(BMClass.BM_STREAMING, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
+        if cacheAvgSpeedup >= opts.highThreshold and bwAvgSpeedup >= opts.highThreshold:
+            return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
+        if cacheAvgSpeedup >= opts.mediumThreshold and bwAvgSpeedup >= opts.mediumThreshold:
+            return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)    
 
     return BMClass(BMClass.BM_RES_LOW, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
 
@@ -549,7 +568,7 @@ def generateWorkloads(allprofiles, opts):
         cl = classify(allprofiles[bm], opts)
         if not opts.quiet:
             print "Classified "+bm+" in category "+str(cl)+", avg bandwidth speedup "+str(cl.avgBWSpeedup)+", avg LLC speedup "+str(cl.avgLLCSpeedup)
-            print "LLC performance curve", cl.normalizedLlcPerfCurve
+            #print "LLC performance curve", cl.normalizedLlcPerfCurve
         
         if str(cl) not in classification:
             classification[str(cl)] = []
@@ -821,18 +840,28 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
     xrangestr = "-0.5,"+str(len(allUtils)-0.5)
     zrangestr = "0,"+str(max(max(profile)))
     
-    plotImage(profile,
-              xlabel="Max Bandwidth Utilization (%)",
-              ylabel="Available Cache Ways",
-              zlabel="Instructions Per Cycle (IPC)",
-              title=title,
-              xticklabels=allUtils,
-              yticklabels=allWays,
-              yrange=yrangestr,
-              xrange=xrangestr,
-              zrange=zrangestr,
-              filename=filename,
-              greyscale=doGreyscale)
+    if len(allUtils) > 1:
+        plotImage(profile,
+                  xlabel="Max Bandwidth Utilization (%)",
+                  ylabel="Available Cache Ways",
+                  zlabel="Instructions Per Cycle (IPC)",
+                  title=title,
+                  xticklabels=allUtils,
+                  yticklabels=allWays,
+                  yrange=yrangestr,
+                  xrange=xrangestr,
+                  zrange=zrangestr,
+                  filename=filename,
+                  greyscale=doGreyscale)
+    else:
+        cacheprofile = []
+        for p in profile:
+            cacheprofile.append(p[0])
+        plotLines([allWays],
+                  [cacheprofile],
+                  yrange="0,"+str(max(cacheprofile)*1.1),
+                  xlabel="Cache Ways",
+                  ylabel="IPC")
 
 def main():
     opts,args = parseArgs()
