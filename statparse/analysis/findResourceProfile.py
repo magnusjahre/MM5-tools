@@ -868,7 +868,8 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
                   [cacheprofile],
                   yrange="0,"+str(max(cacheprofile)*1.1),
                   xlabel="Cache Ways",
-                  ylabel="IPC")
+                  ylabel="IPC",
+                  filename=filename)
 
 def main():
     opts,args = parseArgs()
