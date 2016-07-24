@@ -201,7 +201,7 @@ def parseArgs():
     parser.add_option("--high-threshold", action="store", dest="highThreshold", type="float", default=defHighThres, help="Speedup threshold used to classify a benchmark highly resource sensitive (Default: "+str(defHighThres)+")")
     parser.add_option("--wl-dist", action="store", dest="wlDistStr", type="string", default=defWlDistStr, help="Comma-divided string containing the number of workloads to generate of each type (Default: "+defWlDistStr+")")
     parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pkl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
-    parser.add_option("--allow-reuse", action="store_true", dest="allowReuse", default=False, help="Allow a benchmark to used more than once in a workload")
+    parser.add_option("--allow-reuse-degree", action="store", dest="allowReuseDegree", type="int", default=2, help="Allow benchmarks to be reused maximum [reuse degree] times")
 
     allSPECNames = getAllSPECNames()
 
@@ -520,13 +520,20 @@ def printClassification(classification):
 def findWorkload(bms, np, opts):
     wl = Workload()
     
-    if len(bms) < np and (not opts.allowReuse):
+    if len(bms) < np and opts.allowReuseDegree < 2:
         print "WARNING: too few benchmarks to generate workload for "+str(np)+" cores"
         return None 
     
+    if opts.allowReuseDegree < 2:
+        enoughBenchmarks = True
+    else:
+        enoughBenchmarks = (len(bms) >= opts.allowReuseDegree*np)
+    
     while wl.getNumBms() < np:
         index = random.randint(0, len(bms)-1)
-        if (not opts.allowReuse) and wl.containsBenchmark(bms[index]):
+        if enoughBenchmarks and wl.containsBenchmark(bms[index]):
+            continue
+        elif (not enoughBenchmarks) and wl.countBenchmark(bms[index]) >= opts.allowReuseDegree:
             continue
         wl.addBenchmark(bms[index])
     return wl
