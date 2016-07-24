@@ -46,7 +46,8 @@ def parseArgs():
     parser.add_option("--type", action="store", dest="type", default="speedup", help="Trace type to use, either perf, speedup or misses")
     parser.add_option("--np", action="store", dest="np", default=4, help="Trace type to use, either perf, speedup or misses")
     parser.add_option("--yrange", action="store", dest="yrange", default="", help="Y-axis range")
-    parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file")
+    parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file (single plot)")
+    parser.add_option("--plotdir-prefix", action="store", dest="plotdirprefix", default="cache-analysis", help="Prefix of cache analysis directories (full plot)")
     
     opts, args = parser.parse_args()
     
@@ -83,6 +84,13 @@ def getAllocation(directory, numTicks):
     row = tracecontent.getRow(rowID)
     return row[1:]
 
+def getSamplePoints(directory, tracefilename):
+    print directory+"/"+tracefilename
+    tracecontent = TracefileData(directory+"/"+tracefilename)
+    tracecontent.readTracefile()
+    colID = tracecontent.findColumnID("Tick", -1)
+    return tracecontent.getColumn(colID)
+
 def getBenchmarkNames(directory, np):
     wls = Workloads()
     match = re.search("t-[hmls]-[0-9]+", directory)
@@ -104,7 +112,7 @@ def getAllocPoints(usedir, ccpoint, curves, opts, bms):
             print ("CPU"+str(i)+" "+bms[i]).ljust(20)+str(int(allocation[i])).rjust(3)
     return allocPoints
 
-def plotCurves(curves, usedir, bms, opts, samplePoint, allocPoints, tracetype):
+def plotCurves(curves, usedir, bms, opts, samplePoint, allocPoints, tracetype, plotfilename):
     xdata = []
     for i in range(len(curves)):
         assoc = len(curves[i])
@@ -116,7 +124,28 @@ def plotCurves(curves, usedir, bms, opts, samplePoint, allocPoints, tracetype):
     
     title = tracetype+": "+pretitle+" at "+str(samplePoint/(10**6))+" million clock cycles"
     
-    plotLines(xdata, curves, legendTitles=bms, title=title, yrange=opts.yrange, showPoints=allocPoints, filename=opts.plotfile)
+    plotLines(xdata, curves, legendTitles=bms, title=title, yrange=opts.yrange, showPoints=allocPoints, filename=plotfilename)
+
+def analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, plotfilename):
+    curves = []
+    for tfn in traceFileNames:
+        curves.append(getCurve(usedir, tfn, ccpoint))
+        
+    allocation = getAllocation(usedir, ccpoint)
+    allocPoints = []
+    for i in range(len(allocation)):
+        xcoord = int(allocation[i])
+        ycoord = int(curves[i][xcoord])
+        allocPoints.append( (xcoord,ycoord) )
+    
+    allocPoints = getAllocPoints(usedir, ccpoint, curves, opts, bms)
+    plotCurves(curves, usedir, bms, opts, ccpoint, allocPoints, opts.type, plotfilename)
+
+def padSample(sample):
+    sampleStr = str(int(sample))
+    while len(sampleStr) <= 10:
+        sampleStr = "0"+sampleStr
+    return sampleStr
 
 def main():
 
@@ -131,20 +160,24 @@ def main():
     traceFileType = ctfn.parseTypeString(opts.type)
     traceFileNames = ctfn.getFilenames(traceFileType, opts.np)
     
-    curves = []
-    for tfn in traceFileNames:
-        curves.append(getCurve(usedir, tfn, ccpoint))
-        
-    allocation = getAllocation(usedir, ccpoint)
-    allocPoints = []
-    for i in range(len(allocation)):
-        xcoord = int(allocation[i])
-        ycoord = int(curves[i][xcoord])
-        allocPoints.append( (xcoord,ycoord) )
-    
     wl, bms = getBenchmarkNames(usedir, opts.np)
-    allocPoints = getAllocPoints(usedir, ccpoint, curves, opts, bms)
-    plotCurves(curves, usedir, bms, opts, ccpoint, allocPoints, opts.type)
+    
+    if ccpoint != 0:
+        analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, opts.plotfile)
+    else:
+        plotdirpath = opts.plotdirprefix+"-"+usedir
+        if os.path.exists(plotdirpath):
+            print "FATAL: plot directory "+plotdirpath+" exists"
+            sys.exit(-1)
+        
+        os.mkdir(plotdirpath)
+        print "Plotting to directory "+plotdirpath
+        
+        sampleTicks = getSamplePoints(usedir, traceFileNames[0])
+        for s in sampleTicks:
+            plotfile = wl+"-"+padSample(s)+".pdf"
+            print "Processing file "+plotfile
+            analyzeCCPoint(usedir, s, opts, traceFileNames, bms, plotdirpath+"/"+plotfile)
 
 if __name__ == '__main__':
     main()
