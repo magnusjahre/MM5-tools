@@ -72,6 +72,13 @@ class Workload:
             return True
         return False
     
+    def countBenchmark(self, bm):
+        cnt = 0
+        for b in self.benchmarks:
+            if b == bm:
+                cnt += 1
+        return cnt
+    
     def getNumBms(self):
         return len(self.benchmarks)
 
