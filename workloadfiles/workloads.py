@@ -16,7 +16,7 @@ ALL = 0
 FAIR_WL = 1
 TYPED_WL = 2
 
-typedWorkloadIdentifiers = ["a", "c", "b", "n"]
+typedWorkloadIdentifiers = ["h", "m", "l"]
 
 def makeTypeTitle(type, num):
     return "t-"+type+"-"+str(num)
