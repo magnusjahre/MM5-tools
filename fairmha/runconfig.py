@@ -47,6 +47,14 @@ class ComputerParams:
             info("Setting all walltime limits to provided value "+str(opts.walltime))
             for key in self.walltime:
                 self.walltime[key] = opts.walltime
+            
+        if opts.ppn != 0:
+            memInMeg = (32*(2**10))/opts.ppn
+            info("Setting all ppn limits to provided value "+str(opts.ppn)+" and memory per process to "+str(memInMeg))
+            for key in self.ppn:
+                self.ppn[key] = opts.ppn
+            for key in self.perProcMem:
+                self.perProcMem[key] = memInMeg
                     
     
     def getHeader(self, np):
@@ -172,6 +180,7 @@ def parseParams():
     parser.add_option("--inst-samp-priv-mode", action="store_true", dest="instSampPrivMode", default=False, help="Submit private mode jobs with sample points taken from a shared mode experiment")
     parser.add_option("--queue", action="store", dest="queue", default=None, help="PBS queue to submit jobs to")
     parser.add_option("--walltime", action="store", type="int", dest="walltime", default=0, help="PBS walltime limit in hours")
+    parser.add_option("--ppn", action="store", type="int", dest="ppn", default=0, help="Processes per node to use")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
