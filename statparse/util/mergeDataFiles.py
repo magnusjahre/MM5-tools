@@ -5,12 +5,15 @@ from optcomplete import DirCompleter
 from statparse.tracefile import isFloat
 from statparse.plotResults import plotRawBarChart
 
+from workloadfiles.workloads import typedWorkloadIdentifiers 
+
 import sys
 import os
 import re
 
 from optparse import OptionParser
 import optcomplete
+from CodeWarrior.Standard_Suite import lines
 
 INT_MAX = 2147483648
 
@@ -48,6 +51,7 @@ def parseArgs():
     parser.add_option("--row-names", action="store", dest="rowNames", default="", help="Rename the rows to the names in this list (Comma separated)")
     parser.add_option("--outfile", action="store", dest="outfile", default="", help="Print output to this file")
     parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
+    parser.add_option("--typed-average", action="store_true", dest="doTypedAverage", default=False, help="Print the average values for each workload type")
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
     parser.add_option("--invert", action="store_true", dest="invert", default=False, help="Invert the datafile")
@@ -333,6 +337,32 @@ def computeAverage(processedData, justify, opts):
 
     return resData, justify[1:]
 
+def computeTypedAverage(processedData, justify, opts):
+    
+    resData = [processedData.pop(0)]
+    datalen = len(processedData[0])-1
+
+    for t in typedWorkloadIdentifiers:
+        typedData = [0.0 for i in range(datalen)]
+        lines = 0.0
+        for l in processedData:
+            if re.search("-"+t+"-", l[0]):
+                for i in range(datalen):
+                    try:
+                        typedData[i] += float(l[i+1])
+                    except:
+                        warn("Cannot convert to float, dropping line "+str(l))
+                        break
+                lines += 1
+                
+        averages = [v / lines for v in typedData]
+        dataline = [t]
+        for a in averages:
+            dataline.append(printResults.numberToString(a, opts.decimals))
+        resData.append(dataline)
+
+    return resData, justify
+
 def makeFileData(data, columnToFileList):
     filedata = []
     header = [""]
@@ -405,6 +435,8 @@ def main():
     processedData, justify = processData(mergedData, printSpec, opts)
     if opts.doAverage:
         processedData, justify = computeAverage(processedData, justify, opts)
+    if opts.doTypedAverage:
+        processedData, justify = computeTypedAverage(processedData, justify, opts)
     
     if opts.outfile == "":
         outfile = sys.stdout
