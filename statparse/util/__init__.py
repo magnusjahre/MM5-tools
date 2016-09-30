@@ -80,11 +80,7 @@ def getPrivateModeDirs():
     
     dirs = []
     
-    for cmd, shparams in pbsconfig.commandlines:
-        expNp = configobj.getParam(shparams, "np")
-        if expNp != 1:
-            continue
-        
+    for cmd, shparams in pbsconfig.privModeCommandlines:
         dirs.append(configobj.getFileIdentifier(shparams))
         
     return dirs
@@ -166,7 +162,7 @@ def getBenchmarkName(dirname):
     if result:
         return result.group(0) 
     
-    spec2000bm = dirname.split("-")[3]
+    spec2000bm = dirname.split("-")[5]
     return spec2000bm[0:len(spec2000bm)-1]
 
 def getSingleCoreResKey(bm):
@@ -257,9 +253,11 @@ def computePrivateTraceError(dirs, mainColumnName, otherColumnName, getTracename
             
         if reskey not in results:
             results[reskey] = {}
-            
-        assert paramkey not in results[reskey]
-        results[reskey][paramkey] = curStats
+        
+        if paramkey in results[reskey]:
+            results[reskey][paramkey].aggregate(curStats)
+        else:
+            results[reskey][paramkey] = curStats
     
     return results, aggregateErrors
 
