@@ -13,7 +13,6 @@ import re
 
 from optparse import OptionParser
 import optcomplete
-from CodeWarrior.Standard_Suite import lines
 
 INT_MAX = 2147483648
 
