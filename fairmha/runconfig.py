@@ -24,7 +24,7 @@ class ComputerParams:
         
         self.queue = opts.queue
         self.projectNum = None
-        self.perProcMem = {1:1900, 2:1900, 4:1900, 8:4096, 16:5592}
+        self.perProcMem = {1:1900, 2:1900, 4:1900, 8:4000, 16:5592}
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
@@ -88,17 +88,20 @@ class ComputerParams:
         
         elif self.resman == RES_MAN_SLURM:
             lines.append("#SBATCH --job-name=m5sim")
-            lines.append("#SBATCH --time="+self.getWalltime(np)+":00:00")
+            
+            days = self.walltime[np] / 24
+            hrs = self.walltime[np] % 24
+            lines.append("#SBATCH --time="+str(days)+"-"+str(hrs)+":00:00")
             
             if self.queue != None:
-                lines.append("#SBATCH --partition "+self.queue)
+                lines.append("#SBATCH --partition="+self.queue)
 
             lines.append("#SBATCH --nodes=1")
             lines.append("#SBATCH --ntasks-per-node="+self.getPPN(np))
             lines.append("#SBATCH --mem-per-cpu="+self.getPerProcMem(np)+"MB")
             
-            #if self.projectNum != None:
-            #    lines.append("#SBATCH -A "+self.projectNum)
+            if self.projectNum != None:
+                lines.append("#SBATCH -A "+self.projectNum)
         else:
             fatal("Unknown resource manager")
 
