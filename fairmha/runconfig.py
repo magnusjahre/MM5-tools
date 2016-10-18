@@ -10,6 +10,9 @@ from optparse import OptionParser
 PBS_DIR_NAME = "pbsfiles"
 PBS_PM_DIR_NAME = PBS_DIR_NAME+"-priv-mode"
 
+RES_MAN_SLURM = 0
+RES_MAN_TORQUE = 1
+
 class ComputerParams:
     
     # Use queue = None to not set queue name in PBS file
@@ -21,11 +24,11 @@ class ComputerParams:
         
         self.queue = opts.queue
         self.projectNum = None
-        self.perProcMem = {1:1900, 2:1900, 4:1900, 8:5592, 16:5592}
+        self.perProcMem = {1:1900, 2:1900, 4:1900, 8:4096, 16:5592}
         
         if re.search("stallo", compname):
             info("Stallo run detected...")
-            self.ppn = {1:16, 2:16, 4:16, 8:6, 16:6}
+            self.ppn = {1:16, 2:16, 4:16, 8:8, 16:6}
             self.walltime = {1:10, 2:30, 4:60, 8:168, 16:168}
             self.projectNum = "nn4650k"
         
@@ -55,6 +58,13 @@ class ComputerParams:
                 self.ppn[key] = opts.ppn
             for key in self.perProcMem:
                 self.perProcMem[key] = memInMeg
+                
+        if opts.resman == "SLURM":
+            self.resman = RES_MAN_SLURM
+        elif opts.resman == "torque":
+            self.resman = RES_MAN_TORQUE
+        else:
+            Exception("Unknown resource manager "+str(opts.resman))
                     
     
     def getHeader(self, np):
@@ -62,17 +72,35 @@ class ComputerParams:
         lines = []
     
         lines.append("#!/bin/bash")
-        lines.append("#PBS -N m5sim")
-        lines.append("#PBS -lwalltime="+self.getWalltime(np)+":00:00")
-        lines.append("#PBS -m a")
-        if self.queue != None:
-            lines.append("#PBS -q "+self.queue)
-        lines.append("#PBS -j oe")
-    
-        lines.append("#PBS -lnodes=1:ppn="+self.getPPN(np)+",pvmem="+self.getPerProcMem(np)+"mb")
         
-        if self.projectNum != None:
-            lines.append("#PBS -A "+self.projectNum)
+        if self.resman == RES_MAN_TORQUE:
+            lines.append("#PBS -N m5sim")
+            lines.append("#PBS -lwalltime="+self.getWalltime(np)+":00:00")
+            lines.append("#PBS -m a")
+            if self.queue != None:
+                lines.append("#PBS -q "+self.queue)
+            lines.append("#PBS -j oe")
+        
+            lines.append("#PBS -lnodes=1:ppn="+self.getPPN(np)+",pvmem="+self.getPerProcMem(np)+"mb")
+            
+            if self.projectNum != None:
+                lines.append("#PBS -A "+self.projectNum)
+        
+        elif self.resman == RES_MAN_SLURM:
+            lines.append("#SBATCH --job-name=m5sim")
+            lines.append("#SBATCH --time="+self.getWalltime(np)+":00:00")
+            
+            if self.queue != None:
+                lines.append("#SBATCH --partition "+self.queue)
+
+            lines.append("#SBATCH --nodes=1")
+            lines.append("#SBATCH --ntasks-per-node="+self.getPPN(np))
+            lines.append("#SBATCH --mem-per-cpu="+self.getPerProcMem(np)+"MB")
+            
+            #if self.projectNum != None:
+            #    lines.append("#SBATCH -A "+self.projectNum)
+        else:
+            fatal("Unknown resource manager")
 
         lines.append("")
         lines.append("cd "+os.getcwd())
@@ -91,7 +119,10 @@ class ComputerParams:
     
     def getPerProcMem(self, np):
         return str(self.perProcMem[np])
-
+    
+    def getResourceManagerType(self):
+        return self.resman
+    
 class M5Command:
     
     def __init__(self, cmd, id):
@@ -110,7 +141,7 @@ class BatchCommands:
         self.issuedCommands = 0
         self.currentNp = -1
         
-    def addCommand(self, command, np, privModeExperiment):
+    def addCommand(self, command, np, privModeExperiment, resman):
         
         if self.currentNp == -1:
             self.currentNp = np
@@ -123,10 +154,10 @@ class BatchCommands:
         self.commands.append(command)
         
         if len(self.commands) == self.compenv.ppn[self.currentNp]:
-            self.issueBatchJob(privModeExperiment)
+            self.issueBatchJob(privModeExperiment, resman)
             assert len(self.commands) == 0 
         
-    def issueBatchJob(self, privModeExperiment):
+    def issueBatchJob(self, privModeExperiment, resman):
     
         if self.commands == []:
             return
@@ -160,7 +191,12 @@ class BatchCommands:
         info("Attempting to submit file "+runfilepath)
         
         if not self.opts.dryrun:
-            subprocess.call(['qsub', runfilepath])
+            if resman == RES_MAN_TORQUE:
+                subprocess.call(['qsub', runfilepath])
+            elif resman == RES_MAN_SLURM:
+                subprocess.call(['sbatch', runfilepath])
+            else:
+                fatal("Unknown resource manager ID "+str(resman))
         else:
             info("Dry-run, skipping...")
         
@@ -176,12 +212,18 @@ def info(message):
 def parseParams():
     parser = OptionParser(usage="runconfig.py [options]")
     
+    resourceManagers = ["SLURM", "torque"]
+    
     parser.add_option("--dry-run", action="store_true", dest="dryrun", default=False, help="Do not submit jobs to the cluster")
     parser.add_option("--inst-samp-priv-mode", action="store_true", dest="instSampPrivMode", default=False, help="Submit private mode jobs with sample points taken from a shared mode experiment")
     parser.add_option("--queue", action="store", dest="queue", default=None, help="PBS queue to submit jobs to")
     parser.add_option("--walltime", action="store", type="int", dest="walltime", default=0, help="PBS walltime limit in hours")
     parser.add_option("--ppn", action="store", type="int", dest="ppn", default=0, help="Processes per node to use")
+    parser.add_option("--res-man", action="store", dest="resman", default="SLURM", help="Resouce manager to use, one of "+str(resourceManagers))
     opts, args = parser.parse_args()
+    
+    if opts.resman not in resourceManagers:
+        fatal("Unknown resource manager, choose one of "+str(resourceManagers))
     
     if len(args) != 0:
         fatal("runconfig.py takes no parameters")
@@ -215,8 +257,8 @@ def main():
     batchCommands = BatchCommands(computerEnv, opts)
     for commandline, param in commandlines:
         command = M5Command(commandline,  pbsconfig.get_unique_id(param))
-        batchCommands.addCommand(command, pbsconfig.get_np(param), opts.instSampPrivMode)        
-    batchCommands.issueBatchJob(opts.instSampPrivMode)
+        batchCommands.addCommand(command, pbsconfig.get_np(param), opts.instSampPrivMode, computerEnv.getResourceManagerType())        
+    batchCommands.issueBatchJob(opts.instSampPrivMode, computerEnv.getResourceManagerType())
 
     print "Submitted "+str(batchCommands.issuedCommands)+" experiments in "+str(batchCommands.fileID)+" files"
     
