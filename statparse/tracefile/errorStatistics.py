@@ -162,8 +162,10 @@ def dumpAllErrors(results, filename):
     
     for expkey in results:
         for paramkey in results[expkey]:
+            outfile.write(expkey+";"+paramkey)
             for errval in results[expkey][paramkey].getAllErrors():
-                outfile.write(str(errval)+" ")
+                outfile.write(";"+str(errval))
+            outfile.write("\n")
     
     outfile.flush()
     outfile.close()
