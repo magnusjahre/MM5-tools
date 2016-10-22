@@ -5,6 +5,7 @@ import subprocess
 import os
 import platform
 import re
+import math
 from optparse import OptionParser
  
 PBS_DIR_NAME = "pbsfiles"
@@ -52,7 +53,7 @@ class ComputerParams:
                 self.walltime[key] = opts.walltime
             
         if opts.ppn != 0:
-            memInMeg = (32*(2**10))/opts.ppn
+            memInMeg = int(math.floor(((32*(2**10))/opts.ppn)/100.0))*100
             info("Setting all ppn limits to provided value "+str(opts.ppn)+" and memory per process to "+str(memInMeg))
             for key in self.ppn:
                 self.ppn[key] = opts.ppn
