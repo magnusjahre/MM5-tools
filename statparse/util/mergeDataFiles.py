@@ -356,9 +356,7 @@ def normaliseData(processedData, justify, opts):
                     except:
                         fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
                     
-                    print float(processedData[i][j]), normTo, relVal
                     processedData[i][j] = printResults.numberToString(relVal, opts.decimals)
-
             
     return processedData, justify
 
