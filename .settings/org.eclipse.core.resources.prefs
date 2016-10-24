@@ -1,3 +1,4 @@
 eclipse.preferences.version=1
 encoding//toggl/getProjectHours.py=utf-8
+encoding//util/makeExpDirTree.py=utf-8
 encoding//util/watchCPUTemp.py=utf-8
