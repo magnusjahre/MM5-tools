@@ -253,29 +253,6 @@ def processData(mergedData, mergeSpec, opts):
             newData.append(newLine)
         mergedData = newData
     
-    if opts.normalizeTo != -1:
-        normalizedData = {}
-        for i in range(1, len(mergedData)):
-            normalizedData[i] = {}
-            for j in range(1, len(mergedData[i])):
-                
-                if mergedData[i][j] == metrics.errorString or mergedData[i][opts.normalizeTo] == metrics.errorString:
-                    normalizedData[i][j] = metrics.errorString
-                else:
-                    if float(mergedData[i][opts.normalizeTo]) == 0.0:
-                        normalizedData[i][j] = "inf"                
-                    else:    
-                        try:
-                            relVal = (float(mergedData[i][j]) / float(mergedData[i][opts.normalizeTo])) 
-                        except:
-                            fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
-                
-                        normalizedData[i][j] = printResults.numberToString(relVal, opts.decimals)
-        
-        for i in normalizedData:
-            for j in normalizedData[i]:
-                mergedData[i][j] = normalizedData[i][j]
-    
     renameColumns(mergedData, opts)
     renameRows(mergedData, opts)
     
@@ -362,6 +339,29 @@ def computeTypedAverage(processedData, justify, opts):
 
     return resData, justify
 
+def normaliseData(processedData, justify, opts):
+    
+    for i in range(len(processedData))[1:]:
+        normTo = float(processedData[i][opts.normalizeTo])
+        
+        for j in range(len(processedData[i]))[1:]:
+            if processedData[i][j] == metrics.errorString or processedData[i][opts.normalizeTo] == metrics.errorString:
+                continue
+            else:
+                if normTo == 0.0:
+                    processedData[i][j] = "inf"                
+                else:    
+                    try:
+                        relVal = float(processedData[i][j]) / normTo
+                    except:
+                        fatal("Normalization failed on line "+str(i)+", column "+str(j)+", trying to normalize to column "+str(opts.normalizeTo))
+                    
+                    print float(processedData[i][j]), normTo, relVal
+                    processedData[i][j] = printResults.numberToString(relVal, opts.decimals)
+
+            
+    return processedData, justify
+
 def makeFileData(data, columnToFileList):
     filedata = []
     header = [""]
@@ -436,6 +436,8 @@ def main():
         processedData, justify = computeAverage(processedData, justify, opts)
     if opts.doTypedAverage:
         processedData, justify = computeTypedAverage(processedData, justify, opts)
+    if opts.normalizeTo != -1:
+        processedData, justify = normaliseData(processedData, justify, opts)
     
     if opts.outfile == "":
         outfile = sys.stdout
