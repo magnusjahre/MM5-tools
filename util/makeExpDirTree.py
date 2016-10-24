@@ -9,7 +9,7 @@ from optparse import OptionParser
 
 def parseArgs():
     program_name = os.path.basename(sys.argv[0])
-    program_usage = program_name+" [options] command-file"
+    program_usage = program_name+" [options] command-file-folder"
 
     # setup option parser
     parser = OptionParser(usage=program_usage)
@@ -24,31 +24,68 @@ def parseArgs():
 
     return opts,args
 
-def readDirStructure(filename):
-    structfile = open(filename)
-    dirstruct = {}
-    lineno = 1
-    for l in structfile:
-        try:
-            cpuCnt, dirName = l.strip().split(",")
-            cpuCnt = int(cpuCnt)
-        except:
-            fatal("Parse error @ line "+str(lineno)+": "+str(l))
-        if cpuCnt in dirstruct:
-            dirstruct[cpuCnt].append(dirName)
-        else:
-            dirstruct[cpuCnt] = [dirName]
-        lineno += 1
+class Experiment:
+    
+    def __init__(self, configfilename):
+        self.configfilename = configfilename
         
-    return dirstruct
+        tmp = self.configfilename.split("-")
+        assert tmp[-1] == "pbsconfig.py"
+        self.expname = "-".join(tmp[0:-1])
+        
+        self.configurations = {}
+        self.fileContent = []
+        self.readConfigurations()
+    
+    def readConfigurations(self):
+        f = open(self.configfilename)
+        lineNum = 0
+        for l in f:
+            if l.startswith("#CONFIG"):
+                tmp = l.split()
+                assert tmp[1] not in self.configurations
+                self.configurations[tmp[1]] = (tmp[2].split(","), lineNum)
+            self.fileContent.append(l)
+            lineNum += 1
+        
+    def writeConfigFile(self, inconfig):
+        for cf in inconfig:
+            assert cf in self.configurations
+            params, linenum = self.configurations[cf]
+            self.fileContent[linenum] = cf+" = "+inconfig[cf]+"\n"
+            
+        f = open("pbsconfig.py", "w")
+        for l in self.fileContent:
+            f.write(l)
+        f.flush()
+        f.close()
+        
+
+def buildExperimentdict(configdir):
+    os.chdir(configdir)
+    files = os.listdir(".")
+    
+    expdict = {}
+    for f in files:
+        exp = Experiment(f)
+        
+        assert "np" in exp.configurations
+        nps, linenum = exp.configurations["np"]
+        for np in nps:
+            if np not in expdict:
+                expdict[np] = []
+                
+            assert exp.expname not in expdict
+            expdict[np].append(exp)
+    
+    os.chdir("..")
+    return expdict
 
 def writeIsExpFile(cpuCnt, dirname):
-    os.chdir(dirname)
     f = open(".isexperiment", "w")
     f.write(str(cpuCnt)+",True\n")
     f.flush()
     f.close()
-    os.chdir("..")
 
 def makeDirTree(dirStruct):
     
@@ -58,22 +95,25 @@ def makeDirTree(dirStruct):
             print "Making directory "+cpuDirName
             os.mkdir(cpuDirName)
         os.chdir(cpuDirName)
-        for dirname in dirStruct[cpuCnt]:
-            if not os.path.exists(dirname):
-                print "Making directory "+dirname
-                os.mkdir(dirname)
-                writeIsExpFile(cpuCnt, dirname)
-            
+        for exp in dirStruct[cpuCnt]:
+            if not os.path.exists(exp.expname):
+                print "Making directory "+exp.expname
+                os.mkdir(exp.expname)
+                os.chdir(exp.expname)
+                writeIsExpFile(cpuCnt, exp.expname)
+                exp.writeConfigFile({"np": str(cpuCnt)})
+                os.chdir("..")
+                
         os.chdir("..")
 
 def main():
     opts, args = parseArgs()
     
-    print "Reading structure file..."
-    dirStruct = readDirStructure(args[0])
+    print "Reading config directory"
+    expdict = buildExperimentdict(args[0])
     
     print "Making directory structure"
-    makeDirTree(dirStruct) 
+    makeDirTree(expdict) 
 
 
 if __name__ == "__main__":
