@@ -13,6 +13,7 @@ import re
 
 from optparse import OptionParser
 import optcomplete
+from statparse.printResults import numberToString
 
 INT_MAX = 2147483648
 
@@ -58,7 +59,8 @@ def parseArgs():
     parser.add_option("--filter-pattern", action="store", dest="filterPattern", default="", help="Filter output lines with this pattern")
     parser.add_option("--plot-filename", action="store", dest="pltfilename", type="string", default="", help="Provide a filename to store the plot in a file")
     parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
-
+    parser.add_option("--sort-cols", action="store_true", dest="sortCols", default=False, help="Sort each column in ascending order")
+    
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
     opts, args = parser.parse_args()
     
@@ -339,6 +341,28 @@ def computeTypedAverage(processedData, justify, opts):
 
     return resData, justify
 
+def sortColumns(processedData, justify, opts):
+    resData = [processedData.pop(0)]
+    datalen = len(processedData[0])-1
+    
+    numLines = 0
+    colvals = [[] for i in range(datalen)]
+    for l in processedData:
+        numLines += 1
+        for i in range(len(l))[1:]:
+            colvals[i-1].append(l[i])
+    
+    for c in colvals:
+        c.sort()
+    
+    for i in range(numLines):
+        line = [str(i+1)]
+        for c in colvals:
+            line.append(numberToString(c[i],opts.decimals))
+        resData.append(line)
+    
+    return resData, justify
+
 def normaliseData(processedData, justify, opts):
     
     for i in range(len(processedData))[1:]:
@@ -434,6 +458,8 @@ def main():
         processedData, justify = computeAverage(processedData, justify, opts)
     if opts.doTypedAverage:
         processedData, justify = computeTypedAverage(processedData, justify, opts)
+    if opts.sortCols:
+        processedData, justify = sortColumns(processedData, justify, opts)
     if opts.normalizeTo != -1:
         processedData, justify = normaliseData(processedData, justify, opts)
     
