@@ -260,9 +260,6 @@ def processData(mergedData, mergeSpec, opts):
     
     mergedData = filterData(mergedData, opts)
     
-    if opts.invert:
-        mergedData = [[mergedData[j][i] for j in range(len(mergedData))] for i in range(len(mergedData[0]))]
-    
     justify = [False for i in range(len(mergedData[0]))]
     justify[0] = True
     return mergedData, justify
@@ -462,6 +459,11 @@ def main():
         processedData, justify = sortColumns(processedData, justify, opts)
     if opts.normalizeTo != -1:
         processedData, justify = normaliseData(processedData, justify, opts)
+    
+    if opts.invert:
+        processedData = [[processedData[j][i] for j in range(len(processedData))] for i in range(len(processedData[0]))]
+        justify = [False for i in range(len(processedData[0]))]
+        justify[0] = True
     
     if opts.outfile == "":
         outfile = sys.stdout
