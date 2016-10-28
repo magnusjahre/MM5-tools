@@ -347,11 +347,11 @@ def sortColumns(processedData, justify, opts):
     for l in processedData:
         numLines += 1
         for i in range(len(l))[1:]:
-            colvals[i-1].append(l[i])
+            colvals[i-1].append(float(l[i]))
     
     for c in colvals:
         c.sort()
-    
+
     for i in range(numLines):
         line = [str(i+1)]
         for c in colvals:
@@ -369,7 +369,9 @@ def normaliseData(processedData, justify, opts):
             if processedData[i][j] == metrics.errorString or processedData[i][opts.normalizeTo] == metrics.errorString:
                 continue
             else:
-                if normTo == 0.0:
+                if ("%.6f" % normTo) == "0.000000" and ("%.6f" % float(processedData[i][j])) == "0.000000":
+                    processedData[i][j] = printResults.numberToString(1.0, opts.decimals)
+                elif normTo == 0.0:
                     processedData[i][j] = "inf"                
                 else:    
                     try:
