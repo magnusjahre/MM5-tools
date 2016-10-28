@@ -907,13 +907,13 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     if "yrange" in kwargs:
         if kwargs["yrange"] != None:
             try:
-                min,max = kwargs["yrange"].split(",")
-                min = int(min)
-                max = int(max)
+                miny,maxy = kwargs["yrange"].split(",")
+                miny = float(miny)
+                maxy = float(maxy)
             except:
                 raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
-            plt.ylim(min,max)
-            ymax = max
+            plt.ylim(miny,maxy)
+            ymax = maxy
     
     if "datalabels" in kwargs:
         if kwargs["datalabels"] != "":
