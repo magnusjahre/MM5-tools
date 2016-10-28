@@ -341,13 +341,17 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     from matplotlib import cm
     from matplotlib.markers import MarkerStyle
     
-    fontsize = 12
+    fontsize = 12    
     width = 16
     height = 3.5
     if "narrow" in kwargs:
         if kwargs["narrow"]:
             width = width/2
             fontsize = 14
+            
+    if "largeFonts" in kwargs:
+        if kwargs["largeFonts"]:
+            fontsize += 4
             
     if "low" in kwargs:
         if kwargs["low"]:
@@ -410,8 +414,8 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
         if kwargs["yrange"] != None:
             try:
                 minval,maxval = kwargs["yrange"].split(",")
-                minval = int(minval)
-                maxval = int(maxval)
+                minval = float(minval)
+                maxval = float(maxval)
             except:
                 raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
             plt.ylim(minval,maxval)

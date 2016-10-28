@@ -33,6 +33,7 @@ def parseArgs():
     parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis captions")
     parser.add_option("--datalabels", action="store", dest="datalabels", type="string", default="", help="Show data values on selected bars (Format: seriesindex,valueindex,decimals[: ... ])")
     parser.add_option("--mark-every", action="store", dest="markEvery", type="int", default=1, help="Mark every nth data point in a line plot (default is 1)")
+    parser.add_option("--large-fonts", action="store_true", dest="largeFonts", default=False, help="Increase the font size (useful for really small plots)")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -140,7 +141,8 @@ def main():
                         yrange=opts.yrange,
                         narrow=opts.narrow,
                         low=opts.low,
-                        markEvery=opts.markEvery)
+                        markEvery=opts.markEvery,
+                        largeFonts=opts.largeFonts)
         
     elif opts.plotType == "bars":
         plotDataFileBarChart(dataseries[0],
