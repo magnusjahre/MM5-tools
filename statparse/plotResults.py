@@ -336,20 +336,45 @@ def plotBoxPlot(data, **kwargs):
 
 def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     
-    import numpy as np
     import matplotlib
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+    from matplotlib.markers import MarkerStyle
     
     fontsize = 12
+    width = 16
+    height = 3.5
+    if "narrow" in kwargs:
+        if kwargs["narrow"]:
+            width = width/2
+            fontsize = 14
+            
+    if "low" in kwargs:
+        if kwargs["low"]:
+            height = 2.5   
+    
+    matplotlib.rc('ps', useafm=True)
+    matplotlib.rc('pdf', use14corefonts=True)
+    matplotlib.rc('text', usetex=True)
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('legend', fontsize=fontsize)
     matplotlib.rc('font', size=fontsize)
     
-    import matplotlib.pyplot as plt
-    
-    fig = plt.figure(figsize=(8,3))
+    fig = plt.figure(figsize=(width,height))
     ax = fig.add_subplot(111)
     
     plt.axhline(0, color='black')
+    
+    markEvery = 1
+    if "markEvery" in kwargs:
+        markEvery = kwargs["markEvery"]
+    
+    lines = []
+    for i in range(len(ydataseries)):
+        thisColor = cm.Paired(1*(float(i)/float(len(ydataseries))))
+        thisMarker = MarkerStyle.filled_markers[i]
+        lines += ax.plot(xvalues, ydataseries[i], color=thisColor, marker=thisMarker, markevery=markEvery)
     
     labels = None
     if "titles" in kwargs:
@@ -357,18 +382,23 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
             raise Exception("The titles list must have the same length as the y-datalist list")
         
         labels = kwargs["titles"]
-    
-    for i in range(len(ydataseries)):
-        if labels != None:
-            ax.plot(xvalues, ydataseries[i], label=labels[i])
-        else:
-            ax.plot(xvalues, ydata[i])
-            
-    if labels != None:
+        for i in range(len(labels)):
+            labels[i] = labels[i].replace("_"," ")
+        
+        showLegend = True
+        useCols = 2
         if "legendColumns" in kwargs:
-            plt.legend(ncol=kwargs["legendColumns"], loc="upper center")
-        else:
-            plt.legend(ncol=2, loc="upper center")
+            if kwargs["legendColumns"] > 0:
+                useCols = kwargs["legendColumns"]
+            else:
+                showLegend = False
+
+        if showLegend:
+            numRows = float(len(labels)) / useCols
+            if numRows > 1.0:
+                labels = flip(labels, useCols)
+                lines = flip(lines, useCols)
+            ax.legend(lines, labels, loc="upper center", ncol=useCols)
 
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
@@ -379,12 +409,12 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     if "yrange" in kwargs:
         if kwargs["yrange"] != None:
             try:
-                min,max = kwargs["yrange"].split(",")
-                min = int(min)
-                max = int(max)
+                minval,maxval = kwargs["yrange"].split(",")
+                minval = int(minval)
+                maxval = int(maxval)
             except:
                 raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
-            plt.ylim(min,max)
+            plt.ylim(minval,maxval)
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
