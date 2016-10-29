@@ -352,10 +352,9 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     if "largeFonts" in kwargs:
         if kwargs["largeFonts"]:
             fontsize += 4
-            
-    if "low" in kwargs:
-        if kwargs["low"]:
-            height = 2.5   
+    
+    if "figheight" in kwargs:
+        height = kwargs["figheight"] 
     
     matplotlib.rc('ps', useafm=True)
     matplotlib.rc('pdf', use14corefonts=True)
@@ -373,6 +372,11 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     markEvery = 1
     if "markEvery" in kwargs:
         markEvery = kwargs["markEvery"]
+    
+    if "divFactor" in kwargs:
+        for i in range(len(ydataseries)):
+            for j in range(len(ydataseries[i])):
+                ydataseries[i][j] = ydataseries[i][j] / kwargs["divFactor"]
     
     lines = []
     for i in range(len(ydataseries)):
@@ -835,9 +839,8 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
             width = width/2
             fontsize = 14
             
-    if "low" in kwargs:
-        if kwargs["low"]:
-            height = 2.5   
+    if "figheight" in kwargs:
+        height = kwargs["figheight"]  
     
     matplotlib.rc('ps', useafm=True)
     matplotlib.rc('pdf', use14corefonts=True)

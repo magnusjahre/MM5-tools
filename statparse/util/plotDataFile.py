@@ -29,11 +29,12 @@ def parseArgs():
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
     parser.add_option("--fix-wls", action="store_true", dest="fixWls", default=False, help="Improve the readability of workload names")
     parser.add_option("--narrow", action="store_true", dest="narrow", default=False, help="Plot with half the regular width")
-    parser.add_option("--low", action="store_true", dest="low", default=False, help="Plot with low height")
+    parser.add_option("--figure-height", action="store", dest="figheight", type="float", default=3.5, help="Plot with low height")
     parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis captions")
     parser.add_option("--datalabels", action="store", dest="datalabels", type="string", default="", help="Show data values on selected bars (Format: seriesindex,valueindex,decimals[: ... ])")
     parser.add_option("--mark-every", action="store", dest="markEvery", type="int", default=1, help="Mark every nth data point in a line plot (default is 1)")
     parser.add_option("--large-fonts", action="store_true", dest="largeFonts", default=False, help="Increase the font size (useful for really small plots)")
+    parser.add_option("--div-factor", action="store", dest="divFactor", type="float", default=1.0, help="Divide all y values by this constant")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -140,9 +141,10 @@ def main():
                         legendColumns=opts.legendColumns,
                         yrange=opts.yrange,
                         narrow=opts.narrow,
-                        low=opts.low,
+                        figheight=opts.figheight,
                         markEvery=opts.markEvery,
-                        largeFonts=opts.largeFonts)
+                        largeFonts=opts.largeFonts,
+                        divFactor=opts.divFactor)
         
     elif opts.plotType == "bars":
         plotDataFileBarChart(dataseries[0],
@@ -158,7 +160,7 @@ def main():
                              narrow=opts.narrow,
                              rotate=opts.rotate,
                              datalabels=opts.datalabels,
-                             low=opts.low)
+                             figheight=opts.figheight,)
     else:
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries,
