@@ -28,8 +28,9 @@ def parseArgs():
     parser.add_option("--only-type", action="store", dest="onlyType", type="string", default="", help="Only include lines that have a workload key that contains this letter (a, b, c or n)")
     parser.add_option("--avg", action="store_true", dest="avg", default=False, help="Add average as a part of the data set")
     parser.add_option("--fix-wls", action="store_true", dest="fixWls", default=False, help="Improve the readability of workload names")
-    parser.add_option("--narrow", action="store_true", dest="narrow", default=False, help="Plot with half the regular width")
-    parser.add_option("--figure-height", action="store", dest="figheight", type="float", default=3.5, help="Plot with low height")
+    parser.add_option("--only-wl-num", action="store_true", dest="onlyWlNum", default=False, help="Only show the workload number")
+    parser.add_option("--figure-height", action="store", dest="figheight", type="float", default=3.5, help="Plot with custom height")
+    parser.add_option("--figure-width", action="store", dest="figwidth", type="float", default=16.0, help="Plot with custom width")
     parser.add_option("--rotate", action="store", dest="rotate", type="string", default="horizontal", help="Rotate the x-axis captions")
     parser.add_option("--datalabels", action="store", dest="datalabels", type="string", default="", help="Show data values on selected bars (Format: seriesindex,valueindex,decimals[: ... ])")
     parser.add_option("--mark-every", action="store", dest="markEvery", type="int", default=1, help="Mark every nth data point in a line plot (default is 1)")
@@ -82,6 +83,14 @@ def createDataSeries(rawdata, datacols, opts):
             
             newWls.append(wl+"_"+bm)
             
+        dataseries[0] = newWls
+        
+    if opts.onlyWlNum:
+        newWls = []
+        for wl in dataseries[0]:
+            tmp = wl.split("-")
+            newWls.append(tmp[-1])
+        
         dataseries[0] = newWls
 
     return dataseries
@@ -140,8 +149,8 @@ def main():
                         ylabel=opts.ytitle,
                         legendColumns=opts.legendColumns,
                         yrange=opts.yrange,
-                        narrow=opts.narrow,
                         figheight=opts.figheight,
+                        figwidth=opts.figwidth,
                         markEvery=opts.markEvery,
                         largeFonts=opts.largeFonts,
                         divFactor=opts.divFactor)
@@ -157,10 +166,10 @@ def main():
                              yrange=opts.yrange,
                              errorrows=opts.errorrows,
                              errorcols=opts.errorcols,
-                             narrow=opts.narrow,
                              rotate=opts.rotate,
                              datalabels=opts.datalabels,
-                             figheight=opts.figheight,)
+                             figheight=opts.figheight,
+                             figwidth=opts.figwidth)
     else:
         assert opts.plotType == "boxplot"
         plotRawBoxPlot(dataseries,

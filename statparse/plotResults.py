@@ -344,10 +344,10 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     fontsize = 12    
     width = 16
     height = 3.5
-    if "narrow" in kwargs:
-        if kwargs["narrow"]:
-            width = width/2
-            fontsize = 14
+            
+    if "figwidth" in kwargs:
+        width = kwargs["figwidth"] 
+        fontsize = 14
             
     if "largeFonts" in kwargs:
         if kwargs["largeFonts"]:
@@ -834,14 +834,18 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     fontsize = 12
     width = 16
     height = 3.5
-    if "narrow" in kwargs:
-        if kwargs["narrow"]:
-            width = width/2
-            fontsize = 14
             
     if "figheight" in kwargs:
         height = kwargs["figheight"]  
     
+    if "figwidth" in kwargs:
+        width = kwargs["figwidth"] 
+        fontsize = 14
+    
+    if "largeFonts" in kwargs:
+        if kwargs["largeFonts"]:
+            fontsize += 4
+            
     matplotlib.rc('ps', useafm=True)
     matplotlib.rc('pdf', use14corefonts=True)
     matplotlib.rc('text', usetex=True)
