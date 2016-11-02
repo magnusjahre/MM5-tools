@@ -51,6 +51,7 @@ def parseArgs():
     parser.add_option("--row-names", action="store", dest="rowNames", default="", help="Rename the rows to the names in this list (Comma separated)")
     parser.add_option("--outfile", action="store", dest="outfile", default="", help="Print output to this file")
     parser.add_option("--average", action="store_true", dest="doAverage", default=False, help="Print the average values")
+    parser.add_option("--min-histogram", action="store_true", dest="minHistogram", default=False, help="Print the number of configurations where a given column has the minimum value")
     parser.add_option("--typed-average", action="store_true", dest="doTypedAverage", default=False, help="Print the average values for each workload type")
     parser.add_option("--no-color", action="store_true", dest="noColor", default=False, help="Do not color code output")
     parser.add_option("--plot", action="store_true", dest="plot", default=False, help="Plot the results")
@@ -312,6 +313,23 @@ def computeAverage(processedData, justify, opts):
 
     return resData, justify[1:]
 
+def minHistogram(processedData, justify, opts):
+    header = processedData.pop(0)[1:]
+    datalen = len(header)
+    values = [0 for i in range(datalen)]
+    
+    for line in processedData:
+        curvals = [float(v) for v in line[1:]]
+        minIndex = curvals.index(min(curvals))
+        values[minIndex] += 1.0
+    
+    resData = []
+    resData.append(header)
+    resData.append([ "%.1f" % ((v/sum(values))*100.0) +" % ("+str(int(v))+")" for v in values])
+    
+    return resData, justify[1:]
+
+
 def computeTypedAverage(processedData, justify, opts):
     
     resData = [processedData.pop(0)]
@@ -459,6 +477,8 @@ def main():
         processedData, justify = computeTypedAverage(processedData, justify, opts)
     if opts.sortCols:
         processedData, justify = sortColumns(processedData, justify, opts)
+    if opts.minHistogram:
+        processedData, justify = minHistogram(processedData, justify, opts)
     if opts.normalizeTo != -1:
         processedData, justify = normaliseData(processedData, justify, opts)
     
