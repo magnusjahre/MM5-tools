@@ -48,6 +48,7 @@ def parseArgs():
     parser.add_option("--yrange", action="store", dest="yrange", default="", help="Y-axis range")
     parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file (single plot)")
     parser.add_option("--plotdir-prefix", action="store", dest="plotdirprefix", default="cache-analysis", help="Prefix of cache analysis directories (full plot)")
+    parser.add_option("--verify", action="store_true", dest="verify", default=False, help="Verify the lookahead allocation algorithm")
     
     opts, args = parser.parse_args()
     
@@ -130,13 +131,6 @@ def analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, plotfilename):
     curves = []
     for tfn in traceFileNames:
         curves.append(getCurve(usedir, tfn, ccpoint))
-        
-    allocation = getAllocation(usedir, ccpoint)
-    allocPoints = []
-    for i in range(len(allocation)):
-        xcoord = int(allocation[i])
-        ycoord = int(curves[i][xcoord])
-        allocPoints.append( (xcoord,ycoord) )
     
     allocPoints = getAllocPoints(usedir, ccpoint, curves, opts, bms)
     plotCurves(curves, usedir, bms, opts, ccpoint, allocPoints, opts.type, plotfilename)
