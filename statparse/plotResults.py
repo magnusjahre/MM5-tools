@@ -562,8 +562,8 @@ def plotLines(xvalues, yvalues, **kwargs):
         id += 1
         
     if "showPoints" in kwargs:
-        for x,y in kwargs["showPoints"]:
-            ax.plot(x,y, "ko")
+        for x,y,marker in kwargs["showPoints"]:
+            ax.plot(x,y,marker)
     
     if "cols" in kwargs:
         cols = kwargs["cols"]
