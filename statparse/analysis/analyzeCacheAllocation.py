@@ -136,7 +136,10 @@ def analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, plotfilename):
     for tfn in traceFileNames:
         curves.append(getCurve(usedir, tfn, ccpoint))
     
-    allocPoints = getAllocPoints(usedir, ccpoint, curves, opts, bms)
+    if opts.verify:
+        verifyAllocation(curves, opts, usedir, ccpoint)
+    
+    allocPoints = getAllocPoints(usedir, ccpoint, curves, opts, bms) 
     plotCurves(curves, usedir, bms, opts, ccpoint, allocPoints, opts.type, plotfilename)
 
 def padSample(sample):
@@ -144,6 +147,76 @@ def padSample(sample):
     while len(sampleStr) <= 10:
         sampleStr = "0"+sampleStr
     return sampleStr
+
+def getCurveIndex(ways):
+    return ways-1
+
+def getMarginalUtility(curve, curAlloc, newAlloc):
+    numerator = curve[getCurveIndex(newAlloc)] - curve[getCurveIndex(curAlloc)]
+    denominator = float(newAlloc - curAlloc)
+    mu = numerator/denominator
+    return mu
+
+def getMaxMarginalUtility(curve, curAlloc, balance):
+    maxMu = -1.0
+    maxAdditionalWays = -1
+    additionalWays = 1
+    while additionalWays <= balance:
+        newAlloc = curAlloc+additionalWays
+        mu = getMarginalUtility(curve, curAlloc, newAlloc)
+        if mu > maxMu:
+            maxMu = mu
+            maxAdditionalWays = additionalWays
+        additionalWays += 1
+
+    return maxAdditionalWays, maxMu
+
+def verifyAllocation(curves, opts, usedir, ccpoint):
+    maxWays = len(curves[0])
+    curAlloc = [1 for c in curves]
+    balance = maxWays - sum(curAlloc)
+    allocRound = 1
+    
+    while balance > 0:
+        print "Allocation round", allocRound
+        winner = -1
+        maxMUAdditionalWays = -1
+        maxMU = -1.0
+        for i in range(len(curves)):
+            coreMaxAdditionalWays, coreMaxMu = getMaxMarginalUtility(curves[i], curAlloc[i], balance)
+            print "Maximum utility for CPU "+str(i)+" is "+str(coreMaxMu)+" with "+str(coreMaxAdditionalWays)+" additional ways"
+            if coreMaxMu > maxMU:
+                winner = i
+                maxMUAdditionalWays = coreMaxAdditionalWays
+                maxMU = coreMaxMu
+        
+        print "CPU "+str(winner)+" wins, increasing allocation by "+str(maxMUAdditionalWays)+" ways"
+        assert maxMUAdditionalWays > 0
+        curAlloc[winner] += maxMUAdditionalWays 
+        balance -= maxMUAdditionalWays
+        
+        print "Allocation is now "+str(curAlloc)+", "+str(balance)+" ways remaining"
+        assert balance == maxWays - sum(curAlloc)
+        allocRound += 1
+    
+    assert sum(curAlloc) == maxWays
+    traceAlloc = [int(v) for v in getAllocation(usedir, ccpoint)]
+    print "Verification allocation is", curAlloc
+    print "Trace allocation is", traceAlloc
+    
+    tracesEqual = True
+    assert(len(curAlloc) == len(traceAlloc))
+    for i in range(len(curAlloc)):
+        if curAlloc[i] != traceAlloc[i]:
+            tracesEqual = False
+    
+    print "\nVERIFICATION",
+    if tracesEqual:
+        print "PASSED\n"
+    else:
+        print "FAILED\n"
+    
+    return curAlloc
 
 def main():
 
