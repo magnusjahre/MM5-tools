@@ -49,6 +49,7 @@ def parseArgs():
     parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file (single plot)")
     parser.add_option("--plotdir-prefix", action="store", dest="plotdirprefix", default="cache-analysis", help="Prefix of cache analysis directories (full plot)")
     parser.add_option("--verify", action="store_true", dest="verify", default=False, help="Verify the lookahead allocation algorithm")
+    parser.add_option("--gen-curve-code", action="store_true", dest="genCurveCode", default=False, help="Print code for testing the C++ lookahead implementation")
     
     opts, args = parser.parse_args()
     
@@ -171,7 +172,31 @@ def getMaxMarginalUtility(curve, curAlloc, balance):
 
     return maxAdditionalWays, maxMu
 
+def printCurvesForM5(curves):
+    print "C++ curve intialization for simulator test:"
+    print
+    for i in range(len(curves)):
+        print "double arr"+str(i)+"[] = {",
+        first = True
+        for v in curves[i]:
+            if first:
+                print str(v),
+                first = False
+            else:
+                print ","+str(v),
+        print "};"
+    print
+    print "vector<vector<double>> utilities = vector<vector<double>>(cpuCount, vector<double>());"
+    for i in range(len(curves)):
+        print "utilities["+str(i)+"] = vector<double>(arr"+str(i)+", arr"+str(i)+" + sizeof(arr"+str(i)+") / sizeof(arr"+str(i)+"[0]));"
+    print
+
+
 def verifyAllocation(curves, opts, usedir, ccpoint):
+    
+    if opts.genCurveCode:
+        printCurvesForM5(curves)
+    
     maxWays = len(curves[0])
     curAlloc = [1 for c in curves]
     balance = maxWays - sum(curAlloc)
