@@ -125,7 +125,11 @@ def plotCurves(curves, usedir, bms, opts, samplePoint, allocPoints, tracetype, p
     
     title = tracetype+": "+pretitle+" at "+str(samplePoint/(10**6))+" million clock cycles"
     
-    plotLines(xdata, curves, legendTitles=bms, title=title, yrange=opts.yrange, showPoints=allocPoints, filename=plotfilename)
+    yrange = opts.yrange
+    if yrange == "":
+        yrange = "0,"+str(max(max(curves))*1.25)
+
+    plotLines(xdata, curves, legendTitles=bms, title=title, yrange=yrange, showPoints=allocPoints, filename=plotfilename)
 
 def analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, plotfilename):
     curves = []
