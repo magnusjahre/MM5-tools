@@ -128,7 +128,10 @@ def plotCurves(curves, usedir, bms, opts, samplePoint, allocPoints, tracetype, p
     
     yrange = opts.yrange
     if yrange == "":
-        yrange = "0,"+str(max(max(curves))*1.25)
+        maxvals = []
+        for c in curves:
+            maxvals.append(max(c))
+        yrange = "0,"+str(max(maxvals)*1.25)
 
     plotLines(xdata, curves, legendTitles=bms, title=title, yrange=yrange, showPoints=allocPoints, filename=plotfilename)
 
