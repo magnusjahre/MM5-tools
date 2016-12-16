@@ -189,7 +189,7 @@ def printCurvesForM5(curves):
                 print ","+str(v),
         print "};"
     print
-    print "vector<vector<double>> utilities = vector<vector<double>>(cpuCount, vector<double>());"
+    print "vector<vector<double> > utilities = vector<vector<double> >(cpuCount, vector<double>());"
     for i in range(len(curves)):
         print "utilities["+str(i)+"] = vector<double>(arr"+str(i)+", arr"+str(i)+" + sizeof(arr"+str(i)+") / sizeof(arr"+str(i)+"[0]));"
     print
