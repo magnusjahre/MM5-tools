@@ -100,13 +100,17 @@ def getBenchmarkNames(directory, np):
     bms =  wls.getBms(wl, np)
     return wl, bms
 
-def getAllocPoints(usedir, ccpoint, curves, opts, bms):
-    allocation = getAllocation(usedir, ccpoint)
+def getPoints(allocation, curves, marker = "ko"):
     allocPoints = []
     for i in range(len(allocation)):
         xcoord = int(allocation[i])
         ycoord = curves[i][xcoord-1]
-        allocPoints.append( (xcoord,ycoord) )
+        allocPoints.append( (xcoord,ycoord,marker) )
+    return allocPoints
+
+def getAllocPoints(usedir, ccpoint, curves, opts, bms):
+    allocation = getAllocation(usedir, ccpoint)
+    allocPoints = getPoints(allocation, curves)
     
     if not opts.quiet:
         print "Allocation in "+usedir+" at "+str(ccpoint/(10**6))+" million clock cycles:"
@@ -140,11 +144,13 @@ def analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, plotfilename):
     for tfn in traceFileNames:
         curves.append(getCurve(usedir, tfn, ccpoint))
     
+    verifyPoints = []
     if opts.verify:
-        verifyAllocation(curves, opts, usedir, ccpoint)
-    
+        verifyAlloc = verifyAllocation(curves, opts, usedir, ccpoint)
+        verifyPoints = getPoints(verifyAlloc, curves, "ks")
+
     allocPoints = getAllocPoints(usedir, ccpoint, curves, opts, bms) 
-    plotCurves(curves, usedir, bms, opts, ccpoint, allocPoints, opts.type, plotfilename)
+    plotCurves(curves, usedir, bms, opts, ccpoint, allocPoints+verifyPoints, opts.type, plotfilename)
 
 def padSample(sample):
     sampleStr = str(int(sample))
