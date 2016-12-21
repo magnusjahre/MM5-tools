@@ -44,12 +44,13 @@ def parseArgs():
 
     parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--type", action="store", dest="type", default="speedup", help="Trace type to use, either perf, speedup or misses")
-    parser.add_option("--np", action="store", dest="np", default=4, help="Trace type to use, either perf, speedup or misses")
+    parser.add_option("--np", action="store", dest="np", default=4, help="Number of cores")
     parser.add_option("--yrange", action="store", dest="yrange", default="", help="Y-axis range")
     parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file (single plot)")
     parser.add_option("--plotdir-prefix", action="store", dest="plotdirprefix", default="cache-analysis", help="Prefix of cache analysis directories (full plot)")
     parser.add_option("--verify", action="store_true", dest="verify", default=False, help="Verify the lookahead allocation algorithm")
     parser.add_option("--gen-curve-code", action="store_true", dest="genCurveCode", default=False, help="Print code for testing the C++ lookahead implementation")
+    parser.add_option("--cap", action="store", dest="cap", default=16, type="int", help="The maximum number of ways that can be allocated in one round of the lookahead algorithm")
     
     opts, args = parser.parse_args()
     
@@ -167,11 +168,11 @@ def getMarginalUtility(curve, curAlloc, newAlloc):
     mu = numerator/denominator
     return mu
 
-def getMaxMarginalUtility(curve, curAlloc, balance):
+def getMaxMarginalUtility(curve, curAlloc, balance, cap):
     maxMu = -1.0
     maxAdditionalWays = -1
     additionalWays = 1
-    while additionalWays <= balance:
+    while additionalWays <= balance and additionalWays < cap:
         newAlloc = curAlloc+additionalWays
         mu = getMarginalUtility(curve, curAlloc, newAlloc)
         if mu > maxMu:
@@ -212,12 +213,12 @@ def verifyAllocation(curves, opts, usedir, ccpoint):
     allocRound = 1
     
     while balance > 0:
-        print "Allocation round", allocRound
+        print "Allocation round", allocRound, "with cap", opts.cap
         winner = -1
         maxMUAdditionalWays = -1
         maxMU = -1.0
         for i in range(len(curves)):
-            coreMaxAdditionalWays, coreMaxMu = getMaxMarginalUtility(curves[i], curAlloc[i], balance)
+            coreMaxAdditionalWays, coreMaxMu = getMaxMarginalUtility(curves[i], curAlloc[i], balance, opts.cap)
             print "Maximum utility for CPU "+str(i)+" is "+str(coreMaxMu)+" with "+str(coreMaxAdditionalWays)+" additional ways"
             if coreMaxMu > maxMU:
                 winner = i
