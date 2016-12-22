@@ -1,6 +1,4 @@
-
 from math import sqrt
-from numpy import median
 
 def computeStddev(n, insum, sumsq):
     if n <= 1:
@@ -24,6 +22,7 @@ def computeRMS(n, sumsq):
     return sqrt(max(meanSquare ,0))
 
 def computeMedian(values):
+    from numpy import median
     if values == []:
         return 0
     return float(median(values))
