@@ -359,17 +359,6 @@ class ExperimentConfiguration:
                     for bm in workloads.getBms(wl, np, True):
                         
                         instSampFilePath = wlExpID+"/pm-sample-points-"+wl+"-"+str(wlCPUID)+"-"+bm+".txt"
-                        if not os.path.exists(instSampFilePath):
-                            print "Warning: Instruction sampling file not found, quitting private mode sample point generation"
-                            print "         Checked path is "+instSampFilePath
-                            return []
-                        
-                        # NOTE: Code below implements gathering samples for the whole shared mode run. However, for the stats to be
-                        #       comparable, we need the exact same number of instructions to be represented in the stat file
-                        #instSampFile = open(instSampFilePath)
-                        #instSampPointStrings = instSampFile.readline().split(",")
-                        #instSampPoints = [int(p) for p in instSampPointStrings]
-                        #siminsts = max(instSampPoints)
                         
                         singleParams = self.getParams(np, wl, bm, wlCPUID, varArgs)
                         singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, -1, self.baselineParameters+varArgs, "../"+instSampFilePath)
