@@ -54,15 +54,16 @@ def main():
     expectedCores = 0
     completedCores = 0
     
-    print "Experiment status:"
+    print "Shared mode experiment status:"
     for cmd, params in pbsconfig.commandlines:
         expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, False, opts.verbose)
         completedCores += lines
-        
-    if os.path.exists("pbsfiles-priv-mode"):
-        for cmd, params in pbsconfig.privModeCommandlines:
-            expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, True, opts.verbose)
-            completedCores += lines
+    
+    print
+    print "Private mode experiment status:"
+    for cmd, params in pbsconfig.privModeCommandlines:
+        expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, True, opts.verbose)
+        completedCores += lines
     
     print "Summmary:", completedCores,"out of",expectedCores,"complete",
     print "("+("%.2f" % ((float(completedCores)*100)/float(expectedCores)))+"%)"
