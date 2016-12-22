@@ -9,6 +9,7 @@ def parseArgs():
     
     parser = OptionParser(usage="experimentStatus.py [options]")
     parser.add_option("--verbose", '-v', action="store_true", dest="verbose", default=False, help="Print all lines")
+    parser.add_option("--only-shared-mode", '-s', action="store_true", dest="onlySharedMode", default=False, help="Only print shared mode status")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
@@ -59,13 +60,14 @@ def main():
         expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, False, opts.verbose)
         completedCores += lines
     
-    print
-    print "Private mode experiment status:"
-    for cmd, params in pbsconfig.privModeCommandlines:
-        expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, True, opts.verbose)
-        completedCores += lines
+    if not opts.onlySharedMode:
+        print
+        print "Private mode experiment status:"
+        for cmd, params in pbsconfig.privModeCommandlines:
+            expectedCores, lines = processExperiment(params, pbsconfig, expectedCores, True, opts.verbose)
+            completedCores += lines
     
-    print "Summmary:", completedCores,"out of",expectedCores,"complete",
+    print "Summary:", completedCores,"out of",expectedCores,"complete",
     print "("+("%.2f" % ((float(completedCores)*100)/float(expectedCores)))+"%)"
     
 if __name__ == '__main__':
