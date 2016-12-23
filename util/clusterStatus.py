@@ -124,6 +124,11 @@ def processSinfoOutput(output, opts):
 def getPerc(v1, v2):
     return ("%.1f" % ((float(v1)/float(v2))*100))+" %"
 
+def getValue(status, q, key, width):
+    if key not in status[q]:
+        return "0".rjust(width)
+    return str(status[q][key]).rjust(width)
+
 def printClusterStatus(status, opts):
 
     print "Overall Node Status:"
@@ -140,9 +145,9 @@ def printClusterStatus(status, opts):
     print header
     for q in status:
         outstr = q.ljust(queuewidth)
-        outstr += str(status[q]["alloc"]).rjust(numberWidth)
-        outstr += str(status[q]["idle"]).rjust(numberWidth)
-        outstr += str(status[q]["down"]).rjust(numberWidth)
+        outstr += getValue(status, q, "alloc", numberWidth)
+        outstr += getValue(status, q, "idle", numberWidth)
+        outstr += getValue(status, q, "down", numberWidth)
         outstr += getPerc(status[q]["alloc"], sum(status[q].values())).rjust(10)
 
         print outstr
