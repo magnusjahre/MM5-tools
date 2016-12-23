@@ -24,11 +24,11 @@ def parseArgs():
 class JobStatus:
     def __init__(self, line):
         data = line.split()
-        self.queue = data[1]
-        self.user = data[3]
-        self.state = data[4]
-        self.nodes = int(data[6])
-        self.reason = data[7]
+        self.queue = data[2]
+        self.user = data[4]
+        self.state = data[5]
+        self.nodes = int(data[7])
+        self.reason = data[8]
 
     def fixStatusDictStructure(self, status, initVal):
         if self.queue not in status:
@@ -59,15 +59,17 @@ def sortQueueStatus(status):
         data.append([inverted[k], k])
     return data
 
-def printQueueStatus(jobstate, qname, status, opts):
+def printQueueStatus(jobstate, qname, status, opts, clusterStatus):
     print "Status of "+jobstate+" jobs in queue "+qname+":"
     qs = sortQueueStatus(status)
     for u,cnt in qs:
-        print u.ljust(opts.userWidth)+str(cnt).rjust(4)
+        outstr = u.ljust(opts.userWidth)+str(cnt).rjust(4)
+        if jobstate == "running":
+            outstr += getPerc(cnt, clusterStatus[qname]["alloc"]).rjust(10)
+        print outstr
     print
 
-def readSqueueOutput(output, opts):
-    # Dict structure: queue -> user -> [reason for pending] -> nodecnt
+def processSqueueOutput(output, clusterStatus, opts):
     runningStatus = {}
     pendingStatus = {}
 
@@ -87,12 +89,65 @@ def readSqueueOutput(output, opts):
     if opts.queue != "":
         if opts.queue not in runningStatus.keys():
             fatal("Unknown queue "+opts.queue+", candidates are: "+" ".join(runningStatus.keys()))
-        printQueueStatus("running", opts.queue, runningStatus[opts.queue], opts)
-        printQueueStatus("pending", opts.queue, pendingStatus[opts.queue], opts)
+        printQueueStatus("running", opts.queue, runningStatus[opts.queue], opts, clusterStatus)
+        printQueueStatus("pending", opts.queue, pendingStatus[opts.queue], opts, clusterStatus)
     else:
         for q in runningStatus:
-            printQueueStatus("running", q, runningStatus[q], opts)
-            printQueueStatus("pending", q, pendingStatus[q], opts)
+            printQueueStatus("running", q, runningStatus[q], opts, clusterStatus)
+            printQueueStatus("pending", q, pendingStatus[q], opts, clusterStatus)
+
+def processSinfoOutput(output, opts): 
+
+    status = {}
+
+    for l in output.split("\n")[1:]:
+        if l!= "":
+            data = l.split()
+            queue = data[0].replace("*","")
+            nodes = int(data[3])
+            state = data[4].replace("*","")
+            
+            if queue not in status:
+                status[queue] = {}
+            
+            if state == "comp":
+                state = "alloc"
+            if state == "mix":
+                state = "alloc"
+
+            if state not in status[queue]:
+                status[queue][state] = 0
+            status[queue][state] += nodes
+
+    return status
+
+def getPerc(v1, v2):
+    return ("%.1f" % ((float(v1)/float(v2))*100))+" %"
+
+def printClusterStatus(status, opts):
+
+    print "Overall Node Status:"
+    print
+
+    queuewidth = 15
+    numberWidth = 6
+    header = "".ljust(queuewidth)
+    header += "Alloc".rjust(numberWidth)
+    header += "Idle".rjust(numberWidth)
+    header += "Down".rjust(numberWidth)
+    header += "Alloc (%)".rjust(10)
+
+    print header
+    for q in status:
+        outstr = q.ljust(queuewidth)
+        outstr += str(status[q]["alloc"]).rjust(numberWidth)
+        outstr += str(status[q]["idle"]).rjust(numberWidth)
+        outstr += str(status[q]["down"]).rjust(numberWidth)
+        outstr += getPerc(status[q]["alloc"], sum(status[q].values())).rjust(10)
+
+        print outstr
+        
+
 
 def main():
     opts, args = parseArgs()
@@ -101,11 +156,15 @@ def main():
     print "CLUSTER STATUS"
     print
 
-    command = ["squeue"]
+    command = ["sinfo"]
     output = check_output(command)
-    data = readSqueueOutput(output, opts)
+    clusterStatus = processSinfoOutput(output, opts)
 
-    
+    command = ["squeue", "-o", '"%.18i %.15P %.8j %.8u %.2t %.10M %.6D %R"']
+    output = check_output(command)
+    processSqueueOutput(output, clusterStatus, opts)
+
+    printClusterStatus(clusterStatus, opts)
 
 if __name__ == '__main__':
     main()
