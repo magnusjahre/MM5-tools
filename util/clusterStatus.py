@@ -94,6 +94,7 @@ def processSqueueOutput(output, clusterStatus, opts):
     else:
         for q in runningStatus:
             printQueueStatus("running", q, runningStatus[q], opts, clusterStatus)
+        for q in pendingStatus:
             printQueueStatus("pending", q, pendingStatus[q], opts, clusterStatus)
 
 def processSinfoOutput(output, opts): 
