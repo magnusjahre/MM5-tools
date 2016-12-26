@@ -146,12 +146,16 @@ def analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, plotfilename):
         curves.append(getCurve(usedir, tfn, ccpoint))
     
     verifyPoints = []
+    passed = False
     if opts.verify:
-        verifyAlloc = verifyAllocation(curves, opts, usedir, ccpoint)
+        verifyAlloc, passed = verifyAllocation(curves, opts, usedir, ccpoint)
         verifyPoints = getPoints(verifyAlloc, curves, "ks")
 
     allocPoints = getAllocPoints(usedir, ccpoint, curves, opts, bms) 
     plotCurves(curves, usedir, bms, opts, ccpoint, allocPoints+verifyPoints, opts.type, plotfilename)
+
+    return passed
+    
 
 def padSample(sample):
     sampleStr = str(int(sample))
@@ -248,10 +252,12 @@ def verifyAllocation(curves, opts, usedir, ccpoint):
     print "\nVERIFICATION",
     if tracesEqual:
         print "PASSED\n"
+        passed = True
     else:
         print "FAILED\n"
+        passed = False
     
-    return curAlloc
+    return curAlloc, passed
 
 def main():
 
@@ -267,9 +273,15 @@ def main():
     traceFileNames = ctfn.getFilenames(traceFileType, opts.np)
     
     wl, bms = getBenchmarkNames(usedir, opts.np)
+    passCnt = 0
+    totalCnt = 0
     
     if ccpoint != 0:
-        analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, opts.plotfile)
+        passed = analyzeCCPoint(usedir, ccpoint, opts, traceFileNames, bms, opts.plotfile)
+        
+        totalCnt += 1
+        if passed:
+            passCnt += 1
     else:
         plotdirpath = opts.plotdirprefix+"-"+usedir
         if os.path.exists(plotdirpath):
@@ -283,7 +295,15 @@ def main():
         for s in sampleTicks:
             plotfile = wl+"-"+padSample(s)+".pdf"
             print "Processing file "+plotfile
-            analyzeCCPoint(usedir, s, opts, traceFileNames, bms, plotdirpath+"/"+plotfile)
+            passed = analyzeCCPoint(usedir, s, opts, traceFileNames, bms, plotdirpath+"/"+plotfile)
+            
+            totalCnt += 1
+            if passed:
+                passCnt += 1
+        
+    if opts.verify:
+        percPass = (float(passCnt)/float(totalCnt))*100
+        print passCnt,"samples out of",totalCnt, "passed verification: ", "%.1f" % percPass, "% correct"
 
 if __name__ == '__main__':
     main()
