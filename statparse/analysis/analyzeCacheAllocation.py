@@ -214,7 +214,7 @@ def verifyAllocation(curves, opts, usedir, ccpoint):
     maxWays = len(curves[0])
     curAlloc = [1 for c in curves]
     balance = maxWays - sum(curAlloc)
-    allocRound = 1
+    allocRound = 0
     
     while balance > 0:
         print "Allocation round", allocRound, "with cap", opts.cap
@@ -229,7 +229,7 @@ def verifyAllocation(curves, opts, usedir, ccpoint):
                 winner = i
                 maxMUAdditionalWays = coreMaxAdditionalWays
                 maxMU = coreMaxMu
-                drawList = [(winner, maxMUAdditionalWays)]
+                drawList = [(i, coreMaxAdditionalWays)]
             elif coreMaxMu == maxMU:
                 drawList.append( (i, coreMaxAdditionalWays) )
         
