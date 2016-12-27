@@ -186,7 +186,7 @@ def plotArea(xdata, ydata, **kwargs):
             lcols = kwargs["cols"]
         
         proxyRects = [Rectangle((0, 0), 1, 1, fc=pc.get_facecolor()[0]) for pc in stacks]
-        ax.legend(proxyRects, kwargs["legend"], "upper center", ncol=lcols)
+        ax.legend(proxyRects, kwargs["legend"], ncol=lcols, loc="upper center")
         
     if "title" in kwargs:
         if kwargs["title"] != "none":
