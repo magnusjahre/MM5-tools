@@ -221,6 +221,7 @@ def verifyAllocation(curves, opts, usedir, ccpoint):
         winner = -1
         maxMUAdditionalWays = -1
         maxMU = -1.0
+        drawList = []
         for i in range(len(curves)):
             coreMaxAdditionalWays, coreMaxMu = getMaxMarginalUtility(curves[i], curAlloc[i], balance, opts.cap)
             print "Maximum utility for CPU "+str(i)+" is "+str(coreMaxMu)+" with "+str(coreMaxAdditionalWays)+" additional ways"
@@ -228,6 +229,14 @@ def verifyAllocation(curves, opts, usedir, ccpoint):
                 winner = i
                 maxMUAdditionalWays = coreMaxAdditionalWays
                 maxMU = coreMaxMu
+                drawList = [(winner, maxMUAdditionalWays)]
+            elif coreMaxMu == maxMU:
+                drawList.append( (i, coreMaxAdditionalWays) )
+        
+        if len(drawList) > 1:
+            winnerID = allocRound % len(drawList)
+            print "Draw between "+str(len(drawList))+" cores, selecting winner "+str(winnerID)+" from round "+str(allocRound)
+            winner, maxMUAdditionalWays = drawList[winnerID]
         
         print "CPU "+str(winner)+" wins, increasing allocation by "+str(maxMUAdditionalWays)+" ways"
         assert maxMUAdditionalWays > 0
