@@ -582,7 +582,7 @@ def plotLines(xvalues, yvalues, **kwargs):
             ax.set_ylabel(kwargs["ylabel"])
     
     if "legendTitles" in kwargs:
-        ax.legend(lines, kwargs["legendTitles"], "upper center", ncol=cols)
+        ax.legend(lines, kwargs["legendTitles"], loc="upper center", ncol=cols)
     
     if "xrange" in kwargs:
         if kwargs["xrange"] != "":
