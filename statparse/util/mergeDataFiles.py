@@ -181,8 +181,6 @@ def mergeData(fileData, opts):
     wls = mergedData.keys()
     wls.sort()
     if opts.disableRowSort:
-        sortedLineOrder = sorted(lineOrder)
-        assert sortedLineOrder == wls
         wls = lineOrder
             
     mergedMatrix = []
