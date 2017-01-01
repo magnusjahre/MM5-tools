@@ -52,9 +52,11 @@ def processExperiment(params, pbsconfig, expectedCores, privmode, verbose):
     return expectedCores, lines, lines == cores
 
 def processRerunList(failedlist, opts):
+    pbsdir="pbsfiles"
+
     rerunfiles = []
     pairs = []
-    os.chdir("pbsfiles")
+    os.chdir(pbsdir)
     for fn in os.listdir("."):
         if fn.startswith("runfile"):
             f = open(fn)
@@ -75,7 +77,7 @@ def processRerunList(failedlist, opts):
 
     print
     print "Command to submit failed files:"
-    print "sbatch "+" ".join(rerunfiles)
+    print "sbatch "+pbsdir+"/"+("; sbatch "+pbsdir+"/").join(rerunfiles)
 
 def main():
     opts, args, pbsconfig = parseArgs()
