@@ -11,14 +11,14 @@ import optcomplete
 def parseArgs():
     parser = OptionParser(usage="plotDataFile.py [options] filename [filename ...]")
 
-    plotTypes = ["boxplot", "lineplot", "bars"]
+    plotTypes = ["boxes", "lines", "bars"]
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--legend-columns", action="store", dest="legendColumns", type="int", default=2, help="Number of columns in legend")
     parser.add_option("--margins", action="store", dest="margins", type="string", default="", help="Comma separated plot margins: left,right,top,bottom ")
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Output filename (Default: plot.pdf)")
-    parser.add_option("--plot-type", action="store", dest="plotType", type="string", default="boxplot", help="Output filename (Default: boxplot, alternatives "+str(plotTypes)+")")
+    parser.add_option("--plot-type", action="store", dest="plotType", type="string", default="boxes", help="Output filename (Default: boxes, alternatives "+str(plotTypes)+")")
     parser.add_option("-y", "--ytitle", action="store", dest="ytitle", type="string", default="Y axis title", help="Y axis title")
     parser.add_option("-x", "--xtitle", action="store", dest="xtitle", type="string", default="X axis title", help="X axis title")
     parser.add_option("--yrange", action="store", dest="yrange", type="string", default=None, help="Comma separated min,max pair")
@@ -109,7 +109,7 @@ def main():
         thisHeader, thisData = readDataFile(datafiles[i], opts.columns, opts.onlyType)
         series = createDataSeries(thisData, len(thisHeader), opts)
         
-        if opts.plotType != "boxplot":
+        if opts.plotType != "boxes":
             dataseries = series
             header = thisHeader
         else:
@@ -141,7 +141,7 @@ def main():
     else:
         print "Showing plot..."
     
-    if opts.plotType == "lineplot":
+    if opts.plotType == "lines":
         plotRawLinePlot(dataseries[0], dataseries[1:],
                         titles=header,
                         filename=opts.outfile,
@@ -171,7 +171,7 @@ def main():
                              figheight=opts.figheight,
                              figwidth=opts.figwidth)
     else:
-        assert opts.plotType == "boxplot"
+        assert opts.plotType == "boxes"
         plotRawBoxPlot(dataseries,
                        titles=header,
                        plotmargins=margs,
