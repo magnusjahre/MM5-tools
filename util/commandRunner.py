@@ -2,9 +2,10 @@
 
 import threading
 import sys
-import subprocess
+from subprocess import Popen, PIPE
 import time
 import os
+import re
 from optparse import OptionParser
 from util import fatal
 
@@ -30,22 +31,43 @@ class ThreadedCommand(threading.Thread):
             if os.path.exists(os.path.join(self.directory,self.existsname)):
                 self.cmdRunner.protectedPrint("Thread "+str(self.localID)+": File "+self.existsname+" exists, skipping")
             else:
-                p = subprocess.Popen(self.command, cwd=self.directory)
-                p.wait()
+                p = Popen(self.command, cwd=self.directory, stdout=PIPE, stderr=PIPE)
+                stdout, stderr = p.communicate()
+                
+                if self.cmdRunner.checkOutput:
+                    self.checkOutput(stderr)
+                else:
+                    self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" stdout: "+stdout)
+                    self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" stderr: "+stderr)
         
         self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" terminating")
         self.cmdRunner.updateThreadCnt(False)
 
+    def checkOutput(self, stderr):
+        
+        result = re.search("Terminating simulation -- all CPUs have reached their instruction limit", stderr)
+        resstr = "Test failed"
+        if result:
+            resstr = "Test passed"
+        self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" result: "+resstr)
+        
+        os.chdir(self.directory)
+        f = open("testresult.txt", "w")
+        f.write(resstr)
+        f.flush()
+        f.close()
+        os.chdir("..")
 
 class CommandRunner():
     
-    def __init__(self, numThreads, waitTime, dryRun):
+    def __init__(self, numThreads, waitTime, dryRun, checkOutput):
         self.printLock = threading.Lock()
         self.threadCntLock = threading.Lock()
         self.numThreads = numThreads
         self.numWorkers = 0
         self.waitTime = waitTime
         self.dryRun = dryRun
+        self.checkOutput = checkOutput
 
     def protectedPrint(self, text):
         self.printLock.acquire()
@@ -75,7 +97,7 @@ class CommandRunner():
                 self.updateThreadCnt(True)
                 threadCounter += 1
                 
-        while self.numWorkers > 1:
+        while self.numWorkers > 0:
             self.protectedPrint("Waiting for workers to finish, number of active worker threads is "+str(self.numWorkers)+", sleeping")
             time.sleep(self.waitTime)
 
@@ -87,6 +109,7 @@ def parseArgs():
     parser.add_option("--threads", '-t', action="store", dest="threads", default=4, type="int", help="Number of worker threads")
     parser.add_option("--sleep", '-s', action="store", dest="sleep", default=5, type="int", help="Number of seconds main thread sleeps for when the maximum number of threads are running")
     parser.add_option("--dry-run", action="store_true", dest="dryRun", default=False, help="Don't run the commands")
+    parser.add_option("--check-output", action="store_true", dest="checkOutput", default=False, help="Check for successful simulator completion")
     opts, args = parser.parse_args()
     
     if len(args) != 1:
@@ -121,7 +144,7 @@ def main():
     
     print "CommandRunner started with "+str(len(commands))+" potential commands"
     
-    cmdRunner = CommandRunner(opts.threads, opts.sleep, opts.dryRun)
+    cmdRunner = CommandRunner(opts.threads, opts.sleep, opts.dryRun, opts.checkOutput)
     cmdRunner.runCommands(commands)
     
 if __name__ == '__main__':
