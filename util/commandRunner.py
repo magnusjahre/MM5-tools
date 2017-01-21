@@ -36,6 +36,8 @@ class ThreadedCommand(threading.Thread):
                 
                 if self.cmdRunner.checkOutput:
                     self.checkOutput(stderr)
+                    self.writeOutfile("stdout.txt", stdout)
+                    self.writeOutfile("stderr.txt", stderr)
                 else:
                     self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" stdout: "+stdout)
                     self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" stderr: "+stderr)
@@ -50,11 +52,14 @@ class ThreadedCommand(threading.Thread):
         if result:
             resstr = "Test passed"
         self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" result: "+resstr)
-        
-        f = open(self.directory+"/testresult.txt", "w")
-        f.write(resstr)
+        self.writeOutfile("testresult.txt", resstr)
+
+    def writeOutfile(self, filename, content):
+        f = open(self.directory+"/"+filename, "w")
+        f.write(content)
         f.flush()
         f.close()
+
 
 class CommandRunner():
     
