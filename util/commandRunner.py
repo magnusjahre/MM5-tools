@@ -51,12 +51,10 @@ class ThreadedCommand(threading.Thread):
             resstr = "Test passed"
         self.cmdRunner.protectedPrint("Thread "+str(self.localID)+" result: "+resstr)
         
-        os.chdir(self.directory)
-        f = open("testresult.txt", "w")
+        f = open(self.directory+"/testresult.txt", "w")
         f.write(resstr)
         f.flush()
         f.close()
-        os.chdir("..")
 
 class CommandRunner():
     
