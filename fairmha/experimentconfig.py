@@ -251,7 +251,7 @@ class ExperimentConfiguration:
             return "-E"+argument
         return "-E"+argument+"="+str(value)
     
-    def generateCommonCommands(self, args, np, workload, params, bm, bmid, siminsts, pmInstSampPath):
+    def generateCommonCommands(self, args, np, workload, params, bm, bmid, siminsts, pmInstSampPath, pmComInstPath):
         
         if bmid == self.noBMIndentifier:
             args.append(self.makeArgument("NP", np))
@@ -269,7 +269,11 @@ class ExperimentConfiguration:
             args.append(self.makeArgument("BENCHMARK", bm))
             if siminsts != -1:
                 args.append(self.makeArgument("SIMINSTS", str(siminsts)))
+            
+            assert pmInstSampPath != ""
+            assert pmComInstPath != ""
             args.append(self.makeArgument("COMMIT-TRACE-INSTRUCTION-FILE", pmInstSampPath))
+            args.append(self.makeArgument("SIMINSTS-FILE", pmComInstPath))
             args.append(self.makeArgument("MEMORY-ADDRESS-OFFSET", 0))
             
         args.append(self.makeArgument("STATSFILE", self.getFileIdentifier(params))+".txt")
@@ -359,17 +363,18 @@ class ExperimentConfiguration:
                     for bm in workloads.getBms(wl, np, True):
                         
                         instSampFilePath = wlExpID+"/pm-sample-points-"+wl+"-"+str(wlCPUID)+"-"+bm+".txt"
+                        instCountFilePath = wlExpID+"/cpu-com-insts"+str(wlCPUID)+".txt"
                         
                         singleParams = self.getParams(np, wl, bm, wlCPUID, varArgs)
-                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, -1, self.baselineParameters+varArgs, "../"+instSampFilePath)
+                        singleCommand = self.getCommand(np, self.noWlIdentifier, singleParams, bm, wlCPUID, -1, self.baselineParameters+varArgs, "../"+instSampFilePath, "../"+instCountFilePath)
                         commandlines.append( (singleCommand, singleParams) ) 
                         wlCPUID += 1
 
         return commandlines
     
-    def getCommand(self, np, wl, params, bm, bmid, insts, varargs, pmInstSampPath=""):
+    def getCommand(self, np, wl, params, bm, bmid, insts, varargs, pmInstSampPath="", pmComInstPath=""):
         args = []        
-        args = self.generateCommonCommands(args, np, wl, params, bm, bmid, insts, pmInstSampPath)
+        args = self.generateCommonCommands(args, np, wl, params, bm, bmid, insts, pmInstSampPath, pmComInstPath)
         
         for arg in self.fixedSimulatorArguments:
             args.append(self.makeArgument(arg, self.fixedSimulatorArguments[arg]))
