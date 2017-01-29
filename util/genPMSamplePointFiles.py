@@ -13,7 +13,7 @@ def parseArgs():
     #parser.add_option("--max-insts", action="store", dest="maxInsts", default=100000000, type="int", help="Size of a private mode experiment in committed instructions (Default: 100 million)")
     parser.add_option("--outfile", action="store", dest="outfile", default="sample-ints.txt", type="string", help="Output file name (Default: sample-insts.txt)")
     parser.add_option("--np", action="store", dest="np", default=4, type="int", help="Number of CPUs used in the experiment (Default: 4)")
-    parser.add_option("--max-insts", action="store", dest="maxInsts", default=100*(10**6), type="int", help="Maximum instruction count to include in file (Default: 100 million)")
+    parser.add_option("--max-insts", action="store", dest="maxInsts", default=0, type="int", help="Maximum instruction count to include in file (Default: all)")
     opts, args = parser.parse_args()
     
     if len(args) > 1:
@@ -31,7 +31,9 @@ def readSharedModeInstSamples(tracefilename, maxInsts):
     instSampPoints = tracedata.getColumn(colID)
     points = []
     for p in instSampPoints:
-        if p <= maxInsts:
+        if maxInsts == 0:
+            points.append(p)
+        elif p <= maxInsts:
             points.append(p)
     
     return points
