@@ -11,6 +11,7 @@ def parseArgs():
     
     parser = OptionParser(usage="getProjectHours.py [options] project weeknum year")
     parser.add_option("--decimals", action="store", dest="decimals", default=1, type="int", help="Number of decimals")
+    parser.add_option("--no-merge", action="store_true", dest="noMerge", default=False, help="Do not merge WP entries")
     opts, args = parser.parse_args()
     
     if len(args) != 3:
@@ -51,6 +52,10 @@ class ProjectTask:
         assert wp == self.wp
         self.hours[weekday] += hours
 
+    def addHourList(self, hourlist):
+        for i in range(len(self.hours)):
+            self.hours[i] += hourlist[i]
+
 def getWeekday(num):
     return WEEKDAYS[num]    
 
@@ -69,9 +74,21 @@ def parseTaskString(taskstring, togglProject):
     assert project in PROJECTS
     assert project == togglProject
     return wp, taskname
-    
 
-def getProjectHours(project, weeknum, year):
+def mergeWPTasks(tasks):
+    wpTasks = {}
+    
+    for t in tasks:
+        if tasks[t].wp in wpTasks:
+            wpTasks[tasks[t].wp].text += "; "+tasks[t].text
+            wpTasks[tasks[t].wp].addHourList(tasks[t].hours)
+        else:
+            wpTasks[tasks[t].wp] = ProjectTask(tasks[t].wp, tasks[t].text)
+            wpTasks[tasks[t].wp].addHourList(tasks[t].hours)
+    
+    return wpTasks
+
+def getProjectHours(project, weeknum, year, opts):
     
     taskIDMap = {"READEX": 6500697,
                  "TULIPP": 7057826}
@@ -102,7 +119,10 @@ def getProjectHours(project, weeknum, year):
         if taskname not in tasks:
             tasks[taskname] = ProjectTask(wp, taskname)
         tasks[taskname].addHours(wp, duration, startTimeStamp.weekday())
-        
+    
+    if not opts.noMerge:
+        tasks = mergeWPTasks(tasks)
+    
     return tasks
 
 def getProjectNumber(project, wp):
@@ -122,11 +142,10 @@ def printTasks(project, tasks, opts):
     lines = []
     lines.append(headings)
     for t in tasks:
-        assert t == tasks[t].text
         line = []
         line.append(tasks[t].wp)
         line.append(getProjectNumber(project, tasks[t].wp))
-        line.append(t)
+        line.append(tasks[t].text)
         for h in tasks[t].hours:
             totalHours += h
             line.append(numberToString(h, opts.decimals))
@@ -142,7 +161,7 @@ if __name__ == '__main__':
     print "Hours for Project "+project+", week "+str(weeknum)+" of year "+str(year)
     print
     
-    tasks = getProjectHours(project, weeknum, year)
+    tasks = getProjectHours(project, weeknum, year, opts)
     totalHours = printTasks(project, tasks, opts)
     
     print
