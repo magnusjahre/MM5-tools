@@ -39,6 +39,11 @@ class StatfileIndex():
             for p in kwargs["onlyIncludeStat"]:
                 self.includePatternList.append(re.compile(p))
     
+        if "finalMode" in kwargs:
+            self.finalMode = kwargs["finalMode"]
+        else:
+            self.finalMode = False
+    
     def doAddStat(self, statkey):
         if self.includePatternList == []:
             return True
@@ -74,11 +79,11 @@ class StatfileIndex():
                 self.configurations.append(expConf)
                 configIDs.append(expConf.experimentID)
             
-            self._parseFile(statsfilename, configIDs)        
+            self._parseFile(statsfilename, configIDs, self.finalMode)        
         else:
             expConf = ExperimentConfiguration(np, params, bm, wl=wl, cpuID=cpuID)
             self.configurations.append(expConf)
-            self._parseFile(statsfilename, [expConf.experimentID])
+            self._parseFile(statsfilename, [expConf.experimentID], self.finalMode)
     
     def _retrieveValue(self, searchRes):
         assert len(searchRes.keys()) == 1
@@ -97,17 +102,27 @@ class StatfileIndex():
         orderfile.close()
         return order
     
-    def _parseFile(self, filename, configIDs):
+    def _parseFile(self, filename, configIDs, finalMode):
         statfile = open(filename)
         
         inDistribution = False
+        finalSection = False
         currentPrivateStatPatterns = []
-        distribDict = {}
+        #distribDict = {}
         
+        allCurConfigs = []
+        for inconf in configIDs:
+            for conf in self.configurations:
+                if inconf == conf.experimentID:
+                    allCurConfigs.append(conf)
+        assert len(allCurConfigs) == len(configIDs)
+                
         for l in statfile:
             
             # remove non-stat lines
             if l.startswith("---------- Begin"):
+                if len(configIDs) == 1:
+                    finalSection = True
                 
                 for config in self.configurations:
                     if config.experimentID == configIDs[0]:
@@ -127,40 +142,48 @@ class StatfileIndex():
             if inDistribution:
                 if self._findLastKeyPart(l) == "end_dist":
                     inDistribution = False
-                    if self._canAdd(l, currentPrivateStatPatterns):
-                        self.addstat(self._findKeyWithoutLast(l)+distKeySuffix, configIDs[0], distribDict)
-                else:
-                    
-                    vals = l.split()
-                    if self._isInt(vals[0]):
-                        assert self._isInt(vals[1])
-                        distribDict[int(vals[0])] = int(vals[1])
-                    else:
-                        if self._isKey(vals[0]):
-                            if self._isFloat(vals[1]):
-                                distribDict[self._findLastKeyPart(l)] = float(vals[1])
-                            else:
-                                distribDict[self._findLastKeyPart(l)] = int(vals[1])
-                        else:
-                            name = vals[0]
-                            for i in range(len(vals))[1:]:
-                                if self._isInt(vals[i]):
-                                    break
-                                name += " "+vals[i]
-
-                            distribDict[name] = int(vals[i])
-                            
+                    # TODO: Support dict parsing for both parsing modes
+#                     if self._canAdd(l, currentPrivateStatPatterns):
+#                         self.addstat(self._findKeyWithoutLast(l)+distKeySuffix, configIDs[0], distribDict)
+#                 else:
+#                     
+#                     vals = l.split()
+#                     if self._isInt(vals[0]):
+#                         assert self._isInt(vals[1])
+#                         distribDict[int(vals[0])] = int(vals[1])
+#                     else:
+#                         if self._isKey(vals[0]):
+#                             if self._isFloat(vals[1]):
+#                                 distribDict[self._findLastKeyPart(l)] = float(vals[1])
+#                             else:
+#                                 distribDict[self._findLastKeyPart(l)] = int(vals[1])
+#                         else:
+#                             name = vals[0]
+#                             for i in range(len(vals))[1:]:
+#                                 if self._isInt(vals[i]):
+#                                     break
+#                                 name += " "+vals[i]
+# 
+#                             distribDict[name] = int(vals[i])
+#                             
                 continue
                 
             elif self._findLastKeyPart(l) == "start_dist":
                 inDistribution = True
-                distribDict = {}
+                #distribDict = {}
                 continue
+            
+            if finalMode:
+                if finalSection:
+                    for tmpConfig in allCurConfigs:
+                        tmpCPUID = tmpConfig.getIDInWorkload()
+                        tmpPrivateStatPatterns = [re.compile(stat+str(tmpCPUID)+"\.") for stat in privateStatNames]
                         
-            if not self._canAdd(l, currentPrivateStatPatterns):
-                continue
-                
-            self._storeStat(l, configIDs[0])
+                        if self._canAdd(l, tmpPrivateStatPatterns):
+                            self._storeStat(l, tmpConfig.experimentID)
+            else:
+                if self._canAdd(l, currentPrivateStatPatterns):
+                    self._storeStat(l, configIDs[0])
                 
         
         statfile.close()
