@@ -330,7 +330,12 @@ def computeTraceError(dirs, np, getTracename, relative, quiet, mainColumnName, o
             
             elif compareToAlone:
                 aloneTrace = TracefileData(aloneTraceFilename)
-                aloneTrace.readTracefile()
+                try:
+                    aloneTrace.readTracefile()
+                except IOError:    
+                    warn("File "+aloneTraceFilename+" cannot be opened, skipping...")
+                    continue
+                
                 try:
                     curStats = computeErrors(aloneTrace, mainColumnName, sharedTrace, otherColumnName, relative, cpuID=cpuID)
                 except MalformedTraceFileException:

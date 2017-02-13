@@ -65,6 +65,7 @@ def parseArgs():
     otherOptions.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only print search results")
     otherOptions.add_option("--show-stacktrace", action="store_true", dest="showStackTrace", default=False, help="Show stacktrace on caught exceptions")
     otherOptions.add_option("--only-index", action="store", dest="onlyIndexPat", default=".*", help="A comma-separated list of patterns to put in the index")
+    otherOptions.add_option("--not-final-mode", action="store_false", dest="notFinalMode", default=True, help="Use the first simulation statistics sample for each benchmark")
     parser.add_option_group(otherOptions)
     
     optcomplete.autocomplete(parser)
@@ -202,7 +203,7 @@ def createFileIndex(opts, args):
             totTime = time() - starttime
             print "Index load took %.2f s" % totTime
     else:
-        index = StatfileIndex(onlyIncludeStat=opts.onlyIndexPat.split(","))
+        index = StatfileIndex(onlyIncludeStat=opts.onlyIndexPat.split(","), finalMode=opts.notFinalMode)
         
         starttime = 0.0
         if not opts.quiet:
@@ -211,7 +212,7 @@ def createFileIndex(opts, args):
             
         if opts.searchFile != "":
             if opts.np == 1:
-                index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.benchmark)
+                index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload, opts.benchmark)
             else:
                 index.addFile(opts.searchFile, opts.orderFile, opts.np, opts.workload, None)
         else:
