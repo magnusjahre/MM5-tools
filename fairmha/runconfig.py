@@ -47,10 +47,10 @@ class ComputerParams:
                 self.perProcMem[key] = memInMeg
     
     def __processStallo(self):
+        # Single core is high due to CPL graph generation, can be lowered when this is disabled
         self.ppn = {1:16, 2:16, 4:16, 8:8, 16:6}
-        self.walltime = {1:5, 2:10, 4:20, 8:168, 16:168}
-        self.projectNum = "nn4650k"
-        
+        self.walltime = {1:30, 2:30, 4:30, 8:168, 16:168}
+        self.projectNum = "nn4650k"        
         
     def getQueue(self, np):
         if self.queue == None or np == 1:
