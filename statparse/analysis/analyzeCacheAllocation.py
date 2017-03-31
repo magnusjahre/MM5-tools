@@ -7,6 +7,7 @@ from optparse import OptionParser
 from statparse.tracefile.tracefileData import TracefileData
 from workloadfiles.workloads import Workloads
 from statparse.plotResults import plotLines
+from statparse.util import fatal
 
 class CacheTraceFileNames:
     
@@ -84,6 +85,8 @@ def getAllocation(directory, numTicks):
     tracecontent.readTracefile()
     colID = tracecontent.findColumnID("Tick", -1)
     rowID = tracecontent.getRowIDByValue(colID, numTicks)
+    if rowID == -1:
+        fatal("Row with provided million cycle count does not exist")
     row = tracecontent.getRow(rowID)
     return row[1:]
 
