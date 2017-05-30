@@ -138,6 +138,7 @@ def plotArea(xdata, ydata, **kwargs):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
     import numpy as np
+    from matplotlib import cm
     
     fontsize = 16
     matplotlib.rc('xtick', labelsize=fontsize) 
@@ -151,7 +152,9 @@ def plotArea(xdata, ydata, **kwargs):
     ax = fig.add_subplot(111)
     ystacked = np.row_stack(ydata)
     
-    stacks = ax.stackplot(xdata[0], ystacked)
+    numDataSets = len(ydata)
+    cls = [cm.Blues(1*(float(i)/numDataSets)) for i in range(numDataSets)]
+    stacks = ax.stackplot(xdata[0], ystacked, colors=cls)
     
     if "xlabel" in kwargs:
         if kwargs["xlabel"] != "none":
