@@ -149,12 +149,13 @@ def printClusterStatus(status, opts):
         outstr += getValue(status, q, "alloc", numberWidth)
         outstr += getValue(status, q, "idle", numberWidth)
         outstr += getValue(status, q, "down", numberWidth)
-        outstr += getPerc(status[q]["alloc"], sum(status[q].values())).rjust(10)
-
+        
+        if sum(status[q].values()) > 0 and "alloc" in status[q]:
+            outstr += getPerc(status[q]["alloc"], sum(status[q].values())).rjust(10)
+        else:
+            outstr += "0.0 %".rjust(10)
         print outstr
         
-
-
 def main():
     opts, args = parseArgs()
     
