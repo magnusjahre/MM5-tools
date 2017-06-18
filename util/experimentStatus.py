@@ -12,6 +12,7 @@ def parseArgs():
     parser.add_option("--verbose", '-v', action="store_true", dest="verbose", default=False, help="Print all lines")
     parser.add_option("--only-shared-mode", '-s', action="store_true", dest="onlySharedMode", default=False, help="Only print shared mode status")
     parser.add_option("--rerun-list", '-r', action="store_true", dest="rerunList", default=False, help="Print command to resubmit non-complete jobs")
+    parser.add_option("--rerun-cmd", '-c', action="store_true", dest="rerunCmd", default=False, help="Print scripts to manually create a resubmit job script")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
@@ -85,6 +86,7 @@ def main():
     expectedCores = 0
     completedCores = 0
     failedlist = []
+    failedcmds = []
 
     print "Shared mode experiment status:"
     for cmd, params in pbsconfig.commandlines:
@@ -92,6 +94,7 @@ def main():
         completedCores += lines
         if not success:
             failedlist.append(pbsconfig.get_unique_id(params))
+            failedcmds.append((pbsconfig.get_unique_id(params), cmd))
 
     if not opts.onlySharedMode:
         print
@@ -101,12 +104,24 @@ def main():
             completedCores += lines
             if not success:
                 failedlist.append(pbsconfig.get_unique_id(params))
+                failedcmds.append((pbsconfig.get_unique_id(params), cmd))
     
     print "Summary:", completedCores,"out of",expectedCores,"complete",
     print "("+("%.2f" % ((float(completedCores)*100)/float(expectedCores)))+"%)"
 
     if opts.rerunList:
         processRerunList(failedlist, opts)
+
+    if opts.rerunCmd:
+        print
+        for ident,cmd in failedcmds:
+            fullpath = os.getcwd()+"/"+ident
+            print "# Rerun script for "+ident
+            print "rm -Rf "+fullpath
+            print "mkdir "+fullpath
+            print "cd "+fullpath
+            print "echo > .rundir"
+            print cmd + '\n'
     
 if __name__ == '__main__':
     main()
