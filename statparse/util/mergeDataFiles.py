@@ -63,6 +63,7 @@ def parseArgs():
     parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
     parser.add_option("--sort-cols", action="store_true", dest="sortCols", default=False, help="Sort each column in ascending order")
     parser.add_option("--pure-merge", action="store_true", dest="pureMerge", default=False, help="Blindly merge line by line, discarding indentifier")
+    parser.add_option("--split-wl-types", action="store_true", dest="splitWlTypes", default=False, help="Split results into one column per workload")
     
     
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
@@ -370,6 +371,56 @@ def computeTypedAverage(processedData, justify, opts):
 
     return resData, justify
 
+def splitWlTypes(processedData, justify, opts):
+    newheader = [""]
+    newJustify = [True]
+    for t in typedWorkloadIdentifiers:
+        for h in processedData[0][1:]:
+            newheader.append(t+"-"+h)
+            newJustify.append(False)
+    
+    newdata = []
+    newdata.append(newheader)
+    
+    tmpdata = {}
+    linecnt = 0
+    for l in processedData[1:]:
+        wltype = ""
+        for t in typedWorkloadIdentifiers:
+            match = re.search("-"+t+"-", l[0])
+            if match != None:
+                wltype = t
+        assert wltype != ""
+                
+        if wltype not in tmpdata:
+            tmpdata[wltype] = {}
+        assert linecnt not in tmpdata[wltype]
+        tmpdata[wltype][linecnt] = l[1:]
+        
+        linecnt += 1
+    
+    mergedData = []
+    for t in typedWorkloadIdentifiers:
+        lineNo = 0
+        for id in sorted(tmpdata[t].keys()):
+            if lineNo == len(mergedData):
+                mergedData.append([])
+            assert lineNo < len(mergedData)
+
+            mergedData[lineNo] += tmpdata[t][id] 
+        
+            lineNo += 1
+    
+    lineNo = 0
+    for l in mergedData:
+        line = [str(lineNo)] + [d for d in l]
+        while len(line) < len(newJustify):
+            line.append(NO_DATA_STRING)
+        newdata.append(line)
+        lineNo += 1
+    
+    return newdata, newJustify
+
 def sortColumns(processedData, justify, opts):
     resData = [processedData.pop(0)]
     datalen = len(processedData[0])-1
@@ -495,6 +546,8 @@ def main():
         processedData, justify = minHistogram(processedData, justify, opts)
     if opts.normalizeTo != -1:
         processedData, justify = normaliseData(processedData, justify, opts)
+    if opts.splitWlTypes:
+        processedData, justify = splitWlTypes(processedData, justify, opts)
     
     if opts.invert:
         processedData = [[processedData[j][i] for j in range(len(processedData))] for i in range(len(processedData[0]))]
