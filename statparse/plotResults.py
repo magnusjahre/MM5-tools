@@ -828,6 +828,78 @@ def flip(items, ncol):
     
     return newitems
 
+def plotViolin(names, values, **kwargs):
+    import matplotlib
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+    
+    fontsize = 12
+    width = 16
+    height = 3.5
+            
+    if "figheight" in kwargs:
+        height = kwargs["figheight"]  
+    
+    if "figwidth" in kwargs:
+        width = kwargs["figwidth"] 
+        fontsize = 14
+    
+    if "largeFonts" in kwargs:
+        if kwargs["largeFonts"]:
+            fontsize += 4
+            
+    matplotlib.rc('ps', useafm=True)
+    matplotlib.rc('pdf', use14corefonts=True)
+    matplotlib.rc('text', usetex=True)
+    matplotlib.rc('xtick', labelsize=fontsize) 
+    matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('legend', fontsize=fontsize)
+    matplotlib.rc('font', size=fontsize)
+    
+    fig = plt.figure(figsize=(width,height))
+    ax = fig.add_subplot(111)
+    
+    violinWidth = 0.8
+    edgePadding = (1-violinWidth)/2
+    pos = range(len(names))
+    
+    thisColor = cm.Blues(1) ##TODO: Change the colors to be consistent with the other plots
+    
+    ax.violinplot(values, pos, points=100, widths=violinWidth, showmeans=True,
+                  showextrema=True, showmedians=False, bw_method=0.1)
+    
+    ax.set_xlim((-violinWidth/2)-edgePadding, len(names)-(violinWidth/2)-edgePadding)
+    ax.set_xticks(pos)
+    
+    rotation = "horizontal"
+    if "rotate" in kwargs:
+        rotation = kwargs["rotate"]
+    
+    ax.set_xticklabels(names, rotation=rotation)
+    
+    if "xlabel" in kwargs:
+        ax.set_xlabel(kwargs["xlabel"])
+    
+    if "ylabel" in kwargs:
+        ax.set_ylabel(kwargs["ylabel"], multialignment='center')
+    
+    if "yrange" in kwargs:
+        if kwargs["yrange"] != None:
+            try:
+                miny,maxy = kwargs["yrange"].split(",")
+                miny = float(miny)
+                maxy = float(maxy)
+            except:
+                raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
+            plt.ylim(miny,maxy)
+    
+    
+    if "filename" in kwargs:
+        if kwargs["filename"] != None:
+            plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
+            return
+    plt.show()
+
 def plotDataFileBarChart(names, values, legendNames, **kwargs):
     import numpy as np
     import matplotlib

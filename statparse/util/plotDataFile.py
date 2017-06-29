@@ -4,14 +4,14 @@ from optparse import OptionParser
 from statparse.util import fatal
 from statparse.util import readDataFile
 
-from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot, plotDataFileBarChart
+from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot, plotDataFileBarChart, plotViolin
 
 import optcomplete
 
 def parseArgs():
     parser = OptionParser(usage="plotDataFile.py [options] filename [filename ...]")
 
-    plotTypes = ["boxes", "lines", "bars"]
+    plotTypes = ["boxes", "lines", "bars", "violin"]
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
@@ -170,6 +170,15 @@ def main():
                              datalabels=opts.datalabels,
                              figheight=opts.figheight,
                              figwidth=opts.figwidth)
+    elif opts.plotType == "violin":
+        plotViolin(header,
+                   dataseries[1:],
+                   filename=opts.outfile,
+                   xlabel=opts.xtitle,
+                   ylabel=opts.ytitle,
+                   yrange=opts.yrange,
+                   rotate=opts.rotate)
+    
     else:
         assert opts.plotType == "boxes"
         plotRawBoxPlot(dataseries,
