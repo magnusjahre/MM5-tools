@@ -423,6 +423,9 @@ def readDataFile(datafile, columns, onlyWlType):
             elif e == "RM":
                 error = True
                 continue
+            elif e == NO_DATA_STRING:
+                tmp.append(NO_DATA_STRING)
+                continue
             
             try:
                 tmp.append(float(e))

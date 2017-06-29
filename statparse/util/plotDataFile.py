@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from optparse import OptionParser
-from statparse.util import fatal
+from statparse.util import fatal, NO_DATA_STRING
 from statparse.util import readDataFile
 
 from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot, plotDataFileBarChart, plotViolin
@@ -68,7 +68,8 @@ def createDataSeries(rawdata, datacols, opts):
     
     for l in rawdata:
         for i in range(datacols+1):
-            dataseries[i].append(l[i])
+            if l[i] != NO_DATA_STRING:
+                dataseries[i].append(l[i])
 
     if opts.fixWls:
         newWls = []
