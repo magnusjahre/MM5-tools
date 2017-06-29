@@ -4,6 +4,7 @@ from statparse.util import warn
 from optcomplete import DirCompleter
 from statparse.tracefile import isFloat
 from statparse.plotResults import plotRawBarChart
+from statparse.util import NO_DATA_STRING
 
 from workloadfiles.workloads import typedWorkloadIdentifiers 
 
@@ -61,6 +62,8 @@ def parseArgs():
     parser.add_option("--plot-filename", action="store", dest="pltfilename", type="string", default="", help="Provide a filename to store the plot in a file")
     parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
     parser.add_option("--sort-cols", action="store_true", dest="sortCols", default=False, help="Sort each column in ascending order")
+    parser.add_option("--pure-merge", action="store_true", dest="pureMerge", default=False, help="Blindly merge line by line, discarding indentifier")
+    
     
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
     opts, args = parser.parse_args()
@@ -123,6 +126,8 @@ def mergeData(fileData, opts):
     columnToFileList = []
     
     maxVals = 0
+    curPrefix = []
+    lineOrder = []
     for headers, values, numVals, filename in fileData:
         maxVals += numVals-1
          
@@ -133,50 +138,61 @@ def mergeData(fileData, opts):
             totalHeaders.append(h)
             columnToFileList.append(filename)
         
-        lineOrder = []
+        lineIdent = 1
         for v in values:
             assert len(v) == numVals
             
-            wltypes = "hmls"
-            match = re.search("fair[0-9][0-9]", v[0])
-            
-            if match == None:
-                match = re.search("[0-9]+-t-["+wltypes+"]-[0-9]+", v[0])
-            
-            if match == None:
-                match = re.search("t-["+wltypes+"]-[0-9]*-[0-9].*\S", v[0])       
-            
-            if match != None:
-                wl = match.group()
-                wlsections = wl.split("-")
-                if len(wlsections) == 4:
-                    wlnum = int(wlsections[3])
-                    wlnumstr = str(wlnum)
-                    if wlnum < 10:
-                        wlnumstr = "0"+str(wlnum)
-                    wl = "-".join(wlsections[0:3])+"-"+wlnumstr
+            if opts.pureMerge:
+                wl = str(lineIdent)
+                lineIdent += 1
             else:
-                wl = v[0]
+                wltypes = "hmls"
+                match = re.search("fair[0-9][0-9]", v[0])
+                
+                if match == None:
+                    match = re.search("[0-9]+-t-["+wltypes+"]-[0-9]+", v[0])
+                
+                if match == None:
+                    match = re.search("t-["+wltypes+"]-[0-9]*-[0-9].*\S", v[0])       
+                
+                if match == None:
+                    match = re.search("[0-9]+", v[0])       
+                
+                if match != None:
+                    wl = match.group()
+                    wlsections = wl.split("-")
+                    if len(wlsections) == 4:
+                        wlnum = int(wlsections[3])
+                        wlnumstr = str(wlnum)
+                        if wlnum < 10:
+                            wlnumstr = "0"+str(wlnum)
+                        wl = "-".join(wlsections[0:3])+"-"+wlnumstr
+                else:
+                    wl = v[0]
             
-            #Since simpoints are not used we don't need it in the output
-            #TODO: Should be fixed in a cleaner way
             sp = False
-#             spmatch = re.search("sp[0-9]", v[0])
-#             if spmatch != None:
-#                 sp = spmatch.group()
-#             else:
-#                 sp = False
-            
             linekey = wl
-            lineOrder.append(linekey)
+            if linekey not in lineOrder:
+                lineOrder.append(linekey)
             if sp:
                 linekey = wl+"-"+sp
             
             if linekey not in mergedData:
-                mergedData[linekey] = []
+                mergedData[linekey] = [c for c in curPrefix]
                 
             for val in v[1:]:
                 mergedData[linekey].append(val)
+        
+        if opts.pureMerge:
+            curPrefix += [NO_DATA_STRING for i in range(len(headers))]
+    
+            for i in mergedData:
+                if len(mergedData[i]) != len(totalHeaders)-1:
+                    while len(mergedData[i]) != len(totalHeaders)-1:
+                        mergedData[i].append(NO_DATA_STRING)
+        
+        for l in mergedData:
+            assert len(mergedData[l]) == len(totalHeaders)-1
     
     wls = mergedData.keys()
     wls.sort()

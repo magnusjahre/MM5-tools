@@ -15,6 +15,7 @@ import optcomplete
 import statparse.tracefile.errorStatistics as errorStats
 
 NO_WORKLOAD_TYPE_FILTER = "all"
+NO_DATA_STRING = "NoData"
 
 def fatal(message):
     print
