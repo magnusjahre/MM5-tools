@@ -862,12 +862,16 @@ def plotViolin(names, values, **kwargs):
     violinWidth = 0.8
     edgePadding = (1-violinWidth)/2
     pos = range(len(names))
-    
-    thisColor = cm.Blues(1) ##TODO: Change the colors to be consistent with the other plots
-    
-    ax.violinplot(values, pos, points=100, widths=violinWidth, showmeans=True,
-                  showextrema=True, showmedians=False, bw_method=0.1)
-    
+        
+    violinData = ax.violinplot(values, pos, points=100, widths=violinWidth, showmeans=False,
+                               showextrema=True, showmedians=True, bw_method=0.1)
+
+    plt.setp(violinData['bodies'], facecolor=cm.Blues(0.75), edgecolor='black')
+    plt.setp(violinData['cmedians'], edgecolor='black')
+    plt.setp(violinData['cmins'], edgecolor='black')
+    plt.setp(violinData['cmaxes'], edgecolor='black')
+    plt.setp(violinData['cbars'], edgecolor='black')
+
     ax.set_xlim((-violinWidth/2)-edgePadding, len(names)-(violinWidth/2)-edgePadding)
     ax.set_xticks(pos)
     
