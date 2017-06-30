@@ -178,7 +178,9 @@ def main():
                    xlabel=opts.xtitle,
                    ylabel=opts.ytitle,
                    yrange=opts.yrange,
-                   rotate=opts.rotate)
+                   rotate=opts.rotate,
+                   figheight=opts.figheight,
+                   figwidth=opts.figwidth)
     
     else:
         assert opts.plotType == "boxes"
