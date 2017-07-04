@@ -1012,11 +1012,16 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
             showLegend = False
     
     if showLegend:
+        if "mode" in kwargs:
+            lmode = kwargs["mode"]
+        else:
+            lmode = "expand"
+        
         numRows = float(len(localLegend)) / useCols
         if numRows > 1.0:
             localLegend = flip(localLegend, useCols)
             bars = flip(bars, useCols)
-        ax.legend(bars, localLegend, bbox_to_anchor=(0.0, 1.02, 1.0, 0.102), loc=3, mode="expand", borderaxespad=0.0,
+        ax.legend(bars, localLegend, bbox_to_anchor=(0.0, 1.02, 1.0, 0.102), loc="center", mode=lmode, borderaxespad=0.0,
                   frameon=False, ncol=useCols)    
     
     if "xlabel" in kwargs:

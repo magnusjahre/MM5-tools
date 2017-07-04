@@ -36,6 +36,7 @@ def parseArgs():
     parser.add_option("--mark-every", action="store", dest="markEvery", type="int", default=1, help="Mark every nth data point in a line plot (default is 1)")
     parser.add_option("--large-fonts", action="store_true", dest="largeFonts", default=False, help="Increase the font size (useful for really small plots)")
     parser.add_option("--div-factor", action="store", dest="divFactor", type="float", default=1.0, help="Divide all y values by this constant")
+    parser.add_option("--mode", action="store", dest="mode", type="string", default="expand", help="The mode of the legend, set to None to disable expansion")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -142,6 +143,10 @@ def main():
     else:
         print "Showing plot..."
     
+    usemode = opts.mode
+    if usemode == "None":
+        usemode = None
+    
     if opts.plotType == "lines":
         plotRawLinePlot(dataseries[0], dataseries[1:],
                         titles=header,
@@ -170,7 +175,8 @@ def main():
                              rotate=opts.rotate,
                              datalabels=opts.datalabels,
                              figheight=opts.figheight,
-                             figwidth=opts.figwidth)
+                             figwidth=opts.figwidth,
+                             mode=usemode)
     elif opts.plotType == "violin":
         plotViolin(header,
                    dataseries[1:],
