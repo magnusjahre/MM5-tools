@@ -409,8 +409,8 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
             if numRows > 1.0:
                 labels = flip(labels, useCols)
                 lines = flip(lines, useCols)
-            ax.legend(lines, labels, bbox_to_anchor=(0.0, 1.02, 1.0, 0.102), loc=3, mode="expand", borderaxespad=0.0,
-                      frameon=False, ncol=useCols)
+            ax.legend(lines, labels, bbox_to_anchor=(0.0, 1.02, 1.0, 0.102), loc=3, mode="expand", borderaxespad=0.0, borderpad=0.0,
+                      frameon=False, ncol=useCols, handletextpad=0.1)
 
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
@@ -1017,12 +1017,15 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
         else:
             lmode = "expand"
         
+        bboxHeight = 0.102
         numRows = float(len(localLegend)) / useCols
         if numRows > 1.0:
             localLegend = flip(localLegend, useCols)
             bars = flip(bars, useCols)
-        ax.legend(bars, localLegend, bbox_to_anchor=(0.0, 1.02, 1.0, 0.102), loc="center", mode=lmode, borderaxespad=0.0,
-                  frameon=False, ncol=useCols)    
+            if lmode == "expand":
+                bboxHeight = 0.3
+        ax.legend(bars, localLegend, bbox_to_anchor=(0.0, 1.02, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
+                  frameon=False, ncol=useCols, handletextpad=0.5)    
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
