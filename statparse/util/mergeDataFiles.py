@@ -271,9 +271,6 @@ def processData(mergedData, mergeSpec, opts):
             newData.append(newLine)
         mergedData = newData
     
-    renameColumns(mergedData, opts)
-    renameRows(mergedData, opts)
-    
     mergedData = filterData(mergedData, opts)
     
     justify = [False for i in range(len(mergedData[0]))]
@@ -536,6 +533,12 @@ def main():
         doColor = False
     
     processedData, justify = processData(mergedData, printSpec, opts)
+    if opts.splitWlTypes:
+        processedData, justify = splitWlTypes(processedData, justify, opts)
+    
+    renameColumns(processedData, opts)
+    renameRows(processedData, opts)
+    
     if opts.doAverage:
         processedData, justify = computeAverage(processedData, justify, opts)
     if opts.doTypedAverage:
@@ -546,8 +549,6 @@ def main():
         processedData, justify = minHistogram(processedData, justify, opts)
     if opts.normalizeTo != -1:
         processedData, justify = normaliseData(processedData, justify, opts)
-    if opts.splitWlTypes:
-        processedData, justify = splitWlTypes(processedData, justify, opts)
     
     if opts.invert:
         processedData = [[processedData[j][i] for j in range(len(processedData))] for i in range(len(processedData[0]))]
