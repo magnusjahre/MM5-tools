@@ -60,8 +60,9 @@ def parseArgs():
     parser.add_option("--disable-row-sort", action="store_true", dest="disableRowSort", default=False, help="Don't sort the rows in the merged file")
     parser.add_option("--filter-pattern", action="store", dest="filterPattern", default="", help="Filter output lines with this pattern")
     parser.add_option("--plot-filename", action="store", dest="pltfilename", type="string", default="", help="Provide a filename to store the plot in a file")
-    parser.add_option("--plot-legend-cols", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
+    parser.add_option("--plot-legend-column", action="store", dest="legendcols", type="int", default=3, help="Number of columns to use in the legend")
     parser.add_option("--sort-cols", action="store_true", dest="sortCols", default=False, help="Sort each column in ascending order")
+    parser.add_option("--sort-after-column", action="store", dest="sortAfterCol", type="int", default=-1, help="Sort the rows after the values of the specified column")
     parser.add_option("--pure-merge", action="store_true", dest="pureMerge", default=False, help="Blindly merge line by line, discarding indentifier")
     parser.add_option("--split-wl-types", action="store_true", dest="splitWlTypes", default=False, help="Split results into one column per workload")
     
@@ -440,6 +441,19 @@ def sortColumns(processedData, justify, opts):
     
     return resData, justify
 
+def sortAfterColumn(processedData, justify, opts):
+    header = processedData[0]
+    del processedData[0]
+
+    sortedIndexes =  [i[0] for i in sorted(enumerate(processedData), key=lambda x:float(x[1][opts.sortAfterCol]), reverse=True)]
+
+    newdata = []
+    newdata.append(header)
+    for s in sortedIndexes:
+        newdata.append(processedData[s])
+    
+    return newdata,justify
+
 def normaliseData(processedData, justify, opts):
     
     for i in range(len(processedData))[1:]:
@@ -549,6 +563,8 @@ def main():
         processedData, justify = minHistogram(processedData, justify, opts)
     if opts.normalizeTo != -1:
         processedData, justify = normaliseData(processedData, justify, opts)
+    if opts.sortAfterCol != -1:
+        processedData, justify = sortAfterColumn(processedData, justify, opts)
     
     if opts.invert:
         processedData = [[processedData[j][i] for j in range(len(processedData))] for i in range(len(processedData[0]))]
