@@ -37,6 +37,7 @@ def parseArgs():
     parser.add_option("--large-fonts", action="store_true", dest="largeFonts", default=False, help="Increase the font size (useful for really small plots)")
     parser.add_option("--div-factor", action="store", dest="divFactor", type="float", default=1.0, help="Divide all y values by this constant")
     parser.add_option("--mode", action="store", dest="mode", type="string", default="expand", help="The mode of the legend, set to None to disable expansion")
+    parser.add_option("--separators", action="store", dest="separators", type="string", default="", help="Add separator lines at these x-values, comma separated")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -176,7 +177,8 @@ def main():
                              datalabels=opts.datalabels,
                              figheight=opts.figheight,
                              figwidth=opts.figwidth,
-                             mode=usemode)
+                             mode=usemode,
+                             separators=opts.separators)
     elif opts.plotType == "violin":
         plotViolin(header,
                    dataseries[1:],
