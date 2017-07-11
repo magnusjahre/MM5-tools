@@ -1067,6 +1067,12 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
                             plt.text(xcoords[j], yoffset, numberToString(values[i][j], decimals), rotation="vertical", ha="center", va="bottom")
 
     
+    if "separators" in kwargs:
+        if kwargs["separators"] != "":
+            coords = [float(i) for i in kwargs["separators"].split(",")]
+            for c in coords:
+                ax.axvline(x=c, linestyle="dashed")
+    
     if "filename" in kwargs:
         if kwargs["filename"] != None:
             plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
