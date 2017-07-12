@@ -45,7 +45,7 @@ def parseArgs():
 
     parser.add_option("-q", "--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--type", action="store", dest="type", default="speedup", help="Trace type to use, either perf, speedup or misses")
-    parser.add_option("--np", action="store", dest="np", default=4, help="Number of cores")
+    parser.add_option("--np", action="store", dest="np", default=4, type="int", help="Number of cores")
     parser.add_option("--yrange", action="store", dest="yrange", default="", help="Y-axis range")
     parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file (single plot)")
     parser.add_option("--plotdir-prefix", action="store", dest="plotdirprefix", default="cache-analysis", help="Prefix of cache analysis directories (full plot)")
