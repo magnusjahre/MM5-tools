@@ -1073,6 +1073,13 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
             for c in coords:
                 ax.axvline(x=c, linestyle="dashed")
     
+    if "labels" in kwargs:
+        if kwargs["labels"] != "":
+            labelstr = [i for i in kwargs["labels"].split(":")]
+            for t in labelstr:
+                x,y,text = t.split(",")
+                ax.text(float(x),float(y),text)
+    
     if "filename" in kwargs:
         if kwargs["filename"] != None:
             plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
