@@ -152,13 +152,16 @@ def mergeData(fileData, opts):
                 match = re.search("fair[0-9][0-9]", v[0])
                 
                 if match == None:
+                    match = re.search("[0-9]+-t-["+wltypes+"]-[0-9]+-sp0-.*", v[0])
+                
+                if match == None:
                     match = re.search("[0-9]+-t-["+wltypes+"]-[0-9]+", v[0])
                 
                 if match == None:
                     match = re.search("t-["+wltypes+"]-[0-9]*-[0-9].*\S", v[0])       
                 
                 if match == None:
-                    match = re.search("[0-9]+", v[0])       
+                    match = re.search("[0-9]+", v[0])
                 
                 if match != None:
                     wl = match.group()
