@@ -865,13 +865,13 @@ def plotViolin(names, values, **kwargs):
     pos = range(len(names))
         
     violinData = ax.violinplot(values, pos, points=100, widths=violinWidth, showmeans=False,
-                               showextrema=True, showmedians=True, bw_method=0.1)
+                               showextrema=False, showmedians=True, bw_method=0.1)
 
-    plt.setp(violinData['bodies'], facecolor=cm.Blues(0.75), edgecolor='black')
+    plt.setp(violinData['bodies'], facecolor=cm.Blues(0.9), edgecolor='black')
     plt.setp(violinData['cmedians'], edgecolor='black')
-    plt.setp(violinData['cmins'], edgecolor='black')
-    plt.setp(violinData['cmaxes'], edgecolor='black')
-    plt.setp(violinData['cbars'], edgecolor='black')
+    # plt.setp(violinData['cmins'], edgecolor='black')
+    # plt.setp(violinData['cmaxes'], edgecolor='black')
+    # plt.setp(violinData['cbars'], edgecolor='black')
 
     ax.set_xlim((-violinWidth/2)-edgePadding, len(names)-(violinWidth/2)-edgePadding)
     ax.set_xticks(pos)
@@ -881,6 +881,7 @@ def plotViolin(names, values, **kwargs):
         rotation = kwargs["rotate"]
     
     ax.set_xticklabels(names, rotation=rotation)
+    ax.tick_params(axis="x", direction="out", top="off")
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
