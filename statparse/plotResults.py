@@ -899,6 +899,12 @@ def plotViolin(names, values, **kwargs):
                 raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
             plt.ylim(miny,maxy)
     
+    if "labels" in kwargs:
+        if kwargs["labels"] != "":
+            labelstr = [i for i in kwargs["labels"].split(":")]
+            for t in labelstr:
+                x,y,text = t.split(",")
+                ax.text(float(x),float(y),text)
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
