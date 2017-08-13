@@ -112,7 +112,13 @@ class M5Command:
         self.dependsOn = []
         
         wlres = re.search("t-[hml]-[0-9]+", self.id)
-        self.workloadID = wlres.group(0)
+        if wlres:
+            self.workloadID = wlres.group(0)
+        else:
+            wlres = re.search("w-[a-zA-Z0-9-]+-b", self.id)
+            self.workloadID = wlres.group(0)
+            self.workloadID = self.workloadID.replace("w-", "")
+            self.workloadID = self.workloadID.replace("-b", "")
         
         self.expParams = varparams
         
