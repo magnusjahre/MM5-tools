@@ -349,6 +349,9 @@ class ExperimentConfiguration:
     def getPMInstSampCommandLines(self):
         commandlines = []
         
+        if len(self.workloads.keys()) == 1 and self.workloads.keys()[0] == 1:
+            return commandlines
+        
         allCombs = self.generateAllArgumentCombinations(self.variableSimulatorArguments)
         
         sortedNps = self.workloads.keys()
