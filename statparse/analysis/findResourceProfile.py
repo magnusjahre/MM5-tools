@@ -30,7 +30,8 @@ from math import log
 
 ERRVAL = 0.0
 USE_CACHE_WAYS = 16
-NO_BW_KEY = "max"
+NO_BW_KEY = "Max"
+NO_CACHE_KEY = "Max"
 
 class BMClass:
     BM_RES_LOW = 0
@@ -246,8 +247,9 @@ def gatherPerformanceProfile(results):
     
     for p in allParams:
         
-        if p["MAX-CACHE-WAYS"] not in allWays:
-            allWays.append(p["MAX-CACHE-WAYS"])
+        if "MAX-CACHE-WAYS" in p:
+            if p["MAX-CACHE-WAYS"] not in allWays:
+                allWays.append(p["MAX-CACHE-WAYS"])
         
         if "MEMORY-BUS-MAX-UTIL" in p:
             useBWKey = "MEMORY-BUS-MAX-UTIL" 
@@ -263,6 +265,11 @@ def gatherPerformanceProfile(results):
     
     if len(allUtils) == 0:
         allUtils.append(useBWKey)
+        
+    useCacheKey = True
+    if allWays == []:
+        allWays.append(NO_CACHE_KEY)
+        useCacheKey = False
     
     allWays.sort()
     allUtils.sort()
@@ -273,7 +280,8 @@ def gatherPerformanceProfile(results):
     
     for i in range(len(allWays)):
         for j in range(len(allUtils)):
-            searchConfig.parameters["MAX-CACHE-WAYS"] = allWays[i]
+            if useCacheKey:
+                searchConfig.parameters["MAX-CACHE-WAYS"] = allWays[i]
             if useBWKey != NO_BW_KEY:
                 searchConfig.parameters[useBWKey] = allUtils[j]
             
