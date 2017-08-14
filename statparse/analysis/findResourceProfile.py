@@ -855,7 +855,7 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
     xrangestr = "-0.5,"+str(len(allUtils)-0.5)
     zrangestr = "0,"+str(max(max(profile)))
     
-    if len(allUtils) > 1:
+    if len(allUtils) > 1 and len(allWays) > 1:
         plotImage(profile,
                   xlabel="Max Bandwidth Utilization (%)",
                   ylabel="Available Cache Ways",
@@ -868,6 +868,17 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
                   zrange=zrangestr,
                   filename=filename,
                   greyscale=doGreyscale)
+    elif len(allUtils) > 1:
+        bwprofile = []
+        for p in profile[0]:
+            bwprofile.append(p)
+        plotLines([allUtils],
+                  [bwprofile],
+                  yrange="0,"+str(max(bwprofile)*1.1),
+                  xlabel="Maximum Bandwidth Utilization (%)",
+                  ylabel="IPC",
+                  title=title,
+                  filename=filename)
     else:
         cacheprofile = []
         for p in profile:
