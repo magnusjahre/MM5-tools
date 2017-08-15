@@ -31,7 +31,7 @@ from math import log
 ERRVAL = 0.0
 USE_CACHE_WAYS = 16
 NO_BW_KEY = "Max"
-NO_CACHE_KEY = "Max"
+NO_CACHE_KEY = "Actual"
 
 class BMClass:
     BM_RES_LOW = 0
@@ -828,7 +828,7 @@ def buildModel(benchmark, results, opts, allUtils, allWays, profile, plotfilenam
 
 def estimateBusQueueLat(modelInput, bwAlloc, opts):
     
-    arrivalRate = modelInput["TotalBusAccesses"] / modelInput["TotalCycles"]
+    arrivalRate = (modelInput["TotalBusReads"] + modelInput["TotalBusWrites"]) / modelInput["TotalCycles"]
     waitTime = modelInput["AvgBusServiceCycles"]  / bwAlloc
     
     if not opts.quiet:
@@ -847,9 +847,9 @@ def buildBusModel(benchmark, results, opts, allUtils):
     baselineConfig = [("MEMORY-BUS-MAX-UTIL", 1.0)]
     
     modelInput = {}
-    modelInput["AvgBusQueueCycles"] = findPatternWithConfig("membus0.avg_queue_cycles", benchmark, results, baselineConfig)
     modelInput["AvgBusServiceCycles"] = findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig)
-    modelInput["TotalBusAccesses"] = findPatternWithConfig("membus0.reads_per_cpu", benchmark, results, baselineConfig) #TODO: should be the total number of bus accesses
+    modelInput["TotalBusReads"] = findPatternWithConfig("membus0.reads_per_cpu", benchmark, results, baselineConfig)
+    modelInput["TotalBusWrites"] = findPatternWithConfig("membus0.writes_per_cpu", benchmark, results, baselineConfig) 
     modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig)
 
     if not opts.quiet:
