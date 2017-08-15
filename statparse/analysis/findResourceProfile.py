@@ -4,7 +4,7 @@ from optparse import OptionParser
 from statparse.util import fatal
 from statparse.statfileParser import StatfileIndex
 from statparse.statResults import StatResults
-from statparse.plotResults import plotImage, plotLines
+from statparse.plotResults import plotImage, plotLines, plotRawLinePlot
 from fairmha.experimentconfig import specnames
 from fairmha.experimentconfig import spec2006names
 from deterministic_fw_wls import getBms, workloads, getWorkloads
@@ -182,7 +182,7 @@ def parseArgs():
     parser.add_option("--optimal-part-np", action="store", type="int", dest="optPartNP", default=4, help="Find optimal partitions for this core count")
     parser.add_option("--max-ways", action="store", type="int", dest="maxWays", default=16, help="Total number of ways available")
     parser.add_option("--max-bandwidth", action="store", type="float", dest="maxBW", default=1.0, help="Total bandwidth available")
-    parser.add_option("--plot-file", action="store", type="string", dest="plotFile", default="", help="Plot to this file")
+    parser.add_option("--plot-file", action="store", type="string", dest="plotFile", default=None, help="Plot to this file")
     parser.add_option("--metric", action="store", type="string", dest="metric", default="", help="Performance metric to use when finding optimal partitions")
     parser.add_option("--optimal-module-name", action="store", type="string", dest="optModuleName", default="optimalPartitions", help="The name of the python module to store the optimal partitions")
     parser.add_option("--optimal-human-file-name", action="store", type="string", dest="humanPartFile", default="optimalPartitions.txt", help="The name of the file to store to store the human readable partitions")
@@ -191,6 +191,7 @@ def parseArgs():
     parser.add_option("--queue-lat-function", action="store", dest="queueLatFunction", default="pow", help="Bus queue latency estimation function type (pow or lin)")
     parser.add_option("--greyscale", action="store_true", dest="greyscale", default=False, help="Create grayscale heatmaps")
     parser.add_option("--pattern", action="store", dest="pattern", default="COM:IPC", help="The pattern to use for profiles (default COM:IPC)")
+    parser.add_option("--bus-model", action="store_true", dest="useBusModel", default=False, help="Create a bus model")
     
     defStreamingThres = 1.2
     defHighThres = 2.0
@@ -750,6 +751,23 @@ def findPattern(patstring, results, maxBW = False):
     assert len(configRes) == 1
     return results.noPatResults[configRes[0]]
 
+def findPatternWithConfig(patstring, benchmark, results, configList):
+    results.plainSearch(patstring)
+    
+    if results.noPatResults == {}:
+        fatal("No results found for pattern "+patstring)
+    
+    searchConfig = expconfig.buildMatchAllConfig()   
+    searchConfig.benchmark = benchmark
+    
+    for param, value in configList:
+        searchConfig.parameters[param] = value
+    
+    configRes = procres.filterConfigurations(results.matchingConfigs, searchConfig)
+    
+    assert len(configRes) == 1
+    return float(results.noPatResults[configRes[0]])
+
 def buildModel(benchmark, results, opts, allUtils, allWays, profile, plotfilename=""):
     perfModel = PerformanceModel(opts.debugModel, opts.queueLatFunction)
     
@@ -807,7 +825,47 @@ def buildModel(benchmark, results, opts, allUtils, allWays, profile, plotfilenam
                   filename=plotfilename)
         
     return (profile[cacheIndex], predictions)
+
+def estimateBusQueueLat(modelInput, bwAlloc, opts):
     
+    arrivalRate = modelInput["TotalBusAccesses"] / modelInput["TotalCycles"]
+    waitTime = modelInput["AvgBusServiceCycles"]  / bwAlloc
+    
+    if not opts.quiet:
+        print str(bwAlloc)+": Computed arrival rate",arrivalRate,"and wait time",waitTime
+    
+    numQueuedReqs = arrivalRate * waitTime
+    avgQueueTime = numQueuedReqs * waitTime
+    
+    if not opts.quiet:
+        print str(bwAlloc)+": Estimated average number of queued requests",numQueuedReqs,"and queue time",avgQueueTime
+    
+    return avgQueueTime
+    
+
+def buildBusModel(benchmark, results, opts, allUtils):
+    baselineConfig = [("MEMORY-BUS-MAX-UTIL", 1.0)]
+    
+    modelInput = {}
+    modelInput["AvgBusQueueCycles"] = findPatternWithConfig("membus0.avg_queue_cycles", benchmark, results, baselineConfig)
+    modelInput["AvgBusServiceCycles"] = findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig)
+    modelInput["TotalBusAccesses"] = findPatternWithConfig("membus0.reads_per_cpu", benchmark, results, baselineConfig) #TODO: should be the total number of bus accesses
+    modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig)
+
+    if not opts.quiet:
+        print "Bus Model Inputs"
+        for p in sorted(modelInput.keys()):
+            print p.ljust(20), ("%.2f" % modelInput[p]).rjust(15)
+        print
+    
+    modelData = []
+    for u in allUtils:
+        modelData.append(estimateBusQueueLat(modelInput, u, opts))
+        
+    if not opts.quiet:
+        print
+    
+    return [("Little's Law", modelData)] 
 
 def handleSingleBenchmark(benchmark, index, opts):
 
@@ -822,6 +880,12 @@ def handleSingleBenchmark(benchmark, index, opts):
     
     allUtils = convertUtilList(allUtils)
     
+    if opts.useBusModel:
+        busModel = buildBusModel(benchmark, results, opts, allUtils)
+        for name,data in busModel:
+            allWays.append(name)
+            profile.append(data)
+
     printTable(allWays, allUtils, profile, opts)
 
     if opts.plot and not opts.validateModel:
@@ -856,7 +920,7 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, opts, filename = ""):
     xrangestr = "-0.5,"+str(len(allUtils)-0.5)
     zrangestr = "0,"+str(max(max(profile)))
     
-    if len(allUtils) > 1 and len(allWays) > 1:
+    if len(allUtils) > 1 and len(allWays) > 1 and not opts.useBusModel:
         plotImage(profile,
                   xlabel="Max Bandwidth Utilization (%)",
                   ylabel="Available Cache Ways",
@@ -870,16 +934,15 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, opts, filename = ""):
                   filename=filename,
                   greyscale=doGreyscale)
     elif len(allUtils) > 1:
-        bwprofile = []
-        for p in profile[0]:
-            bwprofile.append(p)
-        plotLines([allUtils],
-                  [bwprofile],
-                  yrange="0,"+str(max(bwprofile)*1.1),
-                  xlabel="Maximum Bandwidth Utilization (%)",
-                  ylabel=opts.pattern,
-                  title=title,
-                  filename=filename)
+        plotRawLinePlot(allUtils,
+                        profile,
+                        yrange="0,"+str(max(max(profile))*1.1),
+                        xlabel="Maximum Bandwidth Utilization (%)",
+                        ylabel=opts.pattern,
+                        figtitle=title,
+                        filename=filename,
+                        titles=allWays,
+                        notex=True)
     else:
         cacheprofile = []
         for p in profile:

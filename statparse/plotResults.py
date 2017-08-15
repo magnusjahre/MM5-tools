@@ -361,7 +361,8 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     
     matplotlib.rc('ps', useafm=True)
     matplotlib.rc('pdf', use14corefonts=True)
-    matplotlib.rc('text', usetex=True)
+    if "notex" not in kwargs:
+        matplotlib.rc('text', usetex=True)
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
     matplotlib.rc('legend', fontsize=fontsize)
@@ -427,6 +428,10 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
             except:
                 raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
             plt.ylim(minval,maxval)
+    
+    if "figtitle" in kwargs:
+        if kwargs["figtitle"] != "none":
+            ax.set_title(kwargs["figtitle"], size="large")
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
