@@ -190,6 +190,7 @@ def parseArgs():
     parser.add_option("--debug-model", action="store_true", dest="debugModel", default=False, help="Print debug info for performance model")
     parser.add_option("--queue-lat-function", action="store", dest="queueLatFunction", default="pow", help="Bus queue latency estimation function type (pow or lin)")
     parser.add_option("--greyscale", action="store_true", dest="greyscale", default=False, help="Create grayscale heatmaps")
+    parser.add_option("--pattern", action="store", dest="pattern", default="COM:IPC", help="The pattern to use for profiles (default COM:IPC)")
     
     defStreamingThres = 1.2
     defHighThres = 2.0
@@ -236,9 +237,9 @@ def parseArgs():
     
     return opts,args
 
-def gatherPerformanceProfile(results):
+def gatherPerformanceProfile(results, opts):
     
-    results.plainSearch("COM:IPC")
+    results.plainSearch(opts.pattern)
     
     allParams = procres.findAllParams(results.matchingConfigs)
     
@@ -630,7 +631,7 @@ def handleMultibenchmark(index, opts):
         print "Processing "+benchmark 
         
         results = doSearch(benchmark, index, opts)
-        allWays, allUtils, profile = gatherPerformanceProfile(results)
+        allWays, allUtils, profile = gatherPerformanceProfile(results, opts)
         
         if allUtils == []:
             print "No results found, skipping"
@@ -641,7 +642,7 @@ def handleMultibenchmark(index, opts):
         
         printTable(allWays, allUtils, profile, opts, "profile-data-"+benchmark+".txt")
         if opts.plot:
-            doPlot(benchmark, allWays, allUtils, profile, opts.greyscale, "profile-plot-"+benchmark+".pdf")
+            doPlot(benchmark, allWays, allUtils, profile, opts.greyscale, opts, "profile-plot-"+benchmark+".pdf")
 
         assert benchmark not in allprofiles
         allprofiles[benchmark] = profile
@@ -812,7 +813,7 @@ def handleSingleBenchmark(benchmark, index, opts):
 
     results = doSearch(benchmark, index, opts)
     
-    allWays, allUtils, profile = gatherPerformanceProfile(results)
+    allWays, allUtils, profile = gatherPerformanceProfile(results, opts)
     
     if not opts.quiet:
         print
@@ -824,7 +825,7 @@ def handleSingleBenchmark(benchmark, index, opts):
     printTable(allWays, allUtils, profile, opts)
 
     if opts.plot and not opts.validateModel:
-        doPlot(benchmark, allWays, allUtils, profile, opts.greyscale, filename=opts.plotFile)
+        doPlot(benchmark, allWays, allUtils, profile, opts.greyscale, opts, filename=opts.plotFile)
     
     if opts.validateModel:
         actual, model = buildModel(benchmark, results, opts, allUtils, allWays, profile)
@@ -849,7 +850,7 @@ def printAccuracy(allUtils, actual, model, opts):
     printData(lines, [True, False, False, False], sys.stdout, opts.decimals)
         
 
-def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
+def doPlot(title, allWays, allUtils, profile, doGreyscale, opts, filename = ""):
     
     yrangestr = "-0.5,"+str(len(allWays)-0.5)
     xrangestr = "-0.5,"+str(len(allUtils)-0.5)
@@ -876,7 +877,7 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
                   [bwprofile],
                   yrange="0,"+str(max(bwprofile)*1.1),
                   xlabel="Maximum Bandwidth Utilization (%)",
-                  ylabel="IPC",
+                  ylabel=opts.pattern,
                   title=title,
                   filename=filename)
     else:
@@ -887,7 +888,7 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, filename = ""):
                   [cacheprofile],
                   yrange="0,"+str(max(cacheprofile)*1.1),
                   xlabel="Cache Ways",
-                  ylabel="IPC",
+                  ylabel=opts.pattern,
                   filename=filename)
 
 def main():
