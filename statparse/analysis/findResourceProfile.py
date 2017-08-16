@@ -26,7 +26,7 @@ import random
 
 import os
 import sys
-from math import log
+from math import log, sqrt
 
 ERRVAL = 0.0
 USE_CACHE_WAYS = 16
@@ -850,9 +850,11 @@ def estimateBusQueueLat(modelInput, bwAlloc, opts):
     
 
 def buildBusModel(benchmark, results, opts, allUtils):
-    baselineConfig = [("MEMORY-BUS-MAX-UTIL", 1.0)]
+    baselineAllocation = 0.25
+    baselineConfig = [("MEMORY-BUS-MAX-UTIL", baselineAllocation)]
     
     modelInput = {}
+    modelInput["AvgBusQueueCycles"] = findPatternWithConfig("membus0.avg_queue_cycles", benchmark, results, baselineConfig)
     modelInput["AvgBusServiceCycles"] = findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig)
     modelInput["TotalBusReads"] = findPatternWithConfig("membus0.reads_per_cpu", benchmark, results, baselineConfig)
     modelInput["TotalBusWrites"] = findPatternWithConfig("membus0.writes_per_cpu", benchmark, results, baselineConfig) 
@@ -880,12 +882,42 @@ def buildBusModel(benchmark, results, opts, allUtils):
             print str(u)+": Updating sim_ticks to",modelInput["TotalCycles"]
         
         perfCorrModel.append(estimateBusQueueLat(modelInput, u, opts))
+    
+    modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig)
+    
+    if not opts.quiet:
+        print
+        print "Queue-calibrated model"
+    
+    modelInput["AvgBusServiceCycles"] = sqrt((modelInput["AvgBusQueueCycles"] * modelInput["TotalCycles"] * baselineAllocation**2) / (modelInput["TotalBusReads"] + modelInput["TotalBusWrites"]))
+
+    if not opts.quiet:
+        print str(u)+": Queue calibrated average bus cycles is", modelInput["AvgBusServiceCycles"]
+    
+    queueCalModel = []
+    for u in allUtils:
+        queueCalModel.append(estimateBusQueueLat(modelInput, u, opts))
+    
+    if not opts.quiet:
+        print
+        print "Queue-calibrated and performance-calibrated model" 
+    
+    perfCorrCalModel = []
+    for u in allUtils:
+        curConfig = [("MEMORY-BUS-MAX-UTIL", u)]
+        modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, curConfig)
+        if not opts.quiet:
+            print str(u)+": Updating sim_ticks to",modelInput["TotalCycles"]
         
+        perfCorrCalModel.append(estimateBusQueueLat(modelInput, u, opts))
+    
     if not opts.quiet:
         print
     
     return [("Little's Law", modelData),
-            ("Performance Corrected", perfCorrModel)] 
+            ("Performance Corrected", perfCorrModel),
+            ("Queue-calibrated", queueCalModel),
+            ("Queue-cal-perf", perfCorrCalModel)] 
 
 def handleSingleBenchmark(benchmark, index, opts):
 
@@ -963,7 +995,7 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, opts, filename = ""):
                         filename=filename,
                         titles=allWays,
                         notex=True,
-                        legendColumns=3,
+                        legendColumns=len(allWays),
                         mode="none")
     else:
         cacheprofile = []
