@@ -641,6 +641,12 @@ def handleMultibenchmark(index, opts):
         allUtils = convertUtilList(allUtils)
         lastutil = allUtils
         
+        if opts.useBusModel:
+            busModel = buildBusModel(benchmark, results, opts, allUtils)
+            for name,data in busModel:
+                allWays.append(name)
+                profile.append(data)
+        
         printTable(allWays, allUtils, profile, opts, "profile-data-"+benchmark+".txt")
         if opts.plot:
             doPlot(benchmark, allWays, allUtils, profile, opts.greyscale, opts, "profile-plot-"+benchmark+".pdf")
@@ -864,8 +870,22 @@ def buildBusModel(benchmark, results, opts, allUtils):
         
     if not opts.quiet:
         print
+        print "Performance-difference-corrected model"
+        
+    perfCorrModel = []
+    for u in allUtils:
+        curConfig = [("MEMORY-BUS-MAX-UTIL", u)]
+        modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, curConfig)
+        if not opts.quiet:
+            print str(u)+": Updating sim_ticks to",modelInput["TotalCycles"]
+        
+        perfCorrModel.append(estimateBusQueueLat(modelInput, u, opts))
+        
+    if not opts.quiet:
+        print
     
-    return [("Little's Law", modelData)] 
+    return [("Little's Law", modelData),
+            ("Performance Corrected", perfCorrModel)] 
 
 def handleSingleBenchmark(benchmark, index, opts):
 
@@ -942,7 +962,9 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, opts, filename = ""):
                         figtitle=title,
                         filename=filename,
                         titles=allWays,
-                        notex=True)
+                        notex=True,
+                        legendColumns=3,
+                        mode="none")
     else:
         cacheprofile = []
         for p in profile:
