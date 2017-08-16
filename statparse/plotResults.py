@@ -406,12 +406,18 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
                 showLegend = False
 
         if showLegend:
+            if "mode" in kwargs:
+                lmode = kwargs["mode"]
+            else:
+                lmode = "expand"
+            
             numRows = float(len(labels)) / useCols
             if numRows > 1.0:
                 labels = flip(labels, useCols)
                 lines = flip(lines, useCols)
-            ax.legend(lines, labels, bbox_to_anchor=(0.0, 1.02, 1.0, 0.102), loc=3, mode="expand", borderaxespad=0.0, borderpad=0.0,
-                      frameon=False, ncol=useCols, handletextpad=0.1)
+            
+            ax.legend(lines, labels, bbox_to_anchor=(0.0, 1.02, 1.0, 0.05), loc="center", mode=lmode, borderaxespad=0.0,
+                  frameon=False, ncol=useCols, handletextpad=0.5)
 
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
@@ -431,7 +437,10 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
     
     if "figtitle" in kwargs:
         if kwargs["figtitle"] != "none":
-            ax.set_title(kwargs["figtitle"], size="large")
+            plt.text(0.5, 0.9, kwargs["figtitle"],
+                     horizontalalignment='center',
+                     fontsize="large",
+                     transform = ax.transAxes)
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
