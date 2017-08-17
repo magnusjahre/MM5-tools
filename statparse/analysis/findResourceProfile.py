@@ -834,7 +834,7 @@ def buildModel(benchmark, results, opts, allUtils, allWays, profile, plotfilenam
 
 def estimateBusQueueLat(modelInput, bwAlloc, opts):
     
-    arrivalRate = (modelInput["TotalBusReads"] + modelInput["TotalBusWrites"]) / modelInput["TotalCycles"]
+    arrivalRate = modelInput["TotalRequests"] / modelInput["TotalCycles"]
     waitTime = modelInput["AvgBusServiceCycles"]  / bwAlloc
     
     if not opts.quiet:
@@ -856,8 +856,7 @@ def buildBusModel(benchmark, results, opts, allUtils):
     modelInput = {}
     modelInput["AvgBusQueueCycles"] = findPatternWithConfig("membus0.avg_queue_cycles", benchmark, results, baselineConfig)
     modelInput["AvgBusServiceCycles"] = findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig)
-    modelInput["TotalBusReads"] = findPatternWithConfig("membus0.reads_per_cpu", benchmark, results, baselineConfig)
-    modelInput["TotalBusWrites"] = findPatternWithConfig("membus0.writes_per_cpu", benchmark, results, baselineConfig) 
+    modelInput["TotalRequests"] = findPatternWithConfig("membus0.total_requests", benchmark, results, baselineConfig) 
     modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig)
 
     if not opts.quiet:
@@ -889,7 +888,7 @@ def buildBusModel(benchmark, results, opts, allUtils):
         print
         print "Queue-calibrated model"
     
-    modelInput["AvgBusServiceCycles"] = sqrt((modelInput["AvgBusQueueCycles"] * modelInput["TotalCycles"] * baselineAllocation**2) / (modelInput["TotalBusReads"] + modelInput["TotalBusWrites"]))
+    modelInput["AvgBusServiceCycles"] = sqrt((modelInput["AvgBusQueueCycles"] * modelInput["TotalCycles"] * baselineAllocation**2) / modelInput["TotalRequests"])
 
     if not opts.quiet:
         print str(u)+": Queue calibrated average bus cycles is", modelInput["AvgBusServiceCycles"]
