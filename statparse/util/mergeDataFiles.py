@@ -160,8 +160,13 @@ def mergeData(fileData, opts):
                 if match == None:
                     match = re.search("t-["+wltypes+"]-[0-9]*-[0-9].*\S", v[0])       
                 
-                if match == None:
-                    match = re.search("[0-9]+", v[0])
+                # FIXME: This code partially matches benchmark names. I do not remember
+                # the motivation for this pattern, but a better pattern is needed to 
+                # avoid this case since it makes the script unsusable for single-
+                # core merges
+                # 
+                #if match == None:
+                #    match = re.search("[0-9]+", v[0])
                 
                 if match != None:
                     wl = match.group()
