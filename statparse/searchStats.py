@@ -66,6 +66,7 @@ def parseArgs():
     otherOptions.add_option("--show-stacktrace", action="store_true", dest="showStackTrace", default=False, help="Show stacktrace on caught exceptions")
     otherOptions.add_option("--only-index", action="store", dest="onlyIndexPat", default=".*", help="A comma-separated list of patterns to put in the index")
     otherOptions.add_option("--not-final-mode", action="store_false", dest="notFinalMode", default=True, help="Use the first simulation statistics sample for each benchmark")
+    otherOptions.add_option("--base-dir", action="store", dest="baseDir", default=".", help="The base directory. Useful for running the interpreter locally when working with NFS-mounted drives (default: .)")
     parser.add_option_group(otherOptions)
     
     optcomplete.autocomplete(parser)
@@ -166,6 +167,10 @@ def processExperimentCommand(pbsconfig, np, params, opts, index, curConfigNum, t
 
 def createFileIndex(opts, args):
     
+    if not opts.quiet:
+        print "Switching to directory "+opts.baseDir
+    os.chdir(opts.baseDir)
+    
     if opts.searchFile != "":
         if opts.np == -1:
             print "Option --np is required for single experiment parsing"
@@ -185,11 +190,12 @@ def createFileIndex(opts, args):
         if not opts.quiet:
             print "No filename provided, assuming experiment parse"
         if not os.path.exists("pbsconfig.py"):
-            print "File not found: pbsconfig.py"
+            print "File not found: No pbsconfig.py in directory "+os.getcwd()
             print "Use the --search-file option to search a specific file"
             sys.exit(-1)
         
-        pbsconfig = __import__("pbsconfig")
+        sys.path.append(os.getcwd())
+        import pbsconfig
         indexmodule, indexmodulename = getIndexmodule("all")
     
     if os.path.exists(indexmodulename):
