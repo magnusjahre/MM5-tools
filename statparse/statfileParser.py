@@ -108,7 +108,7 @@ class StatfileIndex():
         inDistribution = False
         finalSection = False
         currentPrivateStatPatterns = []
-        #distribDict = {}
+        distribDict = {}
         
         allCurConfigs = []
         for inconf in configIDs:
@@ -142,35 +142,42 @@ class StatfileIndex():
             if inDistribution:
                 if self._findLastKeyPart(l) == "end_dist":
                     inDistribution = False
-                    # TODO: Support dict parsing for both parsing modes
-#                     if self._canAdd(l, currentPrivateStatPatterns):
-#                         self.addstat(self._findKeyWithoutLast(l)+distKeySuffix, configIDs[0], distribDict)
-#                 else:
-#                     
-#                     vals = l.split()
-#                     if self._isInt(vals[0]):
-#                         assert self._isInt(vals[1])
-#                         distribDict[int(vals[0])] = int(vals[1])
-#                     else:
-#                         if self._isKey(vals[0]):
-#                             if self._isFloat(vals[1]):
-#                                 distribDict[self._findLastKeyPart(l)] = float(vals[1])
-#                             else:
-#                                 distribDict[self._findLastKeyPart(l)] = int(vals[1])
-#                         else:
-#                             name = vals[0]
-#                             for i in range(len(vals))[1:]:
-#                                 if self._isInt(vals[i]):
-#                                     break
-#                                 name += " "+vals[i]
-# 
-#                             distribDict[name] = int(vals[i])
-#                             
+                    if finalMode:
+                        if finalSection:
+                            for tmpConfig in allCurConfigs:
+                                tmpCPUID = tmpConfig.getIDInWorkload()
+                                tmpPrivateStatPatterns = [re.compile(stat+str(tmpCPUID)+"\.") for stat in privateStatNames]
+                        
+                                if self._canAdd(l, tmpPrivateStatPatterns):
+                                    self.addstat(self._findKeyWithoutLast(l)+distKeySuffix, tmpConfig.experimentID, distribDict)
+                    else:
+                        if self._canAdd(l, currentPrivateStatPatterns):
+                            self.addstat(self._findKeyWithoutLast(l)+distKeySuffix, configIDs[0], distribDict)
+                else:
+                    vals = l.split()
+                    if self._isInt(vals[0]):
+                        assert self._isInt(vals[1])
+                        distribDict[int(vals[0])] = int(vals[1])
+                    else:
+                        if self._isKey(vals[0]):
+                            if self._isFloat(vals[1]):
+                                distribDict[self._findLastKeyPart(l)] = float(vals[1])
+                            else:
+                                distribDict[self._findLastKeyPart(l)] = int(vals[1])
+                        else:
+                            name = vals[0]
+                            for i in range(len(vals))[1:]:
+                                if self._isInt(vals[i]):
+                                    break
+                                name += " "+vals[i]
+ 
+                            distribDict[name] = int(vals[i])
+         
                 continue
                 
             elif self._findLastKeyPart(l) == "start_dist":
                 inDistribution = True
-                #distribDict = {}
+                distribDict = {}
                 continue
             
             if finalMode:
