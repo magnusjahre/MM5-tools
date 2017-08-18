@@ -52,6 +52,7 @@ def parseArgs():
     resultOptions.add_option("--print-all-patterns", action="store_true", dest="printAllPatterns", default=False, help="Print all matching patterns")
     resultOptions.add_option("--normalize-to", action="store", dest="normalizeTo", type="int", default=-1, help="Print results relative to column n (where 1 is the leftmost column)")
     resultOptions.add_option("--vector-stat", action="store_true", dest="vectorStat", default=False, help="The pattern is a vector stat so the statistic regarding this core should be retrieved")
+    resultOptions.add_option("--print-table", action="store_true", dest="printTable", default=False, help="Print a simple workload/benchmark vs. varargs table (assumes a single vararg)")
     parser.add_option_group(resultOptions)
     
     plotOptions = OptionGroup(parser, "Result Plotting Options")
@@ -308,6 +309,9 @@ def writeSearchResults(statSearch, wlAggMetricStr, opts, outfile):
                 print "Printing dictionary results to user specified file"
         
         statSearch.printDistributionsToFile(outfile)
+        
+    elif opts.printTable:
+        statSearch.tablePrint(opts.decimals, outfile)
     else:
         statSearch.printAllResults(opts.decimals, outfile)
     

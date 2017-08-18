@@ -1,4 +1,5 @@
-from statparse.processResults import findAllParams, findAllWorkloads
+from statparse.processResults import findAllParams, findAllWorkloads,\
+    findAllBenchmarks
 from deterministic_fw_wls import getBms
 from statparse.tracefile import isFloat
 
@@ -203,6 +204,46 @@ def createSortedParamList(allParams):
         sortedParamVals.append(params)
             
     return sortedParamVals
+
+def simpleTablePrint(results, decimals, outfile):
+    assert len(results.keys()) == 1
+    pattern = results.keys()[0]
+    allParams = findAllParams(results[pattern])
+    paramlist = createSortedParamList(allParams)
+    
+    allWls = findAllWorkloads(results[pattern])
+    allBMs = findAllBenchmarks(results[pattern])
+    if len(allWls) == 1:
+        useIdents = allBMs
+    else:
+        useIdents = allWls
+        
+    useIdents.sort()
+    
+    header = [""]
+    leftjust = [True]
+    for p in paramlist:
+        header.append(paramsToString(p))
+        leftjust.append(False)
+    
+    outdata = [header]
+    for ident in useIdents:
+        line = [ident]
+        for p in paramlist:
+            found = False
+            value = -1
+            for config in results[pattern].keys():
+                if config.parameters == p and (ident == config.workload or ident == config.benchmark):
+                    assert not found
+                    value = results[pattern][config]
+                    found = True
+                    
+            assert found
+            line.append(numberToString(value, decimals))
+        
+        outdata.append(line)
+    
+    printData(outdata, leftjust, outfile, decimals)
 
 def simplePrint(results, decimalPlaces, outfile):
     statkeys = results.keys()

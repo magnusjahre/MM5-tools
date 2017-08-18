@@ -146,6 +146,9 @@ class StatResults():
                 results[statname] = tmpres[statname]
         
         return results
+    
+    def tablePrint(self, decimals, outfile):
+        printResults.simpleTablePrint(self.results, decimals, outfile)
 
     def printAllResults(self, decimalPlaces, outfile):
         printResults.simplePrint(self.results, decimalPlaces, outfile)
