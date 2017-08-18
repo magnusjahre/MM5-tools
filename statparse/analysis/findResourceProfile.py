@@ -205,6 +205,7 @@ def parseArgs():
     parser.add_option("--wl-dist", action="store", dest="wlDistStr", type="string", default=defWlDistStr, help="Comma-divided string containing the number of workloads to generate of each type (Default: "+defWlDistStr+")")
     parser.add_option("--workloadfile", action="store", dest="wlfile", type="string", default="typewls.pkl", help="The file to write the workload dictionary (Defalut: typewls.pcl)")
     parser.add_option("--allow-reuse-degree", action="store", dest="allowReuseDegree", type="int", default=2, help="Allow benchmarks to be reused maximum [reuse degree] times")
+    parser.add_option("--base-dir", action="store", dest="baseDir", default=".", help="The base directory. Useful for running the interpreter locally when working with NFS-mounted drives (default: .)")
 
     allSPECNames = getAllSPECNames()
 
@@ -1010,6 +1011,8 @@ def doPlot(title, allWays, allUtils, profile, doGreyscale, opts, filename = ""):
 def main():
     opts,args = parseArgs()
     
+    os.chdir(opts.baseDir)
+    
     if not os.path.exists("index-all.pkl"):
         print
         fatal("Index file does not exist")
@@ -1017,9 +1020,10 @@ def main():
     if not os.path.exists("pbsconfig.py"):
         print
         fatal("pbsconfig.py not found")
-        
-    pbsconfigmodule = __import__("pbsconfig")
-    pbsconfigobj = pbsconfigmodule.config
+    
+    sys.path.append(os.getcwd())
+    import pbsconfig
+    pbsconfigobj = pbsconfig.config
         
     if not opts.quiet:
         print
