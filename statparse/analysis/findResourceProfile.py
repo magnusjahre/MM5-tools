@@ -192,6 +192,7 @@ def parseArgs():
     parser.add_option("--greyscale", action="store_true", dest="greyscale", default=False, help="Create grayscale heatmaps")
     parser.add_option("--pattern", action="store", dest="pattern", default="COM:IPC", help="The pattern to use for profiles (default COM:IPC)")
     parser.add_option("--bus-model", action="store_true", dest="useBusModel", default=False, help="Create a bus model")
+    parser.add_option("--baseline-alloc", action="store", dest="baselineAllocation", type="float", default=1.0, help="Bus bandwidth allocation to use as a baseline")
     
     defStreamingThres = 1.2
     defHighThres = 2.0
@@ -773,7 +774,7 @@ def findPatternWithConfig(patstring, benchmark, results, configList):
     configRes = procres.filterConfigurations(results.matchingConfigs, searchConfig)
     
     assert len(configRes) == 1
-    return float(results.noPatResults[configRes[0]])
+    return results.noPatResults[configRes[0]]
 
 def buildModel(benchmark, results, opts, allUtils, allWays, profile, plotfilename=""):
     perfModel = PerformanceModel(opts.debugModel, opts.queueLatFunction)
@@ -848,17 +849,46 @@ def estimateBusQueueLat(modelInput, bwAlloc, opts):
         print str(bwAlloc)+": Estimated average number of queued requests",numQueuedReqs,"and queue time",avgQueueTime
     
     return avgQueueTime
+
+def historgramBusModel(baselineConfig, benchmark, results, allUtils, opts, ):
+    data = findPatternWithConfig("num_wait_request_distribution", benchmark, results, baselineConfig)
+    busServCycles = float(findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig))
     
+    values = [data[k] for k in range(0,257)]
+    reqs = data["samples"]
+    assert sum(values) == reqs
+    
+    if not opts.quiet:
+        print "Queue distribution: "+str(values)
+    
+    estimates = []
+    for u in allUtils:
+        queueSum = 0
+        for q in range(len(values)):
+            qMarked =  ((float(q) + 1)/u) - 1
+            partWait = qMarked * values[q]
+            if not opts.quiet and values[q] != 0:
+                print str(u)+"-"+str(q)+": qMarked is",qMarked,"values",values[q],"partial req wait",partWait
+            queueSum += partWait
+        
+        avgWaitReqs = float(queueSum) / float(reqs)
+        avgLat = avgWaitReqs*busServCycles
+        
+        if not opts.quiet:
+            print str(u)+": Computed queue sum", queueSum,"reqs",reqs,"avg wait reqs",avgWaitReqs,"service cycles",busServCycles,"avg latency",avgLat
+            
+        estimates.append(avgLat)
+        
+    return estimates
 
 def buildBusModel(benchmark, results, opts, allUtils):
-    baselineAllocation = 0.25
-    baselineConfig = [("MEMORY-BUS-MAX-UTIL", baselineAllocation)]
+    baselineConfig = [("MEMORY-BUS-MAX-UTIL", opts.baselineAllocation)]
     
     modelInput = {}
-    modelInput["AvgBusQueueCycles"] = findPatternWithConfig("membus0.avg_queue_cycles", benchmark, results, baselineConfig)
-    modelInput["AvgBusServiceCycles"] = findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig)
-    modelInput["TotalRequests"] = findPatternWithConfig("membus0.total_requests", benchmark, results, baselineConfig) 
-    modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig)
+    modelInput["AvgBusQueueCycles"] = float(findPatternWithConfig("membus0.avg_queue_cycles", benchmark, results, baselineConfig))
+    modelInput["AvgBusServiceCycles"] = float(findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig))
+    modelInput["TotalRequests"] = float(findPatternWithConfig("membus0.total_requests", benchmark, results, baselineConfig))
+    modelInput["TotalCycles"] = float(findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig))
 
     if not opts.quiet:
         print "Bus Model Inputs"
@@ -877,19 +907,19 @@ def buildBusModel(benchmark, results, opts, allUtils):
     perfCorrModel = []
     for u in allUtils:
         curConfig = [("MEMORY-BUS-MAX-UTIL", u)]
-        modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, curConfig)
+        modelInput["TotalCycles"] = float(findPatternWithConfig("sim_ticks", benchmark, results, curConfig))
         if not opts.quiet:
             print str(u)+": Updating sim_ticks to",modelInput["TotalCycles"]
         
         perfCorrModel.append(estimateBusQueueLat(modelInput, u, opts))
     
-    modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig)
+    modelInput["TotalCycles"] = float(findPatternWithConfig("sim_ticks", benchmark, results, baselineConfig))
     
     if not opts.quiet:
         print
         print "Queue-calibrated model"
     
-    modelInput["AvgBusServiceCycles"] = sqrt((modelInput["AvgBusQueueCycles"] * modelInput["TotalCycles"] * baselineAllocation**2) / modelInput["TotalRequests"])
+    modelInput["AvgBusServiceCycles"] = sqrt((modelInput["AvgBusQueueCycles"] * modelInput["TotalCycles"] * opts.baselineAllocation**2) / modelInput["TotalRequests"])
 
     if not opts.quiet:
         print str(u)+": Queue calibrated average bus cycles is", modelInput["AvgBusServiceCycles"]
@@ -905,7 +935,7 @@ def buildBusModel(benchmark, results, opts, allUtils):
     perfCorrCalModel = []
     for u in allUtils:
         curConfig = [("MEMORY-BUS-MAX-UTIL", u)]
-        modelInput["TotalCycles"] = findPatternWithConfig("sim_ticks", benchmark, results, curConfig)
+        modelInput["TotalCycles"] = float(findPatternWithConfig("sim_ticks", benchmark, results, curConfig))
         if not opts.quiet:
             print str(u)+": Updating sim_ticks to",modelInput["TotalCycles"]
         
@@ -913,11 +943,18 @@ def buildBusModel(benchmark, results, opts, allUtils):
     
     if not opts.quiet:
         print
+        print "Histogram Model"
+    
+    histogramModel = historgramBusModel(baselineConfig, benchmark, results, allUtils, opts)
+    
+    if not opts.quiet:
+        print
     
     return [("Little's Law", modelData),
             ("Performance Corrected", perfCorrModel),
             ("Queue-calibrated", queueCalModel),
-            ("Queue-cal-perf", perfCorrCalModel)] 
+            ("Queue-cal-perf", perfCorrCalModel),
+            ("Histogram", histogramModel)] 
 
 def handleSingleBenchmark(benchmark, index, opts):
 
