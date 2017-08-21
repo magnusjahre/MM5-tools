@@ -193,6 +193,7 @@ def parseArgs():
     parser.add_option("--pattern", action="store", dest="pattern", default="COM:IPC", help="The pattern to use for profiles (default COM:IPC)")
     parser.add_option("--bus-model", action="store_true", dest="useBusModel", default=False, help="Create a bus model")
     parser.add_option("--baseline-alloc", action="store", dest="baselineAllocation", type="float", default=1.0, help="Bus bandwidth allocation to use as a baseline")
+    parser.add_option("--plot-best-model-only", action="store_true", dest="plotBestModelOnly", default=False, help="Only plot the best model")
     
     defStreamingThres = 1.2
     defHighThres = 2.0
@@ -950,6 +951,9 @@ def buildBusModel(benchmark, results, opts, allUtils):
     if not opts.quiet:
         print
     
+    if opts.plotBestModelOnly:
+        return [("Histogram", histogramModel)]
+        
     return [("Little's Law", modelData),
             ("Performance Corrected", perfCorrModel),
             ("Queue-calibrated", queueCalModel),
