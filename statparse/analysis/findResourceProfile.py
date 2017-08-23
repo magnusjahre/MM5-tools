@@ -856,8 +856,7 @@ def historgramBusModel(baselineConfig, benchmark, results, allUtils, opts, ):
     busServCycles = float(findPatternWithConfig("membus0.avg_service_cycles", benchmark, results, baselineConfig))
     
     values = [data[k] for k in range(0,257)]
-    reqs = data["samples"]
-    assert sum(values) == reqs
+    reqs = sum(values) # Must use the sum of values because the number of requests statistic is counted at issue and not completion
     
     if not opts.quiet:
         print "Queue distribution: "+str(values), "Total requests:", reqs
@@ -865,8 +864,13 @@ def historgramBusModel(baselineConfig, benchmark, results, allUtils, opts, ):
     estimates = []
     for u in allUtils:
         queueSum = 0
+        allocRatio = opts.baselineAllocation/u
+        if not opts.quiet:
+            print str(u)+": allocation ratio is",allocRatio,"with baseline",opts.baselineAllocation
         for q in range(len(values))[1:]:
-            qMarked =  ((float(q) + 1)/u) - 1
+            qMarked =  (allocRatio*(float(q) + 1)) - 1
+            if qMarked < 0.0:
+                qMarked = 0.0
             partWait = qMarked * values[q]
             if not opts.quiet and values[q] != 0:
                 print str(u)+"-"+str(q)+": qMarked is",qMarked,"values",values[q],"partial req wait",partWait
