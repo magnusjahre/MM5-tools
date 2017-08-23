@@ -860,12 +860,12 @@ def historgramBusModel(baselineConfig, benchmark, results, allUtils, opts, ):
     assert sum(values) == reqs
     
     if not opts.quiet:
-        print "Queue distribution: "+str(values)
+        print "Queue distribution: "+str(values), "Total requests:", reqs
     
     estimates = []
     for u in allUtils:
         queueSum = 0
-        for q in range(len(values)):
+        for q in range(len(values))[1:]:
             qMarked =  ((float(q) + 1)/u) - 1
             partWait = qMarked * values[q]
             if not opts.quiet and values[q] != 0:
