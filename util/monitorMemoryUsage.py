@@ -25,7 +25,11 @@ def parseArgs():
     return args[0], opts
 
 def getProcessData(pid):
-    data = subprocess.check_output(["ps", "-o", "pid,vsz,%cpu", pid])
+    try:
+        data = subprocess.check_output(["ps", "-o", "pid,vsz,%cpu", pid])
+    except:
+        print "Unknown PID, application likely finished..."
+        sys.exit()
     lines = data.split("\n")
     processData = lines[1].split()
     
