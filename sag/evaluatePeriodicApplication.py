@@ -55,20 +55,16 @@ def readModelFile(modelfilename):
 
 def estimateEnergy(voltage, frequency, model, opts):
     
-    pDyn = model["ALPHA-D"]*frequency*voltage**2
-    pStat = model["ALPHA-S"]*voltage
+    pDyn = model["ALPHA-D"]*model["PERIOD-INSTRUCTIONS"]*voltage**2
+    if opts.verbose:
+        print "alpha-d="+str(model["ALPHA-D"])+", instructions="+str(model["PERIOD-INSTRUCTIONS"])+", voltage="+str(voltage)+" gives Pd="+str(pDyn)
+    
+    pStat = (model["ALPHA-S"]*model["PERIOD-INSTRUCTIONS"]*voltage)/float(frequency)
     
     if opts.verbose:
-        print "v="+str(voltage)+", f="+str(frequency)+" gives Pd="+str(pDyn)+" and Ps="+str(pStat)
+        print "alpha-s="+str(model["ALPHA-S"])+", f="+str(frequency)+" gives Ps="+str(pStat)
     
-    # Assuming a one-IPC performance model
-    clockPeriod = 1.0/float(frequency)
-    runtime = model["PERIOD-INSTRUCTIONS"] * clockPeriod
-    
-    eTot = pDyn*runtime + pStat*runtime
-    
-    if opts.verbose:
-        print "clockPeriod="+str(clockPeriod)+" gives runtime="+str(runtime)+" and Etot="+str(eTot)
+    eTot = pDyn + pStat
     
     return eTot
 
