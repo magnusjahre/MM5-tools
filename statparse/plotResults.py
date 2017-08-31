@@ -441,6 +441,19 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
                      horizontalalignment='center',
                      fontsize="large",
                      transform = ax.transAxes)
+            
+    if "separators" in kwargs:
+        if kwargs["separators"] != "":
+            coords = [float(i) for i in kwargs["separators"].split(",")]
+            for c in coords:
+                ax.axvline(x=c, linestyle="dashed")
+                
+    if "labels" in kwargs:
+        if kwargs["labels"] != "":
+            labelstr = [i for i in kwargs["labels"].split(":")]
+            for t in labelstr:
+                x,y,text = t.split(",")
+                ax.text(float(x),float(y),text)
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
