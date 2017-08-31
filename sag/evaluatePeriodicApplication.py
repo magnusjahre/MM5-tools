@@ -12,6 +12,7 @@ def parseArgs():
 
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Enable verbose output")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
+    parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Filename of the plot file")
     
     opts, args = parser.parse_args()
 
@@ -125,13 +126,14 @@ def main():
     
     plotRawLinePlot(vRange,
                     [Edyn, Estat, Etot],
-                    titles=["$E_{dyn}$","$E_{stat}$","$E_{tot}$"],
+                    titles=["E-dynamic","E-static","E-total"],
                     legendColumns=3,
                     mode="None",
                     xlabel="$V_{dd}$",
                     ylabel="mJ",
                     separators=str(Vopt),
-                    labels=str(Vopt*1.01)+","+str(Emin*1.2)+",Optimal Voltage")
+                    labels=str(Vopt*1.01)+","+str(Emin*1.2)+",Optimal Voltage",
+                    filename=opts.outfile)
 
 if __name__ == '__main__':
     main()
