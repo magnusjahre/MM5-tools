@@ -886,6 +886,9 @@ def historgramBusModel(baselineConfig, benchmark, results, allUtils, opts, ):
         
     return estimates
 
+def computePerfFromBus(queueLats, opts):
+    return queueLats
+
 def buildBusModel(benchmark, results, opts, allUtils):
     baselineConfig = [("MEMORY-BUS-MAX-UTIL", opts.baselineAllocation)]
     
@@ -954,6 +957,11 @@ def buildBusModel(benchmark, results, opts, allUtils):
     
     if not opts.quiet:
         print
+        
+    if opts.pattern == "COM:IPC":
+        perf = computePerfFromBus(histogramModel, opts)
+        print perf
+        assert False, "stop here for now"
     
     if opts.plotBestModelOnly:
         return [("Histogram", histogramModel)]
