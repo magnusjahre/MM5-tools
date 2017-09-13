@@ -112,7 +112,7 @@ def main():
     Edyn = []
     Estat = []
     Etot = []
-    unitFactor = 1000
+    unitFactor = 10**6
     for d,s in energy:
         Edyn.append(d*unitFactor)
         Estat.append(s*unitFactor)
@@ -130,7 +130,7 @@ def main():
                     legendColumns=3,
                     mode="None",
                     xlabel="$V_{dd}$",
-                    ylabel="mJ",
+                    ylabel="uJ",
                     separators=str(Vopt),
                     labels=str(Vopt*1.01)+","+str(Emin*1.2)+",Optimal Voltage",
                     filename=opts.outfile)
