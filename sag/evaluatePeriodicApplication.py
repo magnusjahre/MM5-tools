@@ -13,6 +13,7 @@ def parseArgs():
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Enable verbose output")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Filename of the plot file")
+    parser.add_option("--analyse-cores", action="store_true", dest="analyseCores", default=False, help="Find the minium energy points for each core configuration")
     
     opts, args = parser.parse_args()
 
@@ -111,12 +112,7 @@ def getExecutionTime(model, v, f, cores, serialFraction):
     t = (model["PERIOD-INSTRUCTIONS"] * (serialFraction + (p/float(cores)))) / f
     return t
 
-def main():
-    args, opts = parseArgs()
-    model = readModelFile(args[0])
-    cores = int(args[1])
-    serialFraction = float(args[2])
-    
+def findOperatingPoints(model, cores, serialFraction, opts):
     vRange = []
     energy = []
     execTimes = []
@@ -127,7 +123,10 @@ def main():
         et = getExecutionTime(model, v, f, cores, serialFraction)
         execTimes.append(et)
         feasible.append(isFeasible(et, model))
-    
+        
+    return vRange, energy, execTimes, feasible
+
+def getEnergyBreakdown(energy):
     Edyn = []
     EstatSer = []
     EstatPar = []
@@ -138,6 +137,43 @@ def main():
         EstatSer.append(ss*unitFactor)
         EstatPar.append(sp*unitFactor)
         Etot.append((d+ss+sp)*unitFactor)
+    return Edyn, EstatSer, EstatPar, Etot
+    
+
+def analyseCores(model, maxCores, opts):
+    serialFractions = [0.25,0.5,0.75]
+    cores = range(1,maxCores+1)
+    minE = {}
+    for s in serialFractions:
+        minE[s] = []
+        for c in cores:
+            vRange, energy, execTimes, feasible = findOperatingPoints(model, c, s, opts)
+            Edyn, EstatSer, EstatPar, Etot = getEnergyBreakdown(energy)
+            bestIndex = findMinEP(Etot, feasible)
+            minE[s].append(Etot[bestIndex])
+    
+    data = []
+    for s in serialFractions:
+        norm = [e/minE[s][0] for e in minE[s]]
+        data.append(norm)
+    
+    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(model["PERIOD-INSTRUCTIONS"]/10**6)+" million instructions"
+    
+    plotRawLinePlot(cores,
+                    data,
+                    titles=[str(s) for s in serialFractions],
+                    legendColumns=len(serialFractions),
+                    mode="None",
+                    xlabel="Number of cores",
+                    ylabel="Energy Normalized to Single Core",
+                    yrange="0.6,1.2",
+                    figtitle=figTitle,
+                    filename=opts.outfile)
+
+def analyseSingleCase(model, cores, serialFraction, opts):
+    
+    vRange, energy, execTimes, feasible = findOperatingPoints(model, cores, serialFraction, opts)
+    Edyn, EstatSer, EstatPar, Etot = getEnergyBreakdown(energy)
     
     printEnergyData(vRange, [["Edyn"]+Edyn, ["EstatSer"]+EstatSer, ["EstatPar"]+EstatPar, ["Etot"]+Etot], opts)
     
@@ -165,6 +201,18 @@ def main():
                     separators=str(vRange[bestIndex]),
                     labels=str(vRange[bestIndex]*1.01)+","+str(Etot[bestIndex]*1.2)+","+opLabel,
                     filename=opts.outfile)
+
+def main():
+    args, opts = parseArgs()
+    model = readModelFile(args[0])
+    cores = int(args[1])
+    serialFraction = float(args[2])
+    
+    if opts.analyseCores:
+        analyseCores(model, cores, opts)
+        return
+    analyseSingleCase(model, cores, serialFraction, opts)
+    
 
 if __name__ == '__main__':
     main()
