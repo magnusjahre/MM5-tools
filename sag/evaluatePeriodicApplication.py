@@ -92,32 +92,23 @@ def printEnergyData(vRange, data, opts):
     print
     printData(lines, justify, sys.stdout, opts.decimals)
 
-def findMinEP(vRange, Etot):
-    Emin = Etot[0]
-    Vopt = vRange[0]
-    for i in range(len(Etot))[1:]:
-        if Etot[i] < Emin:
+def findMinEP(Etot, feasible):
+    index = -1
+    Emin = 10**10
+    for i in range(len(Etot)):
+        if Etot[i] < Emin and feasible[i]:
             Emin = Etot[i]
-            Vopt = vRange[i]
-    
-    return Emin,Vopt
+            index = i
+    return index
 
-def getExecutionTime(model, Vopt, cores, serialFraction):
-    useFreq = 0.0
-    for v,f in model["OP"]:
-        if v == Vopt:
-            assert useFreq == 0.0
-            useFreq = f
-    assert useFreq != 0.0
-    
+def isFeasible(et, model):
+    if et <= model["PERIOD-TIME"]:
+        return True
+    return False
+
+def getExecutionTime(model, v, f, cores, serialFraction):
     p = 1-serialFraction
-    t = (model["PERIOD-INSTRUCTIONS"] * (serialFraction + (p/float(cores)))) / useFreq
-    
-    if t <= model["PERIOD-TIME"]:
-        print "Execution time "+str(t)+" s at optimal voltage is feasible within period "+str(model["PERIOD-TIME"])
-    else:
-        print "Execution time "+str(t)+" s at optimal voltage is _not_ feasible within period "+str(model["PERIOD-TIME"])
-    
+    t = (model["PERIOD-INSTRUCTIONS"] * (serialFraction + (p/float(cores)))) / f
     return t
 
 def main():
@@ -128,9 +119,14 @@ def main():
     
     vRange = []
     energy = []
+    execTimes = []
+    feasible = []
     for v,f in model["OP"]:
         vRange.append(v)
         energy.append(estimateEnergy(v, f, cores, serialFraction, model, opts))
+        et = getExecutionTime(model, v, f, cores, serialFraction)
+        execTimes.append(et)
+        feasible.append(isFeasible(et, model))
     
     Edyn = []
     EstatSer = []
@@ -145,9 +141,18 @@ def main():
     
     printEnergyData(vRange, [["Edyn"]+Edyn, ["EstatSer"]+EstatSer, ["EstatPar"]+EstatPar, ["Etot"]+Etot], opts)
     
-    Emin, Vopt = findMinEP(vRange, Etot)
+    bestIndex = findMinEP(Etot, feasible)
+    
+    if bestIndex == -1:
+        print 
+        print "Excecution time at maxiumum frequency ("+str(execTimes[-1])+"s) does not meet contraint "+str(model["PERIOD-TIME"])+"s"
+        return
+    
     print
-    print "Optimal Voltage is "+str(Vopt)+" with total energy "+str(Emin)+" uJ and execution time "+str(getExecutionTime(model, Vopt, cores, serialFraction))
+    print "Optimal Voltage is "+str(vRange[bestIndex])+" with total energy "+str(Etot[bestIndex])+" uJ and execution time "+str(execTimes[bestIndex])
+    
+    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(model["PERIOD-INSTRUCTIONS"]/10**6)+" million instructions with "+str(cores)+" cores and s="+str(serialFraction)
+    opLabel = "Best Operating Point\nE = "+("%.2f uJ" % Etot[bestIndex])+("\nSlack %.3f s" % (model["PERIOD-TIME"]-execTimes[bestIndex]))
     
     plotRawLinePlot(vRange,
                     [Edyn, EstatSer, EstatPar, Etot],
@@ -156,8 +161,9 @@ def main():
                     mode="None",
                     xlabel="$V_{dd}$",
                     ylabel="uJ",
-                    separators=str(Vopt),
-                    labels=str(Vopt*1.01)+","+str(Emin*1.2)+",Optimal Voltage",
+                    figtitle=figTitle,
+                    separators=str(vRange[bestIndex]),
+                    labels=str(vRange[bestIndex]*1.01)+","+str(Etot[bestIndex]*1.2)+","+opLabel,
                     filename=opts.outfile)
 
 if __name__ == '__main__':
