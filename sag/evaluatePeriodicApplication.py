@@ -4,7 +4,7 @@ import sys
 from optparse import OptionParser
 from sag import fatal
 
-from statparse.plotResults import plotRawLinePlot
+from statparse.plotResults import plotRawLinePlot, plotRawScatter
 from statparse.printResults import printData, numberToString
 
 def parseArgs():
@@ -14,6 +14,7 @@ def parseArgs():
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Filename of the plot file")
     parser.add_option("--analyse-cores", action="store_true", dest="analyseCores", default=False, help="Find the minium energy points for each core configuration")
+    parser.add_option("--single-scatter", action="store_true", dest="singleScatter", default=False, help="Analyse a single architecture with all frequency pairs")
     
     opts, args = parser.parse_args()
 
@@ -77,35 +78,40 @@ def printEnergyData(vRange, data, opts):
     print
     printData(lines, justify, sys.stdout, opts.decimals)
 
-class OperatingPoint:
+class VoltagePoint:
     
-    def __init__(self, v, f, cores, serialFraction, opts, model):
+    def __init__(self, v, f):
         self.v = v
         self.f = f
+
+class OperatingPoint:
+    
+    def __init__(self, serVP, paraVP, cores, serialFraction, opts, model):
+        self.serVP = serVP
+        self.paraVP = paraVP
         self.cores = cores
         self.serialFraction = serialFraction
         self.opts = opts
         self.model = model
     
     def estimateEnergy(self):
-    
-        self.eDyn = self.model["ALPHA-D"]*self.model["PERIOD-INSTRUCTIONS"]*self.v**2
+        self.eDyn = self.model["ALPHA-D"]*self.model["PERIOD-INSTRUCTIONS"]*self.paraVP.v**2
         if self.opts.verbose:
-            print "alpha-d="+str(self.model["ALPHA-D"])+", instructions="+str(self.model["PERIOD-INSTRUCTIONS"])+", voltage="+str(self.v)+" gives Pd="+str(self.eDyn)
+            print "alpha-d="+str(self.model["ALPHA-D"])+", instructions="+str(self.model["PERIOD-INSTRUCTIONS"])+", voltage="+str(self.paraVP.v)+" gives Pd="+str(self.eDyn)
         
-        eStatConst = (self.model["ALPHA-S"]*self.v)/float(self.f)
+        eStatConst = (self.model["ALPHA-S"]*self.serVP.v)/float(self.serVP.f)
         
         self.eStatSerial = self.model["PERIOD-INSTRUCTIONS"]*self.serialFraction*eStatConst
         self.eStatPara = self.model["PERIOD-INSTRUCTIONS"]*(1-self.serialFraction)*eStatConst*float(self.cores)
         
         if self.opts.verbose:
-            print "alpha-s="+str(self.model["ALPHA-S"])+", I="+str(self.model["PERIOD-INSTRUCTIONS"])+", f="+str(self.f)+" gives static energy constant "+str(eStatConst)
+            print "alpha-s="+str(self.model["ALPHA-S"])+", I="+str(self.model["PERIOD-INSTRUCTIONS"])+", f="+str(self.serVP.f)+" gives static energy constant "+str(eStatConst)
             
         self.eTot = self.eDyn + self.eStatSerial + self.eStatPara
     
     def computeExecutionTime(self):
-        p = 1-self.serialFraction
-        self.executionTime = (self.model["PERIOD-INSTRUCTIONS"] * (self.serialFraction + (p/float(self.cores)))) / self.f
+        self.executionTime = (self.model["PERIOD-INSTRUCTIONS"] * self.serialFraction) / self.serVP.f
+        self.executionTime += (self.model["PERIOD-INSTRUCTIONS"]* (1-self.serialFraction)) / (self.paraVP.f * float(self.cores))
         if self.executionTime <= self.model["PERIOD-TIME"]:
             self.feasible = True
         else:
@@ -113,13 +119,22 @@ class OperatingPoint:
         
 class OperatingPointData:
     
-    def __init__(self, model, cores, serialFraction, opts):
+    def __init__(self, model, cores, serialFraction, opts, singleFrequency=False):
         self.ops = []
-        for v,f in model["OP"]:
-            op = OperatingPoint(v, f, cores, serialFraction, opts, model)
-            op.estimateEnergy()
-            op.computeExecutionTime()
-            self.ops.append(op)
+        
+        if singleFrequency:
+            for v,f in model["OP"]:
+                op = OperatingPoint(VoltagePoint(v, f), VoltagePoint(v, f), cores, serialFraction, opts, model)
+                op.estimateEnergy()
+                op.computeExecutionTime()
+                self.ops.append(op)
+        else:
+            for sv,sf in model["OP"]:
+                for pv,pf in model["OP"]:
+                    op = OperatingPoint(VoltagePoint(sv, sf), VoltagePoint(pv, pf), cores, serialFraction, opts, model)
+                    op.estimateEnergy()
+                    op.computeExecutionTime()
+                    self.ops.append(op)
         
         self.Edyn = []
         self.EstatSer = []
@@ -140,7 +155,7 @@ class OperatingPointData:
                 Emin = self.Etot[i]
                 index = i
                 
-        self.bestVoltage = self.ops[index].v
+        self.bestVoltage = self.ops[index].serVP.v
         self.bestEnergy = Emin
         self.bestExecTime = self.ops[index].executionTime
                 
@@ -149,7 +164,7 @@ class OperatingPointData:
     def getvRange(self):
         vRange = []
         for op in self.ops:
-            vRange.append(op.v)
+            vRange.append(op.serVP.v)
         return vRange
         
 def analyseCores(model, maxCores, opts):
@@ -183,7 +198,7 @@ def analyseCores(model, maxCores, opts):
 
 def analyseSingleCase(model, cores, serialFraction, opts):
     
-    opd = OperatingPointData(model, cores, serialFraction, opts)
+    opd = OperatingPointData(model, cores, serialFraction, opts, True)
     
     printEnergyData(opd.getvRange(), [["Edyn"]+opd.Edyn, ["EstatSer"]+opd.EstatSer, ["EstatPar"]+opd.EstatPar, ["Etot"]+opd.Etot], opts)
     
@@ -212,6 +227,19 @@ def analyseSingleCase(model, cores, serialFraction, opts):
                     labels=str(opd.bestVoltage*1.01)+","+str(opd.bestEnergy*1.2)+","+opLabel,
                     filename=opts.outfile)
 
+def analyseFrequencies(model, cores, serialFraction, opts):
+    opd = OperatingPointData(model, cores, serialFraction, opts)
+    
+    execTimes = []
+    energies = []
+    
+    for op in opd.ops:
+        execTimes.append(op.executionTime)
+        energies.append(op.eTot)
+        
+    plotRawScatter(execTimes, energies)
+    
+
 def main():
     args, opts = parseArgs()
     model = readModelFile(args[0])
@@ -221,6 +249,11 @@ def main():
     if opts.analyseCores:
         analyseCores(model, cores, opts)
         return
+    
+    if opts.singleScatter:
+        analyseFrequencies(model, cores, serialFraction, opts)
+        return
+    
     analyseSingleCase(model, cores, serialFraction, opts)
     
 
