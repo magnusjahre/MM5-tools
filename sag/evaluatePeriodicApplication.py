@@ -56,19 +56,19 @@ def readModelFile(modelfilename):
     
     return model
 
-def estimateEnergy(voltage, frequency, cores, serialFraction, model, opts):
+def estimateEnergy(op, model, opts):
     
-    eDyn = model["ALPHA-D"]*model["PERIOD-INSTRUCTIONS"]*voltage**2
+    eDyn = model["ALPHA-D"]*model["PERIOD-INSTRUCTIONS"]*op.v**2
     if opts.verbose:
-        print "alpha-d="+str(model["ALPHA-D"])+", instructions="+str(model["PERIOD-INSTRUCTIONS"])+", voltage="+str(voltage)+" gives Pd="+str(eDyn)
+        print "alpha-d="+str(model["ALPHA-D"])+", instructions="+str(model["PERIOD-INSTRUCTIONS"])+", voltage="+str(op.v)+" gives Pd="+str(eDyn)
     
-    eStatConst = (model["ALPHA-S"]*voltage)/float(frequency)
+    eStatConst = (model["ALPHA-S"]*op.v)/float(op.f)
     
-    eStatSerial = model["PERIOD-INSTRUCTIONS"]*serialFraction*eStatConst
-    eStatPara = model["PERIOD-INSTRUCTIONS"]*(1-serialFraction)*eStatConst*float(cores)
+    eStatSerial = model["PERIOD-INSTRUCTIONS"]*op.serialFraction*eStatConst
+    eStatPara = model["PERIOD-INSTRUCTIONS"]*(1-op.serialFraction)*eStatConst*float(op.cores)
     
     if opts.verbose:
-        print "alpha-s="+str(model["ALPHA-S"])+", I="+str(model["PERIOD-INSTRUCTIONS"])+", f="+str(frequency)+" gives static energy constant "+str(eStatConst)
+        print "alpha-s="+str(model["ALPHA-S"])+", I="+str(model["PERIOD-INSTRUCTIONS"])+", f="+str(op.f)+" gives static energy constant "+str(eStatConst)
     
     return eDyn, eStatSerial, eStatPara
 
@@ -107,39 +107,46 @@ def isFeasible(et, model):
         return True
     return False
 
-def getExecutionTime(model, v, f, cores, serialFraction):
-    p = 1-serialFraction
-    t = (model["PERIOD-INSTRUCTIONS"] * (serialFraction + (p/float(cores)))) / f
+def getExecutionTime(model, op):
+    p = 1-op.serialFraction
+    t = (model["PERIOD-INSTRUCTIONS"] * (op.serialFraction + (p/float(op.cores)))) / op.f
     return t
 
-def findOperatingPoints(model, cores, serialFraction, opts):
-    vRange = []
-    energy = []
-    execTimes = []
-    feasible = []
-    for v,f in model["OP"]:
-        vRange.append(v)
-        energy.append(estimateEnergy(v, f, cores, serialFraction, model, opts))
-        et = getExecutionTime(model, v, f, cores, serialFraction)
-        execTimes.append(et)
-        feasible.append(isFeasible(et, model))
-        
-    return vRange, energy, execTimes, feasible
-
-def getEnergyBreakdown(energy):
-    Edyn = []
-    EstatSer = []
-    EstatPar = []
-    Etot = []
-    unitFactor = 10**6
-    for d,ss,sp in energy:
-        Edyn.append(d*unitFactor)
-        EstatSer.append(ss*unitFactor)
-        EstatPar.append(sp*unitFactor)
-        Etot.append((d+ss+sp)*unitFactor)
-    return Edyn, EstatSer, EstatPar, Etot
+class OperatingPoint:
     
+    def __init__(self, v, f, cores, serialFraction):
+        self.v = v
+        self.f = f
+        self.cores = cores
+        self.serialFraction = serialFraction
+        
 
+class OperatingPointData:
+    
+    def __init__(self, model, cores, serialFraction, opts):
+        self.vRange = []
+        self.energy = []
+        self.execTimes = []
+        self.feasible = []
+        for v,f in model["OP"]:
+            op = OperatingPoint(v, f, cores, serialFraction)
+            self.vRange.append(v)
+            self.energy.append(estimateEnergy(op, model, opts))
+            et = getExecutionTime(model, op)
+            self.execTimes.append(et)
+            self.feasible.append(isFeasible(et, model))
+        
+        self.Edyn = []
+        self.EstatSer = []
+        self.EstatPar = []
+        self.Etot = []
+        unitFactor = 10**6
+        for d,ss,sp in self.energy:
+            self.Edyn.append(d*unitFactor)
+            self.EstatSer.append(ss*unitFactor)
+            self.EstatPar.append(sp*unitFactor)
+            self.Etot.append((d+ss+sp)*unitFactor)
+        
 def analyseCores(model, maxCores, opts):
     serialFractions = [0.25,0.5,0.75]
     cores = range(1,maxCores+1)
@@ -147,10 +154,9 @@ def analyseCores(model, maxCores, opts):
     for s in serialFractions:
         minE[s] = []
         for c in cores:
-            vRange, energy, execTimes, feasible = findOperatingPoints(model, c, s, opts)
-            Edyn, EstatSer, EstatPar, Etot = getEnergyBreakdown(energy)
-            bestIndex = findMinEP(Etot, feasible)
-            minE[s].append(Etot[bestIndex])
+            opd = OperatingPointData(model, c, s, opts)
+            bestIndex = findMinEP(opd.Etot, opd.feasible)
+            minE[s].append(opd.Etot[bestIndex])
     
     data = []
     for s in serialFractions:
@@ -172,34 +178,33 @@ def analyseCores(model, maxCores, opts):
 
 def analyseSingleCase(model, cores, serialFraction, opts):
     
-    vRange, energy, execTimes, feasible = findOperatingPoints(model, cores, serialFraction, opts)
-    Edyn, EstatSer, EstatPar, Etot = getEnergyBreakdown(energy)
+    opd = OperatingPointData(model, cores, serialFraction, opts)
     
-    printEnergyData(vRange, [["Edyn"]+Edyn, ["EstatSer"]+EstatSer, ["EstatPar"]+EstatPar, ["Etot"]+Etot], opts)
+    printEnergyData(opd.vRange, [["Edyn"]+opd.Edyn, ["EstatSer"]+opd.EstatSer, ["EstatPar"]+opd.EstatPar, ["Etot"]+opd.Etot], opts)
     
-    bestIndex = findMinEP(Etot, feasible)
+    bestIndex = findMinEP(opd.Etot, opd.feasible)
     
     if bestIndex == -1:
         print 
-        print "Excecution time at maxiumum frequency ("+str(execTimes[-1])+"s) does not meet contraint "+str(model["PERIOD-TIME"])+"s"
+        print "Excecution time at maxiumum frequency ("+str(opd.execTimes[-1])+"s) does not meet contraint "+str(model["PERIOD-TIME"])+"s"
         return
     
     print
-    print "Optimal Voltage is "+str(vRange[bestIndex])+" with total energy "+str(Etot[bestIndex])+" uJ and execution time "+str(execTimes[bestIndex])
+    print "Optimal Voltage is "+str(opd.vRange[bestIndex])+" with total energy "+str(opd.Etot[bestIndex])+" uJ and execution time "+str(opd.execTimes[bestIndex])
     
     figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(model["PERIOD-INSTRUCTIONS"]/10**6)+" million instructions with "+str(cores)+" cores and s="+str(serialFraction)
-    opLabel = "Best Operating Point\nE = "+("%.2f uJ" % Etot[bestIndex])+("\nSlack %.3f s" % (model["PERIOD-TIME"]-execTimes[bestIndex]))
+    opLabel = "Best Operating Point\nE = "+("%.2f uJ" % opd.Etot[bestIndex])+("\nSlack %.3f s" % (model["PERIOD-TIME"]-opd.execTimes[bestIndex]))
     
-    plotRawLinePlot(vRange,
-                    [Edyn, EstatSer, EstatPar, Etot],
+    plotRawLinePlot(opd.vRange,
+                    [opd.Edyn, opd.EstatSer, opd.EstatPar, opd.Etot],
                     titles=["E-dynamic","E-static-serial-section","E-static-parallel-section", "E-total"],
                     legendColumns=4,
                     mode="None",
                     xlabel="$V_{dd}$",
                     ylabel="uJ",
                     figtitle=figTitle,
-                    separators=str(vRange[bestIndex]),
-                    labels=str(vRange[bestIndex]*1.01)+","+str(Etot[bestIndex]*1.2)+","+opLabel,
+                    separators=str(opd.vRange[bestIndex]),
+                    labels=str(opd.vRange[bestIndex]*1.01)+","+str(opd.Etot[bestIndex]*1.2)+","+opLabel,
                     filename=opts.outfile)
 
 def main():
