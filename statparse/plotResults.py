@@ -207,20 +207,45 @@ def plotRawScatter(xdata, ydata, **kwargs):
     
     import matplotlib
     import matplotlib.pyplot as plt
-
-    fontsize = 16
+    from matplotlib import cm
+    from matplotlib.markers import MarkerStyle
+    
+    fontsize = 12    
+    width = 16
+    height = 3.5
+            
+    if "figwidth" in kwargs:
+        width = kwargs["figwidth"] 
+        fontsize = 14
+            
+    if "largeFonts" in kwargs:
+        if kwargs["largeFonts"]:
+            fontsize += 4
+    
+    if "figheight" in kwargs:
+        height = kwargs["figheight"] 
+    
+    matplotlib.rc('ps', useafm=True)
+    matplotlib.rc('pdf', use14corefonts=True)
+    if "notex" not in kwargs:
+        matplotlib.rc('text', usetex=True)
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
+    matplotlib.rc('legend', fontsize=fontsize)
     matplotlib.rc('font', size=fontsize)
     
     if(len(xdata) != len(ydata)):
         raise Exception("X and Y series data must be of equal length")
     
-    fig = plt.figure()
+    fig = plt.figure(figsize=(width,height))
     ax = fig.add_subplot(111)
     
+    scatters = []
+    assert len(xdata) == len(ydata)
     for i in range(len(xdata)):
-        ax.plot(xdata[i], ydata[i], 'o')
+        thisColor = cm.Paired(1*(float(i)/float(len(xdata))))
+        thisMarker = MarkerStyle.filled_markers[i % len(MarkerStyle.filled_markers)]
+        scatters.append(plt.scatter(xdata[i], ydata[i], marker=thisMarker, color=thisColor))
     
     if "fitLines" in kwargs:
         if kwargs["fitLines"]:
@@ -259,7 +284,7 @@ def plotRawScatter(xdata, ydata, **kwargs):
             ax.set_xlim(xmin, xmax)
     
     if "legend" in kwargs:
-        ax.legend(kwargs["legend"], "upper center", ncol=len(kwargs["legend"]))
+        plt.legend(scatters, kwargs["legend"], scatterpoints=1)
         
     if "title" in kwargs:
         if kwargs["title"] != "none":

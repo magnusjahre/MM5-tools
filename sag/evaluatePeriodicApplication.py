@@ -90,23 +90,24 @@ class OperatingPoint:
         self.serVP = serVP
         self.paraVP = paraVP
         self.cores = cores
-        self.serialFraction = serialFraction
+        if self.cores == 1:
+            self.serialFraction = 1.0
+        else:
+            self.serialFraction = serialFraction
         self.opts = opts
         self.model = model
     
     def estimateEnergy(self):
-        self.eDyn = self.model["ALPHA-D"]*self.model["PERIOD-INSTRUCTIONS"]*self.paraVP.v**2
-        if self.opts.verbose:
-            print "alpha-d="+str(self.model["ALPHA-D"])+", instructions="+str(self.model["PERIOD-INSTRUCTIONS"])+", voltage="+str(self.paraVP.v)+" gives Pd="+str(self.eDyn)
         
-        eStatConst = (self.model["ALPHA-S"]*self.serVP.v)/float(self.serVP.f)
+        self.eDyn = self.serialFraction*self.model["ALPHA-D"]*self.model["PERIOD-INSTRUCTIONS"]*self.serVP.v**2
+        self.eDyn += (1-self.serialFraction)*self.model["ALPHA-D"]*self.model["PERIOD-INSTRUCTIONS"]*self.paraVP.v**2
         
-        self.eStatSerial = self.model["PERIOD-INSTRUCTIONS"]*self.serialFraction*eStatConst
-        self.eStatPara = self.model["PERIOD-INSTRUCTIONS"]*(1-self.serialFraction)*eStatConst*float(self.cores)
+        eStatConstSerial = (self.model["ALPHA-S"]*self.serVP.v)/float(self.serVP.f)
+        self.eStatSerial = self.model["PERIOD-INSTRUCTIONS"]*self.serialFraction*eStatConstSerial
         
-        if self.opts.verbose:
-            print "alpha-s="+str(self.model["ALPHA-S"])+", I="+str(self.model["PERIOD-INSTRUCTIONS"])+", f="+str(self.serVP.f)+" gives static energy constant "+str(eStatConst)
-            
+        eStatConstPara = (self.model["ALPHA-S"]*self.paraVP.v)/float(self.paraVP.f)
+        self.eStatPara = self.model["PERIOD-INSTRUCTIONS"]*(1-self.serialFraction)*eStatConstPara*float(self.cores)
+           
         self.eTot = self.eDyn + self.eStatSerial + self.eStatPara
     
     def computeExecutionTime(self):
@@ -168,7 +169,7 @@ class OperatingPointData:
         return vRange
         
 def analyseCores(model, maxCores, opts):
-    serialFractions = [0.25,0.5,0.75]
+    serialFractions = [0.1,0.25,0.5,0.75]
     cores = range(1,maxCores+1)
     minE = {}
     for s in serialFractions:
@@ -221,7 +222,7 @@ def analyseSingleCase(model, cores, serialFraction, opts):
                     legendColumns=4,
                     mode="None",
                     xlabel="$V_{dd}$",
-                    ylabel="uJ",
+                    ylabel="Energy (uJ)",
                     figtitle=figTitle,
                     separators=str(opd.bestVoltage),
                     labels=str(opd.bestVoltage*1.01)+","+str(opd.bestEnergy*1.2)+","+opLabel,
@@ -229,15 +230,29 @@ def analyseSingleCase(model, cores, serialFraction, opts):
 
 def analyseFrequencies(model, cores, serialFraction, opts):
     opd = OperatingPointData(model, cores, serialFraction, opts)
+
+    data = {}
+    
+    for op in opd.ops:
+        if op.serVP.v not in data:
+            data[op.serVP.v] = ([],[])
+        data[op.serVP.v][0].append(op.executionTime)
+        data[op.serVP.v][1].append(op.eTot * 10**6)
     
     execTimes = []
     energies = []
-    
-    for op in opd.ops:
-        execTimes.append(op.executionTime)
-        energies.append(op.eTot)
+    legend = []
+    for v in sorted(data.keys()):
+        et, e = data[v]
+        legend.append(str(v))
+        execTimes.append(et)
+        energies.append(e)
         
-    plotRawScatter(execTimes, energies)
+    plotRawScatter(execTimes,
+                   energies,
+                   xlabel="Execution Time (s)",
+                   ylabel="Energy (uJ)",
+                   legend=legend)
     
 
 def main():
