@@ -8,7 +8,7 @@ from statparse.plotResults import plotRawLinePlot
 from statparse.printResults import printData, numberToString
 
 def parseArgs():
-    parser = OptionParser(usage="evaluatePeriodicApplication.py [options] model-file")
+    parser = OptionParser(usage="evaluatePeriodicApplication.py [options] model-file cores serial-fraction")
 
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Enable verbose output")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
@@ -16,7 +16,7 @@ def parseArgs():
     
     opts, args = parser.parse_args()
 
-    if len(args) != 1:
+    if len(args) != 3:
         print
         print "Commandline error:"
         print parser.usage
@@ -55,18 +55,21 @@ def readModelFile(modelfilename):
     
     return model
 
-def estimateEnergy(voltage, frequency, model, opts):
+def estimateEnergy(voltage, frequency, cores, serialFraction, model, opts):
     
     eDyn = model["ALPHA-D"]*model["PERIOD-INSTRUCTIONS"]*voltage**2
     if opts.verbose:
         print "alpha-d="+str(model["ALPHA-D"])+", instructions="+str(model["PERIOD-INSTRUCTIONS"])+", voltage="+str(voltage)+" gives Pd="+str(eDyn)
     
-    eStat = (model["ALPHA-S"]*model["PERIOD-INSTRUCTIONS"]*voltage)/float(frequency)
+    eStatConst = (model["ALPHA-S"]*voltage)/float(frequency)
+    
+    eStatSerial = model["PERIOD-INSTRUCTIONS"]*serialFraction*eStatConst
+    eStatPara = model["PERIOD-INSTRUCTIONS"]*(1-serialFraction)*eStatConst*float(cores)
     
     if opts.verbose:
-        print "alpha-s="+str(model["ALPHA-S"])+", I="+str(model["PERIOD-INSTRUCTIONS"])+", f="+str(frequency)+" gives Ps="+str(eStat)
+        print "alpha-s="+str(model["ALPHA-S"])+", I="+str(model["PERIOD-INSTRUCTIONS"])+", f="+str(frequency)+" gives static energy constant "+str(eStatConst)
     
-    return eDyn, eStat
+    return eDyn, eStatSerial, eStatPara
 
 def printEnergyData(vRange, data, opts):
     
@@ -99,35 +102,57 @@ def findMinEP(vRange, Etot):
     
     return Emin,Vopt
 
+def getExecutionTime(model, Vopt, cores, serialFraction):
+    useFreq = 0.0
+    for v,f in model["OP"]:
+        if v == Vopt:
+            assert useFreq == 0.0
+            useFreq = f
+    assert useFreq != 0.0
+    
+    p = 1-serialFraction
+    t = (model["PERIOD-INSTRUCTIONS"] * (serialFraction + (p/float(cores)))) / useFreq
+    
+    if t <= model["PERIOD-TIME"]:
+        print "Execution time "+str(t)+" s at optimal voltage is feasible within period "+str(model["PERIOD-TIME"])
+    else:
+        print "Execution time "+str(t)+" s at optimal voltage is _not_ feasible within period "+str(model["PERIOD-TIME"])
+    
+    return t
+
 def main():
     args, opts = parseArgs()
     model = readModelFile(args[0])
+    cores = int(args[1])
+    serialFraction = float(args[2])
     
     vRange = []
     energy = []
     for v,f in model["OP"]:
         vRange.append(v)
-        energy.append(estimateEnergy(v, f, model, opts))
+        energy.append(estimateEnergy(v, f, cores, serialFraction, model, opts))
     
     Edyn = []
-    Estat = []
+    EstatSer = []
+    EstatPar = []
     Etot = []
     unitFactor = 10**6
-    for d,s in energy:
+    for d,ss,sp in energy:
         Edyn.append(d*unitFactor)
-        Estat.append(s*unitFactor)
-        Etot.append((d+s)*unitFactor)
+        EstatSer.append(ss*unitFactor)
+        EstatPar.append(sp*unitFactor)
+        Etot.append((d+ss+sp)*unitFactor)
     
-    printEnergyData(vRange, [["Edyn"]+Edyn, ["Estat"]+Estat, ["Etot"]+Etot], opts)
+    printEnergyData(vRange, [["Edyn"]+Edyn, ["EstatSer"]+EstatSer, ["EstatPar"]+EstatPar, ["Etot"]+Etot], opts)
     
     Emin, Vopt = findMinEP(vRange, Etot)
     print
-    print "Optimal Voltage is "+str(Vopt)
+    print "Optimal Voltage is "+str(Vopt)+" with total energy "+str(Emin)+" uJ and execution time "+str(getExecutionTime(model, Vopt, cores, serialFraction))
     
     plotRawLinePlot(vRange,
-                    [Edyn, Estat, Etot],
-                    titles=["E-dynamic","E-static","E-total"],
-                    legendColumns=3,
+                    [Edyn, EstatSer, EstatPar, Etot],
+                    titles=["E-dynamic","E-static-serial-section","E-static-parallel-section", "E-total"],
+                    legendColumns=4,
                     mode="None",
                     xlabel="$V_{dd}$",
                     ylabel="uJ",
