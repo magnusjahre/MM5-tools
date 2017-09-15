@@ -12,6 +12,7 @@ def parseArgs():
 
     parser.add_option("--verbose", action="store_true", dest="verbose", default=False, help="Enable verbose output")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
+    parser.add_option("--instructions", action="store", dest="insts", type="int", default=15, help="Number of million instructions in program")
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Filename of the plot file")
     parser.add_option("--analyse-cores", action="store_true", dest="analyseCores", default=False, help="Find the minium energy points for each core configuration")
     parser.add_option("--single-scatter", action="store_true", dest="singleScatter", default=False, help="Analyse a single architecture with all frequency pairs")
@@ -78,6 +79,9 @@ def printEnergyData(vRange, data, opts):
     print
     printData(lines, justify, sys.stdout, opts.decimals)
 
+def getInsts(opts):
+    return opts.insts * 10**6
+
 class VoltagePoint:
     
     def __init__(self, v, f):
@@ -99,20 +103,20 @@ class OperatingPoint:
     
     def estimateEnergy(self):
         
-        self.eDyn = self.serialFraction*self.model["ALPHA-D"]*self.model["PERIOD-INSTRUCTIONS"]*self.serVP.v**2
-        self.eDyn += (1-self.serialFraction)*self.model["ALPHA-D"]*self.model["PERIOD-INSTRUCTIONS"]*self.paraVP.v**2
+        self.eDyn = self.serialFraction*self.model["ALPHA-D"]*getInsts(self.opts)*self.serVP.v**2
+        self.eDyn += (1-self.serialFraction)*self.model["ALPHA-D"]*getInsts(self.opts)*self.paraVP.v**2
         
         eStatConstSerial = (self.model["ALPHA-S"]*self.serVP.v)/float(self.serVP.f)
-        self.eStatSerial = self.model["PERIOD-INSTRUCTIONS"]*self.serialFraction*eStatConstSerial
+        self.eStatSerial = getInsts(self.opts)*self.serialFraction*eStatConstSerial
         
         eStatConstPara = (self.model["ALPHA-S"]*self.paraVP.v)/float(self.paraVP.f)
-        self.eStatPara = self.model["PERIOD-INSTRUCTIONS"]*(1-self.serialFraction)*eStatConstPara*float(self.cores)
+        self.eStatPara = getInsts(self.opts)*(1-self.serialFraction)*eStatConstPara*float(self.cores)
            
         self.eTot = self.eDyn + self.eStatSerial + self.eStatPara
     
     def computeExecutionTime(self):
-        self.executionTime = (self.model["PERIOD-INSTRUCTIONS"] * self.serialFraction) / self.serVP.f
-        self.executionTime += (self.model["PERIOD-INSTRUCTIONS"]* (1-self.serialFraction)) / (self.paraVP.f * float(self.cores))
+        self.executionTime = (getInsts(self.opts) * self.serialFraction) / self.serVP.f
+        self.executionTime += (getInsts(self.opts)* (1-self.serialFraction)) / (self.paraVP.f * float(self.cores))
         if self.executionTime <= self.model["PERIOD-TIME"]:
             self.feasible = True
         else:
@@ -184,7 +188,7 @@ def analyseCores(model, maxCores, opts):
         norm = [e/minE[s][0] for e in minE[s]]
         data.append(norm)
     
-    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(model["PERIOD-INSTRUCTIONS"]/10**6)+" million instructions"
+    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(getInsts(opts)/10**6)+" million instructions"
     
     plotRawLinePlot(cores,
                     data,
@@ -207,13 +211,13 @@ def analyseSingleCase(model, cores, serialFraction, opts):
     
     if bestIndex == -1:
         print 
-        print "Excecution time at maxiumum frequency ("+str(opd.execTimes[-1])+"s) does not meet contraint "+str(model["PERIOD-TIME"])+"s"
+        print "Excecution time at maxiumum frequency ("+str(opd.bestExecTime)+"s) does not meet contraint "+str(model["PERIOD-TIME"])+"s"
         return
     
     print
     print "Optimal Voltage is "+str(opd.bestVoltage)+" with total energy "+str(opd.bestEnergy)+" uJ and execution time "+str(opd.bestExecTime)
     
-    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(model["PERIOD-INSTRUCTIONS"]/10**6)+" million instructions with "+str(cores)+" cores and s="+str(serialFraction)
+    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(getInsts(opts)/10**6)+" million instructions with "+str(cores)+" cores and s="+str(serialFraction)
     opLabel = "Best Operating Point\nE = "+("%.2f uJ" % opd.bestEnergy)+("\nSlack %.3f s" % (model["PERIOD-TIME"]-opd.bestExecTime))
     
     plotRawLinePlot(opd.getvRange(),
