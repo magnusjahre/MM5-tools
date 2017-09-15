@@ -16,6 +16,7 @@ def parseArgs():
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Filename of the plot file")
     parser.add_option("--analyse-cores", action="store_true", dest="analyseCores", default=False, help="Find the minium energy points for each core configuration")
     parser.add_option("--single-scatter", action="store_true", dest="singleScatter", default=False, help="Analyse a single architecture with all frequency pairs")
+    parser.add_option("--scatter-feasible", action="store_true", dest="scatterFeasible", default=False, help="Zoom scatter on the feasible points")
     parser.add_option("--test", action="store_true", dest="test", default=False, help="Run regression test suite")
     
     opts, args = parser.parse_args()
@@ -253,12 +254,26 @@ def analyseFrequencies(model, cores, serialFraction, opts):
         legend.append(str(v))
         execTimes.append(et)
         energies.append(e)
-        
+    
+    maxE = max(max(energies))
+    minE = min(min(energies))
+    maxTime = max(max(execTimes))
+    minTime = min(min(execTimes))
+    
+    xrangeSpec = "0,"+str(maxTime*1.25)
+    if opts.scatterFeasible:
+        xrangeSpec = "0,"+str(model["PERIOD-TIME"]*1.25)
+    
     plotRawScatter(execTimes,
                    energies,
                    xlabel="Execution Time (s)",
                    ylabel="Energy (uJ)",
-                   legend=legend)
+                   legend=legend,
+                   hseparators=str(minE),
+                   vseparators=str(minTime)+","+str(model["PERIOD-TIME"]),
+                   xrange=xrangeSpec,
+                   yrange="0,"+str(maxE*1.1),
+                   title=str(cores)+"-core with s="+str(serialFraction)+", "+str(opts.insts)+" million instructions and period "+str(model["PERIOD-TIME"])+"s")
     
 
 def main():

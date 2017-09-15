@@ -289,6 +289,19 @@ def plotRawScatter(xdata, ydata, **kwargs):
     if "title" in kwargs:
         if kwargs["title"] != "none":
             ax.set_title(kwargs["title"])
+            
+    if "vseparators" in kwargs:
+        if kwargs["vseparators"] != "":
+            coords = [float(i) for i in kwargs["vseparators"].split(",")]
+            for c in coords:
+                ax.axvline(x=c, linestyle="dashed")
+                
+    if "hseparators" in kwargs:
+        if kwargs["hseparators"] != "":
+            coords = [float(i) for i in kwargs["hseparators"].split(",")]
+            for c in coords:
+                ax.axhline(y=c, linestyle="dashed")
+    
     
     if "filename" in kwargs:
         if kwargs["filename"] != "":
