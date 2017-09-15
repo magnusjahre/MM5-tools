@@ -16,6 +16,7 @@ def parseArgs():
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Filename of the plot file")
     parser.add_option("--analyse-cores", action="store_true", dest="analyseCores", default=False, help="Find the minium energy points for each core configuration")
     parser.add_option("--single-scatter", action="store_true", dest="singleScatter", default=False, help="Analyse a single architecture with all frequency pairs")
+    parser.add_option("--test", action="store_true", dest="test", default=False, help="Run regression test suite")
     
     opts, args = parser.parse_args()
 
@@ -103,14 +104,15 @@ class OperatingPoint:
     
     def estimateEnergy(self):
         
-        self.eDyn = self.serialFraction*self.model["ALPHA-D"]*getInsts(self.opts)*self.serVP.v**2
-        self.eDyn += (1-self.serialFraction)*self.model["ALPHA-D"]*getInsts(self.opts)*self.paraVP.v**2
+        self.eDynSer = self.serialFraction*self.model["ALPHA-D"]*getInsts(self.opts)*self.serVP.v**2
+        self.eDynPara = (1-self.serialFraction)*self.model["ALPHA-D"]*getInsts(self.opts)*self.paraVP.v**2
+        self.eDyn = self.eDynSer + self.eDynPara
         
         eStatConstSerial = (self.model["ALPHA-S"]*self.serVP.v)/float(self.serVP.f)
         self.eStatSerial = getInsts(self.opts)*self.serialFraction*eStatConstSerial
         
         eStatConstPara = (self.model["ALPHA-S"]*self.paraVP.v)/float(self.paraVP.f)
-        self.eStatPara = getInsts(self.opts)*(1-self.serialFraction)*eStatConstPara*float(self.cores)
+        self.eStatPara = getInsts(self.opts)*(1-self.serialFraction)*eStatConstPara
            
         self.eTot = self.eDyn + self.eStatSerial + self.eStatPara
     
@@ -265,6 +267,10 @@ def main():
     cores = int(args[1])
     serialFraction = float(args[2])
     
+    if opts.test:
+        test(model, opts)
+        return
+    
     if opts.analyseCores:
         analyseCores(model, cores, opts)
         return
@@ -274,6 +280,45 @@ def main():
         return
     
     analyseSingleCase(model, cores, serialFraction, opts)
+
+def checkAssertions(op1, v):
+    assert "%.6f" % op1.eDynSer == v["eDynSer"], "Unexpeced EdynSer "+("%.6f" % op1.eDynSer)
+    assert "%.6f" % op1.eDynPara == v["eDynPara"], "Unexpeced EdynPara "+("%.6f" % op1.eDynPara)
+    assert "%.6f" % op1.eDyn == v["eDyn"], "Unexpeced Edyn "+("%.6f" % op1.eDyn)
+    assert "%.6f" % op1.eStatSerial == v["eStatSerial"], "Unexpeced EstatSerial "+("%.6f" % op1.eStatSerial)
+    assert "%.6f" % op1.eStatPara == v["eStatPara"], "Unexpeced EstatPara "+("%.6f" % op1.eStatPara)
+    assert "%.6f" % op1.eTot == v["eTot"], "Unexpeced Etot "+("%.6f" % op1.eTot)
+
+def test(model, opts):
+    assert opts.insts == 15, "Must use default instruction count for the tests to work"
+    
+    print "Test 1: Single core with single voltage point"
+    vp = VoltagePoint(0.55, 2.88*10**6)
+    op1 = OperatingPoint(vp, vp, 1, 1.0, opts, model)
+    op1.estimateEnergy()
+    op1.computeExecutionTime()
+    values = {"eDynSer": "0.000163", "eDynPara": "0.000000","eDyn": "0.000163", "eStatSerial": "0.001358", "eStatPara": "0.000000", "eTot": "0.001521" }
+    checkAssertions(op1, values)
+    print "Test passed!"
+    
+    print "Test 2: 4-core with single voltage point and serial fraction 0.25"
+    vp = VoltagePoint(0.874, 92.16*10**6)
+    op1 = OperatingPoint(vp, vp, 4, 0.25, opts, model)
+    op1.estimateEnergy()
+    op1.computeExecutionTime()
+    values = {"eDynSer": "0.000103", "eDynPara": "0.000309", "eDyn": "0.000413", "eStatSerial": "0.000017", "eStatPara": "0.000051", "eTot": "0.000480" }
+    checkAssertions(op1, values)
+    print "Test passed!"
+    
+    print "Test 3: 4-core with two voltage point and serial fraction 0.1"
+    vpSer = VoltagePoint(1.054, 184.32*10**6)
+    vpPara = VoltagePoint(0.760, 46.08*10**6)
+    op1 = OperatingPoint(vpSer, vpPara, 4, 0.1, opts, model)
+    op1.estimateEnergy()
+    op1.computeExecutionTime()
+    values = {"eDynSer": "0.000060", "eDynPara": "0.000281", "eDyn": "0.000341", "eStatSerial": "0.000004", "eStatPara": "0.000106", "eTot": "0.000450" }
+    checkAssertions(op1, values)
+    print "Test passed!"
     
 
 if __name__ == '__main__':
