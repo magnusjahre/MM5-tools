@@ -245,7 +245,7 @@ def plotRawScatter(xdata, ydata, **kwargs):
     for i in range(len(xdata)):
         thisColor = cm.Paired(1*(float(i)/float(len(xdata))))
         thisMarker = MarkerStyle.filled_markers[i % len(MarkerStyle.filled_markers)]
-        scatters.append(plt.scatter(xdata[i], ydata[i], marker=thisMarker, color=thisColor))
+        scatters.append(ax.scatter(xdata[i], ydata[i], marker=thisMarker, color=thisColor))
     
     if "fitLines" in kwargs:
         if kwargs["fitLines"]:
@@ -254,7 +254,6 @@ def plotRawScatter(xdata, ydata, **kwargs):
                 m,c = linRegression(xdata[i], ydata[i], True)
                 ax.plot(xdata[i], m *np.array(xdata[i]) + c)
                 print "Least squares fit of data set "+str(i)+": m="+str(m)+", c="+str(c)
-    
     
     if "xlabel" in kwargs:
         if kwargs["xlabel"] != "none":
@@ -288,7 +287,10 @@ def plotRawScatter(xdata, ydata, **kwargs):
         
     if "title" in kwargs:
         if kwargs["title"] != "none":
-            ax.set_title(kwargs["title"])
+            plt.text(0.5, 0.9, kwargs["title"],
+                     horizontalalignment='center',
+                     fontsize="large",
+                     transform = ax.transAxes)
             
     if "vseparators" in kwargs:
         if kwargs["vseparators"] != "":
@@ -304,15 +306,11 @@ def plotRawScatter(xdata, ydata, **kwargs):
     
     
     if "filename" in kwargs:
-        if kwargs["filename"] != "":
-            plt.savefig(kwargs["filename"], type="pdf")
-        else:
-            plt.show()
-    else:
-        plt.show()
-
-
-
+        if kwargs["filename"] != None:
+            plt.savefig(kwargs["filename"], type="pdf", bbox_inches='tight')
+            return
+    
+    plt.show()
 
 """ Boxplot supports the following string parameters:
     - no-outliers: shows/hides scatterplot of outliers

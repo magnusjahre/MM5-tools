@@ -114,8 +114,9 @@ class OperatingPoint:
         
         eStatConstPara = (self.model["ALPHA-S"]*self.paraVP.v)/float(self.paraVP.f)
         self.eStatPara = getInsts(self.opts)*(1-self.serialFraction)*eStatConstPara
+        self.eStat = self.eStatSerial + self.eStatPara
            
-        self.eTot = self.eDyn + self.eStatSerial + self.eStatPara
+        self.eTot = self.eDyn + self.eStat
     
     def computeExecutionTime(self):
         self.executionTime = (getInsts(self.opts) * self.serialFraction) / self.serVP.f
@@ -145,14 +146,12 @@ class OperatingPointData:
                     self.ops.append(op)
         
         self.Edyn = []
-        self.EstatSer = []
-        self.EstatPar = []
+        self.Estat = []
         self.Etot = []
         unitFactor = 10**6
         for op in self.ops:
             self.Edyn.append(op.eDyn*unitFactor)
-            self.EstatSer.append(op.eStatSerial*unitFactor)
-            self.EstatPar.append(op.eStatPara*unitFactor)
+            self.Estat.append(op.eStat*unitFactor)
             self.Etot.append((op.eTot)*unitFactor)
             
     def findMinEP(self):
@@ -176,7 +175,7 @@ class OperatingPointData:
         return vRange
         
 def analyseCores(model, maxCores, opts):
-    serialFractions = [0.1,0.25,0.5,0.75]
+    serialFractions = [0.05,0.1,0.25,0.5,0.75]
     cores = range(1,maxCores+1)
     minE = {}
     for s in serialFractions:
@@ -208,7 +207,8 @@ def analyseSingleCase(model, cores, serialFraction, opts):
     
     opd = OperatingPointData(model, cores, serialFraction, opts, True)
     
-    printEnergyData(opd.getvRange(), [["Edyn"]+opd.Edyn, ["EstatSer"]+opd.EstatSer, ["EstatPar"]+opd.EstatPar, ["Etot"]+opd.Etot], opts)
+    if opts.verbose:
+        printEnergyData(opd.getvRange(), [["Edyn"]+opd.Edyn, ["Estat"]+opd.Estat, ["Etot"]+opd.Etot], opts)
     
     bestIndex = opd.findMinEP()
     
@@ -217,16 +217,17 @@ def analyseSingleCase(model, cores, serialFraction, opts):
         print "Excecution time at maxiumum frequency ("+str(opd.bestExecTime)+"s) does not meet contraint "+str(model["PERIOD-TIME"])+"s"
         return
     
-    print
-    print "Optimal Voltage is "+str(opd.bestVoltage)+" with total energy "+str(opd.bestEnergy)+" uJ and execution time "+str(opd.bestExecTime)
+    if opts.verbose:
+        print
+        print "Optimal Voltage is "+str(opd.bestVoltage)+" with total energy "+str(opd.bestEnergy)+" uJ and execution time "+str(opd.bestExecTime)
     
     figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(getInsts(opts)/10**6)+" million instructions with "+str(cores)+" cores and s="+str(serialFraction)
     opLabel = "Best Operating Point\nE = "+("%.2f uJ" % opd.bestEnergy)+("\nSlack %.3f s" % (model["PERIOD-TIME"]-opd.bestExecTime))
     
     plotRawLinePlot(opd.getvRange(),
-                    [opd.Edyn, opd.EstatSer, opd.EstatPar, opd.Etot],
-                    titles=["E-dynamic","E-static-serial-section","E-static-parallel-section", "E-total"],
-                    legendColumns=4,
+                    [opd.Edyn, opd.Estat, opd.Etot],
+                    titles=["Dynamic Energy Consumption","Static Energy Consumption", "Total Energy Consumption"],
+                    legendColumns=3,
                     mode="None",
                     xlabel="$V_{dd}$",
                     ylabel="Energy (uJ)",
@@ -273,7 +274,8 @@ def analyseFrequencies(model, cores, serialFraction, opts):
                    vseparators=str(minTime)+","+str(model["PERIOD-TIME"]),
                    xrange=xrangeSpec,
                    yrange="0,"+str(maxE*1.1),
-                   title=str(cores)+"-core with s="+str(serialFraction)+", "+str(opts.insts)+" million instructions and period "+str(model["PERIOD-TIME"])+"s")
+                   title=str(cores)+"-core with s="+str(serialFraction)+", "+str(opts.insts)+" million instructions and period "+str(model["PERIOD-TIME"])+"s",
+                   filename=opts.outfile)
     
 
 def main():
