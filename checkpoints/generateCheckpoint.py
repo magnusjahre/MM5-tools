@@ -76,7 +76,7 @@ def buildPossibleParams():
     
     #nps = [4, 8, 16]
     #memsys = ["CrossbarBased", "RingBased"]
-    nps = [2, 4, 8]
+    nps = [4]
     memsys = ["RingBased"]
     fw = -1
     
