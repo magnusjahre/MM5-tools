@@ -196,8 +196,8 @@ def parseArgs():
     parser.add_option("--plot-best-model-only", action="store_true", dest="plotBestModelOnly", default=False, help="Only plot the best model")
     
     defStreamingThres = 1.2
-    defHighThres = 2.0
-    defMediumThres = 1.25
+    defHighThres = 1.75
+    defMediumThres = 1.2
     defWlDistStr = "h:15,m:15,s:5,l:5"
     
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
@@ -580,6 +580,19 @@ def getWorkloadCounts(typeStr):
     
     return wlTypeCnt
 
+def getUniqueBenchmarkByType(wl, bms):
+    while True:
+        index = random.randint(0, len(bms)-1)
+        if not wl.containsBenchmark(bms[index]):
+            return bms[index]
+
+def getMixedWorkload(mixpattern, classification):
+    wl = Workload()
+    for t in mixpattern:
+        bm = getUniqueBenchmarkByType(wl, classification[t])
+        wl.addBenchmark(bm)
+    return wl
+
 def generateWorkloads(allprofiles, opts):
     
     classification = {}
@@ -599,20 +612,18 @@ def generateWorkloads(allprofiles, opts):
     
     workloads = {}
     random.seed(56)
-     
-    wlTypeCnts = getWorkloadCounts(opts.wlDistStr)
     
-    for np in [2,4,8]:
-        workloads[np] = {}
-        for classname in classification:
-            workloads[np][classname] = []
-            if classname not in wlTypeCnts:
-                fatal("Unknown workload class name "+classname+" provided")
-            for i in range(wlTypeCnts[classname]):
-                newwl = findWorkload(classification[classname], np, opts)
-                if newwl == None:
-                    break
-                workloads[np][classname].append(newwl) 
+    np = 4
+    workloads[np] = {}
+    workloads[np]["h"] = []
+    workloads[np]["m"] = []
+    workloads[np]["l"] = []
+    for i in range(10):
+        workloads[np]["h"].append(getMixedWorkload("hhml", classification)) 
+    for i in range(10):
+        workloads[np]["m"].append(getMixedWorkload("hmml", classification)) 
+    for i in range(10):
+        workloads[np]["l"].append(getMixedWorkload("hmll", classification)) 
     
     printWorkloads(workloads, opts)
     
