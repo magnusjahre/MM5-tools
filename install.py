@@ -32,6 +32,11 @@ def isMainPythonFile(fname):
 
 def installFile(filepath, dest, opts):
     fullpath = os.path.join(os.getcwd(), filepath)
+    deprecated = re.search("deprecated", fullpath)
+    if deprecated:
+        print "Not linking", fullpath, "because it is deprecated"
+        return
+    
     print "Creating link to", fullpath, "in directory", dest
     if not opts.dryrun:
         subprocess.call(["ln", "-s", "-f", fullpath, dest])
