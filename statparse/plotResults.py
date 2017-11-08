@@ -1097,7 +1097,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
             if lmode == "expand":
                 bboxHeight = 0.3
         ax.legend(bars, localLegend, bbox_to_anchor=(0.0, 1.02, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
-                  frameon=False, ncol=useCols, handletextpad=0.5, labelspacing=0.15, columnspacing=0.5)    
+                  frameon=False, ncol=useCols, handletextpad=0.3, labelspacing=0.15, columnspacing=0.5)    
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
