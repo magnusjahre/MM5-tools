@@ -456,12 +456,20 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
             ax.legend(lines, labels, bbox_to_anchor=(0.0, 1.02, 1.0, 0.05), loc="center", mode=lmode, borderaxespad=0.0,
                   frameon=False, ncol=useCols, handletextpad=0.5)
 
+    rotation = "horizontal"
+    if "rotate" in kwargs:
+        rotation = kwargs["rotate"]
+
+    if rotation != "horizontal":
+        ax.set_xticklabels([int(i) for i in ax.get_xticks()], rotation=rotation)
+        ax.set_yticklabels([int(i) for i in ax.get_yticks()])
+
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
     
     if "ylabel" in kwargs:
         ax.set_ylabel(kwargs["ylabel"])
-    
+       
     if "yrange" in kwargs:
         if kwargs["yrange"] != None:
             try:

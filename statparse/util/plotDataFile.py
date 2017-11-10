@@ -162,7 +162,8 @@ def main():
                         figwidth=opts.figwidth,
                         markEvery=opts.markEvery,
                         largeFonts=opts.largeFonts,
-                        divFactor=opts.divFactor)
+                        divFactor=opts.divFactor,
+                        rotate=opts.rotate)
         
     elif opts.plotType == "bars":
         plotDataFileBarChart(dataseries[0],
