@@ -434,27 +434,7 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
         for i in range(len(labels)):
             labels[i] = labels[i].replace("_"," ")
         
-        showLegend = True
-        useCols = 2
-        if "legendColumns" in kwargs:
-            if kwargs["legendColumns"] > 0:
-                useCols = kwargs["legendColumns"]
-            else:
-                showLegend = False
-
-        if showLegend:
-            if "mode" in kwargs:
-                lmode = kwargs["mode"]
-            else:
-                lmode = "expand"
-            
-            numRows = float(len(labels)) / useCols
-            if numRows > 1.0:
-                labels = flip(labels, useCols)
-                lines = flip(lines, useCols)
-            
-            ax.legend(lines, labels, bbox_to_anchor=(0.0, 1.02, 1.0, 0.05), loc="center", mode=lmode, borderaxespad=0.0,
-                  frameon=False, ncol=useCols, handletextpad=0.5)
+        addLegend(ax, lines, labels, kwargs)
 
     rotation = "horizontal"
     if "rotate" in kwargs:
@@ -984,6 +964,31 @@ def plotViolin(names, values, **kwargs):
             return
     plt.show()
 
+def addLegend(ax, plottedItems, legendNames, kwargs):
+
+    useCols = 2
+    if "legendColumns" in kwargs:
+        if kwargs["legendColumns"] > 0:
+            useCols = kwargs["legendColumns"]
+        else:
+            return
+    
+    if "mode" in kwargs:
+        lmode = kwargs["mode"]
+    else:
+        lmode = "expand"
+    
+    bboxHeight = 0.115
+    numRows = float(len(legendNames)) / useCols
+    if numRows > 1.0:
+        flippedLegend = flip(legendNames, useCols)
+        bars = flip(plottedItems, useCols)
+        bboxHeight = bboxHeight * math.ceil(numRows)
+        if lmode == "expand":
+            bboxHeight = 0.3
+    ax.legend(bars, flippedLegend, bbox_to_anchor=(0.0, 1.04, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
+              frameon=False, ncol=useCols, handletextpad=0.3, labelspacing=0.15, columnspacing=0.5)  
+
 def plotDataFileBarChart(names, values, legendNames, **kwargs):
     import numpy as np
     import matplotlib
@@ -1082,30 +1087,7 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
     
     plt.axhline(0, color='black')
     
-    showLegend = True
-    useCols = 2
-    if "legendColumns" in kwargs:
-        if kwargs["legendColumns"] > 0:
-            useCols = kwargs["legendColumns"]
-        else:
-            showLegend = False
-    
-    if showLegend:
-        if "mode" in kwargs:
-            lmode = kwargs["mode"]
-        else:
-            lmode = "expand"
-        
-        bboxHeight = 0.115
-        numRows = float(len(localLegend)) / useCols
-        if numRows > 1.0:
-            localLegend = flip(localLegend, useCols)
-            bars = flip(bars, useCols)
-            bboxHeight = bboxHeight * math.ceil(numRows)
-            if lmode == "expand":
-                bboxHeight = 0.3
-        ax.legend(bars, localLegend, bbox_to_anchor=(0.0, 1.02, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
-                  frameon=False, ncol=useCols, handletextpad=0.3, labelspacing=0.15, columnspacing=0.5)    
+    addLegend(ax, bars, localLegend, kwargs)  
     
     if "xlabel" in kwargs:
         ax.set_xlabel(kwargs["xlabel"])
