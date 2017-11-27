@@ -2,25 +2,18 @@
 
 import sys
 import os
-import pbsconfig
 import subprocess
 from optparse import OptionParser
-from math import sqrt
- 
-
-SIMPOINTKEY = "simpoint"
-WEIGHTKEY = "weight"
-STDDEVKEY = "stddev"
-ALLKEYS = [SIMPOINTKEY, WEIGHTKEY, STDDEVKEY]
 
 def parseArgs():
-    parser = OptionParser(usage="generateSimpoints.py [interval-size]")
-    parser.add_option("--maxk", action="store", dest="maxk", type="int", default=5, help="Max k value")
-    parser.add_option("--width", action="store", dest="width", type="int", default=15, help="The width of each column in the outputfiles")
+    parser = OptionParser(usage="generateSimpoints.py experiment-dir")
+    parser.add_option("--simpoint-binary", action="store", dest="simpointBin", type="string", default="/Users/jahre/bin/simpoint", help="Path to simpoint binary")
+    parser.add_option("--only-dir", action="store", dest="onlyDir", type="string", default="", help="Process this directory only")
+    parser.add_option("--sample-size", action="store", dest="sampleSize", type="int", default=100*10**6, help="Instructions per simpoint sample")
     opts, args = parser.parse_args()
-    return parser, opts, args
+    return opts, args
 
-def parseDatafile(filename):
+def parseDatafile(filename, opts):
     datafile = open(filename)
     
     results = {}
@@ -30,7 +23,7 @@ def parseDatafile(filename):
         assert len(data) == 2
                 
         clusterid = int(data[1])
-        value = float(data[0])
+        value = int(data[0])*opts.sampleSize
         
         assert clusterid not in results
         results[clusterid] = value
@@ -39,197 +32,88 @@ def parseDatafile(filename):
     datafile.close()
     return results
 
-def computeStdDev(labelfile):
-    datafile = open(labelfile)
-    
-    results = {}
-    
-    for line in datafile:
-        data = line.split()
-        assert len(data) == 2
-                
-        clusterid = int(data[0])
-        value = float(data[1])
+def runSimPoints(frequencyFile, bmname, opts):
         
-        if clusterid not in results:
-            results[clusterid] = {"sum": 0, "n": 0, "sumsq": 0}
+    print "Processing", bmname
+    
+    simpointname = bmname+"-simpoints.txt"
+    
+    arguments = [opts.simpointBin]
+    arguments += ["-k", "1"]
+    arguments += ["-loadFVFile", frequencyFile]
+    arguments += ["-saveSimpoints", simpointname]
+
+    outfile = open("simpoint-output.txt", "w")
+    subprocess.call(arguments, stdout=outfile)
+    outfile.flush()
+    outfile.close()
         
-        results[clusterid]["sum"] += value
-        results[clusterid]["n"] += 1
-        results[clusterid]["sumsq"] += value*value
+    data = parseDatafile(simpointname, opts)
+    print "-- Simpoint located at "+str(data[0])+" instructions"
     
-    datafile.close()
+    return data
     
-    
-    stddevs = {}
-    for clusterid in results:
-        n = results[clusterid]["n"]
-        sum = results[clusterid]["sum"]
-        sumsq = results[clusterid]["sumsq"]
-        
-        stddevs[clusterid] = sqrt( max(((n * sumsq) - sum * sum) / (n * n), 0) )
-    
-    return stddevs
-
-def readSimPointData(simpointfn, weightfn, labelfn):
-    return {SIMPOINTKEY: parseDatafile(simpointfn),
-            WEIGHTKEY: parseDatafile(weightfn),
-            STDDEVKEY: computeStdDev(labelfn)}
-
-def runSimPoints(maxk, frequencyFile, basefilename):
-    binary = "/home/jahre/bin/simpoint"
-    
-    simpointname = basefilename+"-simpoints.txt"
-    weightname = basefilename+"-weights.txt"
-    labelname = basefilename+"-labels.txt"
-    
-    arguments = []
-    arguments.append("-k 1:"+str(maxk))
-    arguments.append("-loadFVFile "+str(frequencyFile))
-    arguments.append("-saveSimpoints "+simpointname)
-    arguments.append("-saveSimpointWeights "+weightname)
-    arguments.append("-saveLabels "+labelname)
-    arguments.append("-coveragePct 0.98")
-
-    cmd = binary
-    for a in arguments:
-        cmd += " "+a
-    
-    subprocess.call(cmd, shell=True)
-    
-    return readSimPointData(simpointname, weightname, labelname)
-    
-    
-    
-def analyzeKValue(maxk):
+def gatherSimpoints(opts):
     
     kvalres = {}
     
-    for cmd,args in pbsconfig.commandlines:
-        dirID = pbsconfig.get_unique_id(args)
-        bm = pbsconfig.get_benchmark(args)
-        
-        try:
-            os.chdir(dirID)
-        except:
-            print ""
-            print "Error: directory "+dirID+" does not exist"
-            print
-            continue
-        
-        kvalres[bm] = runSimPoints(maxk, "bbv_outfile.bb", str(maxk)+"-"+bm)
-        
+    if opts.onlyDir != "":
+        os.chdir(opts.onlyDir)
+        kvalres["simpoint"] = runSimPoints("bbv_outfile.bb", "simpoint", opts)
         os.chdir("..")
+    else:
+        if not os.path.exists("pbsconfig.py"):
+            print "File not found: No pbsconfig.py in directory "+os.getcwd()
+            sys.exit(-1)
         
-    return kvalres
-
-def dumpClusterStats(filename, results, key, maxk, width):
-    
-    print "Printing aggregate statistics to file "+filename
-    print 
-    outfile = open(filename, "w")
-
-    bms = results.keys()
-    bms.sort()
-    
-    clusterids = range(maxk)
-
-    outfile.write("".ljust(width))
-    for id in clusterids:
-        outfile.write(str(id).rjust(width))
-    
-    if key == STDDEVKEY:
-        outfile.write("Avg".rjust(width))
+        sys.path.append(os.getcwd())
+        import pbsconfig
         
-    outfile.write("\n")
-
-    for bm in bms:
-        outfile.write(bm.ljust(width))
-        sum = 0
-        n = 0
-        for id in clusterids:
+        for cmd,args in pbsconfig.commandlines:
+            dirID = pbsconfig.get_unique_id(args)
+            bm = pbsconfig.get_benchmark(args)
             
-            if id in results[bm][key]:
-                sum += results[bm][key][id]
-                n += 1
-                outfile.write( ("%.3f" % results[bm][key][id]).rjust(width) )
-            else:
-                outfile.write("-".rjust(width))
-        
-        if key == STDDEVKEY:
-            avg = sum / n
-            outfile.write( ("%.3f" % avg).rjust(width) ) 
-        
-        outfile.write("\n")
-
-
-    outfile.flush()
-    outfile.close()
+            try:
+                os.chdir(dirID)
+            except:
+                print ""
+                print "Error: directory "+dirID+" does not exist"
+                print
+                continue
+            
+            kvalres[bm] = runSimPoints("bbv_outfile.bb", bm, opts)
+            
+            os.chdir("..")
     
-def generateSimulatorConfig(results, maxk, intervalsize):
+    return kvalres
     
-    filename = "simpoints"+str(maxk)+".py"
+def generateSimulatorConfig(results, opts):
+    
+    filename = "simpoints.py"
     
     print "Generating configuration file "+filename
     print
     
     outfile = open(filename, "w")
     
-    outfile.write("# Autogenerated simpoints config for M5\n\n")
-    outfile.write("intervalsize="+str(intervalsize)+"\n")
-    outfile.write("maxk="+str(maxk)+"\n\n")
-    
-    FWKEY="fwinsts"
-    PROBKEY = "probability"
-    
-    outfile.write("FWKEY='"+FWKEY+"'\n")
-    outfile.write("PROBKEY='"+PROBKEY+"'\n")
-    
-    simpoints = {}
-    for bm in results:
-        fwinsts = []
-        tmpweights = {}
-        for clusterid in results[bm][SIMPOINTKEY]:
-            tmpfwinsts = int(results[bm][SIMPOINTKEY][clusterid]) * intervalsize
-            fwinsts.append(tmpfwinsts)
-            
-            assert tmpfwinsts not in tmpweights 
-            tmpweights[tmpfwinsts] = results[bm][WEIGHTKEY][clusterid]
-        
-        fwinsts.sort()
-        
-        finalRes = [(-1,-1) for i in range(maxk)]
-        for i in range(maxk):
-            if i < len(fwinsts):
-                finalRes[i] = {FWKEY: fwinsts[i], PROBKEY: tmpweights[fwinsts[i]] }
-            else:
-                finalRes[i] = {FWKEY: fwinsts[i % len(fwinsts)], PROBKEY: 0  }
-        
-        assert bm not in simpoints
-        simpoints[bm] = finalRes 
-    
-    outfile.write("simpoints = "+str(simpoints)+"\n\n")
+    outfile.write("# Autogenerated simpoints config for MM5\n\n")
+    outfile.write("intervalsize="+str(opts.sampleSize)+"\n")
+    outfile.write("maxk=1\n\n")
+    outfile.write("simpoints = "+str(results)+"\n\n")
     
     outfile.flush()
     outfile.close()
     
 def main():
 
-    parser,options,args = parseArgs()
-
-    try:
-        intervalsize = int(args[0])
-    except:
-        print "Wrong number of arguments"
-        print "Usage: "+parser.usage
-        sys.exit(-1)
-        
-    results = analyzeKValue(options.maxk)
+    opts,args = parseArgs()
+    usedir = args[0]
+    os.chdir(usedir)
     
-    for k in ALLKEYS:
-        dumpClusterStats(k+"-"+str(options.maxk)+".txt", results, k, options.maxk, options.width)
-
-    generateSimulatorConfig(results, options.maxk, intervalsize)
+    print "Running simpoints generation in directory", os.getcwd()
+    
+    results = gatherSimpoints(opts)
+    generateSimulatorConfig(results, opts)
 
 if __name__ == "__main__":
     sys.exit(main())
