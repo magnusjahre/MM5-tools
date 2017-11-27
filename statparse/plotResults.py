@@ -981,12 +981,13 @@ def addLegend(ax, plottedItems, legendNames, kwargs):
     bboxHeight = 0.115
     numRows = float(len(legendNames)) / useCols
     if numRows > 1.0:
-        flippedLegend = flip(legendNames, useCols)
-        bars = flip(plottedItems, useCols)
+        legendNames = flip(legendNames, useCols)
+        plottedItems = flip(plottedItems, useCols)
         bboxHeight = bboxHeight * math.ceil(numRows)
         if lmode == "expand":
             bboxHeight = 0.3
-    ax.legend(bars, flippedLegend, bbox_to_anchor=(0.0, 1.04, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
+            
+    ax.legend(plottedItems, legendNames, bbox_to_anchor=(0.0, 1.04, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
               frameon=False, ncol=useCols, handletextpad=0.3, labelspacing=0.15, columnspacing=0.5)  
 
 def plotDataFileBarChart(names, values, legendNames, **kwargs):
