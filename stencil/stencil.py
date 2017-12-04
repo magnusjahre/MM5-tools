@@ -8,9 +8,9 @@ def parseArgs():
     
     parser = OptionParser(usage="stencil.py [options]")
     parser.add_option("--verbose", '-v', action="store_true", dest="verbose", default=False, help="Print all lines")
-    parser.add_option("--stencil-width", action="store", dest="width", default=1, help="The width of the one-dimensional symmetric stencil")
-    parser.add_option("--depth", action="store", dest="depth", default=2, help="The number of iterations to compute in a single push")
-    parser.add_option("--input-size", action="store", dest="inputSize", default=10, help="Size of the unpadded input array")
+    parser.add_option("--stencil-width", action="store", dest="width", default=1, type="int", help="The width of the one-dimensional symmetric stencil")
+    parser.add_option("--depth", action="store", dest="depth", default=2, type="int", help="The number of iterations to compute in a single push")
+    parser.add_option("--input-size", action="store", dest="inputSize", default=10, type="int", help="Size of the unpadded input array")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
@@ -40,7 +40,7 @@ def computeNaive(indata, opts):
     print "Naive implementation"
     print
     
-    a = [0.0] + [i for i in indata] + [0.0]
+    a = [a for a in indata]
     b = [0.0 for i in range(len(a))]
     print "0", dataToStr(a)
     
@@ -62,7 +62,7 @@ def computeOurScheme(indata, opts):
     padSize = 1
     iterations = 3
     
-    a = [0.0] + [i for i in indata] + [0.0]
+    a = [a for a in indata]
     b = [0.0 for i in range(len(a))]
     partials = [0 for i in range(3)]
     
@@ -80,14 +80,15 @@ def computeOurScheme(indata, opts):
                     partials[j] = 0
                 else:
                     partials[j] = stencil(a, center, opts.width)
-                #b[i-1] = stencil(partials, 1)
             first = False
         else:
             if i < len(a)-1:
                 partials[-1] = stencil(a, i, opts.width)
         
         b[i-1] = stencil(partials, 1, opts.width)
-        # print i, "computed", eToStr(b[i]),"with partials", dataToStr(partials)
+        
+        if opts.verbose:
+            print i, "computed", eToStr(b[i]),"with partials", dataToStr(partials)
     
         partials = [partials[j+1] for j in range(len(partials))[:-1]]
         partials.append(0.0)
@@ -102,8 +103,10 @@ def main():
     random.seed(15)
     indata = [random.randint(1,9) for i in range(opts.inputSize)]
     
-    naive = computeNaive(indata, opts)
-    scheme = computeOurScheme(indata, opts)
+    paddedData = [0.0 for i in range(opts.width)] + [i for i in indata] + [0.0 for i in range(opts.width)]
+    
+    naive = computeNaive(paddedData, opts)
+    scheme = computeOurScheme(paddedData, opts)
     
     print
     assert len(naive) == len(scheme)
