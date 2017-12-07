@@ -40,7 +40,8 @@ def parseAargs():
 def createCheckpointsFromExperiment():
     
     for np, wl, mem, simpoint, fw in buildPossibleParams():
-        if Checkpoint.prerequisiteFilesExist(wl, np, mem, simpoint):
+        print np,wl,mem,simpoint,fw
+        if Checkpoint.prerequisiteFilesExist(wl, 4, mem, simpoint):
             printParameters(np, wl, mem, simpoint, fw)
             path = Checkpoint.generateCheckpoint(wl, np, fw, mem, simpoint)
             print "Generated checkpoint at "+path

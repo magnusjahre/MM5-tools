@@ -105,7 +105,7 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
     
     if simpoint == -1:
         for bm in workloads.getBms(workload, np, True):        
-            chkPath = checkpoints.getCheckpointDirectory(np, memsys, bm)
+            chkPath = checkpoints.getCheckpointDirectory(4, memsys, bm)
             if os.path.exists(chkPath):
                 print "Checkpoint allready exists for "+bm+", skipping..."
                 continue
@@ -124,14 +124,16 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
     
     wlCheckpoints = []
     cpuID = 0
+    cacheStateFound = False
     for bm in curWorkload:
-        checkPath = checkpoints.getCheckpointDirectory(np, memsys, bm, simpoint)
+        checkPath = checkpoints.getCheckpointDirectory(4, memsys, bm, simpoint)
         checkFile = checkPath+"/m5.cpt"
         allfiles = os.listdir(checkPath)
         for file in allfiles:
             if file != "m5.cpt":
                 newFilePath = "../"+checkPath+"/"+file
                 if file.startswith("SharedCache"):
+                    cacheStateFound = True
                     newname = file+"."+str(cpuID)
                 elif file.startswith("cacheInterference"):
                     newname = file+"."+str(cpuID)
@@ -149,8 +151,9 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
         wlCheckpoints.append(newCheckpoint)
         cpuID += 1
 
-    print "Merging shared caches..."
-    mergeSharedCache(np, outdir, outfilename)
+    if cacheStateFound:
+        print "Merging shared caches..."
+        mergeSharedCache(np, outdir, outfilename)
     
     return outfilename
 
