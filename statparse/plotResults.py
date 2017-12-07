@@ -736,7 +736,7 @@ def plotImage(image, **kwargs):
         ax.set_title(kwargs["title"], size="large")
         
     if "filename" in kwargs:
-        if kwargs["filename"] != "":
+        if kwargs["filename"] != None:
             plt.savefig(kwargs["filename"], type="pdf")
             return
     
