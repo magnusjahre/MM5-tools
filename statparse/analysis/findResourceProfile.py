@@ -39,10 +39,12 @@ class BMClass:
     BM_RES_MEDIUM = 2
     BM_RES_HIGH = 3
     
-    def __init__(self, wlType, avgBWSpeedup, avgLLCSpeedup, normalizedLLCPerfCurve):
+    def __init__(self, bmname, wlType, avgBWSpeedup, avgLLCSpeedup, overallSpeedup, normalizedLLCPerfCurve):
+        self.bm = bmname
         self.type = wlType
         self.avgBWSpeedup = avgBWSpeedup
         self.avgLLCSpeedup = avgLLCSpeedup
+        self.overallSpeedup = overallSpeedup
         self.normalizedLlcPerfCurve = normalizedLLCPerfCurve
         
     def __str__(self):
@@ -196,9 +198,9 @@ def parseArgs():
     parser.add_option("--plot-best-model-only", action="store_true", dest="plotBestModelOnly", default=False, help="Only plot the best model")
     
     defStreamingThres = 1.2
-    defHighThres = 2.0
+    defHighThres = 1.985
     defMediumThres = 1.25
-    defWlDistStr = "h:15,m:15,s:5,l:5"
+    defWlDistStr = "h:10,m:10,s:10,l:5,a:10"
     
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
     parser.add_option("--streaming-threshold", action="store", dest="streamingThreshold", type="float", default=defStreamingThres, help="Speedup threshold used to classify a benchmark as streaming (Default: "+str(defStreamingThres)+")")
@@ -482,7 +484,7 @@ def findOptimalPartitions(bmprofiles, bmways, bmutils, opts):
         
     return optimalPartitions
 
-def classify(profiles, opts):
+def classify(bm, profiles, opts):
     cacheConfigs = len(profiles)
     bwConfigs = len(profiles[0])
     
@@ -498,6 +500,8 @@ def classify(profiles, opts):
         bwSpeedupSum += speedup
     bwAvgSpeedup = bwSpeedupSum / float(cacheConfigs)
     
+    overallSpeedup = profiles[cacheConfigs-1][bwConfigs-1]  / profiles[0][0]
+    
     llcPerfCurve = []
     for i in range(cacheConfigs):
         llcPerfCurve.append(profiles[i][bwConfigs-1] / profiles[0][bwConfigs-1])
@@ -505,19 +509,11 @@ def classify(profiles, opts):
     if bwConfigs == 1:
         # Cannot detect streaming behaviour without measurements of bandwidth use
         if cacheAvgSpeedup >= opts.highThreshold:
-            return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
+            return BMClass(bm, BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup, overallSpeedup, llcPerfCurve)
         if cacheAvgSpeedup >= opts.mediumThreshold:
-            return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)  
-    else:
-        assert opts.mediumThreshold > opts.streamingThreshold
-        if cacheAvgSpeedup < opts.streamingThreshold and bwAvgSpeedup >= opts.highThreshold:
-            return BMClass(BMClass.BM_STREAMING, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
-        if cacheAvgSpeedup >= opts.highThreshold and bwAvgSpeedup >= opts.highThreshold:
-            return BMClass(BMClass.BM_RES_HIGH, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
-        if cacheAvgSpeedup >= opts.mediumThreshold and bwAvgSpeedup >= opts.mediumThreshold:
-            return BMClass(BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)    
+            return BMClass(bm, BMClass.BM_RES_MEDIUM, bwAvgSpeedup, cacheAvgSpeedup, overallSpeedup, llcPerfCurve)  
 
-    return BMClass(BMClass.BM_RES_LOW, bwAvgSpeedup, cacheAvgSpeedup, llcPerfCurve)
+    return BMClass(bm, BMClass.BM_RES_LOW, bwAvgSpeedup, cacheAvgSpeedup, overallSpeedup, llcPerfCurve)
 
 def printClassification(classification):
     print
@@ -525,7 +521,7 @@ def printClassification(classification):
     print
     
     for c in classification:
-        print c+": ",
+        print c+" ("+str(len(classification[c]))+"): ",
         for bm in classification[c]:
             print bm,
         print
@@ -583,16 +579,48 @@ def getWorkloadCounts(typeStr):
 def generateWorkloads(allprofiles, opts):
     
     classification = {}
+    allCls = []
+    allBMs = []
     
     for bm in allprofiles:
-        cl = classify(allprofiles[bm], opts)
+        cl = classify(bm, allprofiles[bm], opts)
         if not opts.quiet:
-            print "Classified "+bm+" in category "+str(cl)+", avg bandwidth speedup "+str(cl.avgBWSpeedup)+", avg LLC speedup "+str(cl.avgLLCSpeedup)
+            print "Classified "+bm+" in category "+str(cl)+", avg bandwidth speedup "+str(cl.avgBWSpeedup)+", avg LLC speedup "+str(cl.avgLLCSpeedup)+", overall "+str(cl.overallSpeedup)
             #print "LLC performance curve", cl.normalizedLlcPerfCurve
         
         if str(cl) not in classification:
             classification[str(cl)] = []
         classification[str(cl)].append(bm)
+        allCls.append(cl)
+        allBMs.append(bm)
+    
+    # The classify routine may not classify the benchmarks if a global classification procedure should be applied
+    if len(classification.keys()) == 1:
+        classification = {}
+        allCls.sort(key=lambda x: x.overallSpeedup, reverse=True)
+        
+        highLLC = []
+        streaming = []
+        medium = []
+        low = []
+        
+        for c in allCls:
+            if len(highLLC) < 10:
+                if c.avgLLCSpeedup > opts.highThreshold:
+                    highLLC.append(c.bm)
+                    continue
+            if len(streaming) < 10:
+                streaming.append(c.bm)
+                continue
+            if len(medium) < 20:
+                medium.append(c.bm)
+                continue
+            low.append(c.bm)
+            
+        classification["h"] = highLLC
+        classification["s"] = streaming
+        classification["m"] = medium
+        classification["l"] = low
     
     if not opts.quiet:
         printClassification(classification)
@@ -612,7 +640,15 @@ def generateWorkloads(allprofiles, opts):
                 newwl = findWorkload(classification[classname], np, opts)
                 if newwl == None:
                     break
-                workloads[np][classname].append(newwl) 
+                workloads[np][classname].append(newwl)
+                
+        if "a" in wlTypeCnts:
+            workloads[np]["a"] = []
+            for i in range(wlTypeCnts["a"]):
+                newwl = findWorkload(allBMs, np, opts)
+                if newwl == None:
+                    break
+                workloads[np]["a"].append(newwl) 
     
     printWorkloads(workloads, opts)
     
