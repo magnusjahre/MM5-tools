@@ -46,7 +46,7 @@ def stencil(a, i, width):
 
 def computeNaive(indata, opts):
     print
-    print "Naive implementation"
+    print "Naive implementation with "+str(2*opts.width+1)+" point stencil"
     print
     
     printSegment = opts.width*opts.depth
@@ -64,43 +64,65 @@ def computeNaive(indata, opts):
     
     return a[printSegment:-printSegment]
 
+def computeCoeffcients(opts):
+    #TODO: remove the assumption that all coefficients are the same
+    
+    # Note: procedure assumes symetric stencil
+    numAffectedResults = 2 * opts.width*opts.depth + 1
+    centerIndex = opts.width*opts.depth
+    repeats = []
+    
+    curRepeat = 1
+    for i in range(numAffectedResults):
+        repeats.append(curRepeat)
+        if i < centerIndex:
+            curRepeat += 1
+        else:
+            curRepeat -= 1
+    
+    assert repeats[centerIndex] == 2*opts.width + 1
+    coeffs = [(getStaticCoefficient(opts.width)**opts.depth)*r for r in repeats]
+    
+    return coeffs
+
 def computeOurScheme(indata, opts):
     
     print
     print "The scheme with depth", opts.depth
     print
-    
-    numAffectedResults = 2 * opts.width*opts.depth + 1
-    partialResultsSize = 2 * opts.width*opts.depth + opts.paraInputs
+
+    resultBufferSize = 2 * opts.width*opts.depth + opts.paraInputs
+    numIncompleteResults = 2*opts.width
     
     print "0", dataToStr(indata)
     
     # End-padding is a hack ensure that the impact of the final elements propagate to the output
-    a = [a for a in indata] + [0.0 for x in range(opts.width)]
-    partials = [0 for i in range(partialResultsSize)]
+    a = [a for a in indata] + [0.0 for x in range(numIncompleteResults)]
+    resultBuffer = [0 for i in range(resultBufferSize)]
     
-    coeff = [(getStaticCoefficient(opts.width)**opts.depth)*e for e in [1,2,3,2,1]]
+    coeff = computeCoeffcients(opts)
+    
     outputs = []
     for inputStart in range(len(a))[::opts.paraInputs]:
     
         inputs = a[inputStart:inputStart+opts.paraInputs]
         
         for i in range(len(inputs)):
-            for j in range(numAffectedResults):
-                partials[i+j] += coeff[j]*inputs[i]
+            for j in range(len(coeff)):
+                resultBuffer[i+j] += coeff[j]*inputs[i]
         
         for i in range(opts.paraInputs):
-            outputs.append(partials[i])
+            outputs.append(resultBuffer[i])
             
-        for i in range(partialResultsSize - opts.paraInputs):
-            partials[i] = partials[i+opts.paraInputs]
+        for i in range(resultBufferSize - opts.paraInputs):
+            resultBuffer[i] = resultBuffer[i+opts.paraInputs]
             
-        for i in range(partialResultsSize - opts.paraInputs, partialResultsSize):
-            partials[i] = 0.0 
+        for i in range(resultBufferSize - opts.paraInputs, resultBufferSize):
+            resultBuffer[i] = 0.0 
 
-    print "1", dataToStr(outputs[opts.paraInputs:])
-    
-    return outputs[opts.paraInputs:]
+    result = outputs[numIncompleteResults:]
+    print "1", dataToStr(result)
+    return result
 
 def main():
     opts, args = parseArgs()
