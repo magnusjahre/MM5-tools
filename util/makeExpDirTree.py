@@ -30,24 +30,38 @@ class Experiment:
         self.configfilename = configfilename
         
         tmp = self.configfilename.split("-")
-        assert tmp[-1] == "pbsconfig.py"
-        self.expname = "-".join(tmp[0:-1])
-        
-        self.configurations = {}
-        self.fileContent = []
-        self.readConfigurations()
+        if tmp[-1] == "pbsconfig.py":
+            self.expname = "-".join(tmp[0:-1])
+            
+            self.configurations = {}
+            self.fileContent = []
+            self.readConfigurations(self.configfilename)
+            self.valid = True
+        else:
+            print "-- Skipping file "+str(configfilename)
+            self.valid = False
     
-    def readConfigurations(self):
-        f = open(self.configfilename)
+    def readConfigurations(self, cfgfilename):
+        f = open(cfgfilename)
         lineNum = 0
         for l in f:
-            if l.startswith("#CONFIG"):
+            if l.startswith("#INCLUDE"):
+                tmp = l.split()
+                assert len(tmp) == 2
+                print "-- Recursively including file "+tmp[1]
+                self.readConfigurations(tmp[1])
+                continue
+            elif l.startswith("#CONFIG"):
                 tmp = l.split()
                 assert tmp[1] not in self.configurations
                 self.configurations[tmp[1]] = (tmp[2].split(","), lineNum)
+                continue
+            
             self.fileContent.append(l)
             lineNum += 1
-        
+    
+    
+    
     def writeConfigFile(self, inconfig):
         for cf in inconfig:
             assert cf in self.configurations
@@ -67,17 +81,19 @@ def buildExperimentdict(configdir):
     
     expdict = {}
     for f in files:
+        print "Processing file "+f
         exp = Experiment(f)
         
-        assert "np" in exp.configurations
-        nps, linenum = exp.configurations["np"]
-        for np in nps:
-            if np not in expdict:
-                expdict[np] = []
-                
-            assert exp.expname not in expdict
-            expdict[np].append(exp)
-    
+        if exp.valid:
+            assert "np" in exp.configurations
+            nps, linenum = exp.configurations["np"]
+            for np in nps:
+                if np not in expdict:
+                    expdict[np] = []
+                    
+                assert exp.expname not in expdict
+                expdict[np].append(exp)
+        
     os.chdir("..")
     return expdict
 
