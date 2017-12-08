@@ -111,7 +111,7 @@ class M5Command:
         self.jobID = ""
         self.dependsOn = []
         
-        wlres = re.search("t-[hml]-[0-9]+", self.id)
+        wlres = re.search("t-[hmlas]-[0-9]+", self.id)
         if wlres:
             self.workloadID = wlres.group(0)
         else:
