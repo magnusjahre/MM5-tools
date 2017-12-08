@@ -65,8 +65,6 @@ def computeNaive(indata, opts):
     return a[printSegment:-printSegment]
 
 def computeCoeffcients(opts):
-    #TODO: remove the assumption that all coefficients are the same
-    
     # Note: procedure assumes symetric stencil
     numAffectedResults = 2 * opts.width*opts.depth + 1
     centerIndex = opts.width*opts.depth
