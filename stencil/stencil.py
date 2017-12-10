@@ -12,6 +12,7 @@ def parseArgs():
     parser.add_option("--depth", action="store", dest="depth", default=2, type="int", help="The number of iterations to compute in a single push")
     parser.add_option("--input-size", action="store", dest="inputSize", default=10, type="int", help="Size of the unpadded input array")
     parser.add_option("--parallel-inputs", action="store", dest="paraInputs", default=2, type="int", help="Number of inputs to process on each fetch")
+    parser.add_option("--no-coeff", action="store_true", dest="noCoeff", default=False, help="Disable coefficients to simplify debugging")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
@@ -27,14 +28,16 @@ def eToStr(e):
 def dataToStr(b):
     return [eToStr(e) for e in b]
 
-def getStaticCoefficient(width):
-    return 1.0/(width*2+1)
+def getStaticCoefficient(opts):
+    if opts.noCoeff:
+        return 1.0
+    return 1.0/(opts.width*2+1)
 
-def stencil(a, i, width):
-    start = i-width
+def stencil(a, i, opts):
+    start = i-opts.width
     if start < 0:
         start = 0
-    end = i+width+1
+    end = i+opts.width+1
     if end > len(a):
         end = len(a)
     
@@ -42,7 +45,7 @@ def stencil(a, i, width):
     for i in range(start, end):
         s += a[i]
         
-    return getStaticCoefficient(width)*s
+    return getStaticCoefficient(opts)*s
 
 def computeNaive(indata, opts):
     print
@@ -57,7 +60,7 @@ def computeNaive(indata, opts):
     
     for n in range(opts.depth):
         for i in range(len(a))[opts.width:-opts.width]:
-            b[i] = stencil(a, i, opts.width)
+            b[i] = stencil(a, i, opts)
         print n+1,dataToStr(b)[printSegment:-printSegment]
         for i in range(len(a)):
             a[i] = b[i]
@@ -79,7 +82,7 @@ def computeCoeffcients(opts):
             curRepeat -= 1
     
     assert repeats[centerIndex] == 2*opts.width + 1
-    coeffs = [(getStaticCoefficient(opts.width)**opts.depth)*r for r in repeats]
+    coeffs = [(getStaticCoefficient(opts)**opts.depth)*r for r in repeats]
     
     return coeffs
 
