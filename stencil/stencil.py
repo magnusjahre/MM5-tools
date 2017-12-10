@@ -13,6 +13,7 @@ def parseArgs():
     parser.add_option("--input-size", action="store", dest="inputSize", default=10, type="int", help="Size of the unpadded input array")
     parser.add_option("--parallel-inputs", action="store", dest="paraInputs", default=2, type="int", help="Number of inputs to process on each fetch")
     parser.add_option("--no-coeff", action="store_true", dest="noCoeff", default=False, help="Disable coefficients to simplify debugging")
+    parser.add_option("--debug", action="store_true", dest="debugOut", default=False, help="Output debug prints")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
@@ -81,8 +82,14 @@ def computeCoeffcients(opts):
         else:
             curRepeat -= 1
     
+    if opts.debugOut:
+        print "Repeats:", str(repeats)
+    
     assert repeats[centerIndex] == 2*opts.width + 1
     coeffs = [(getStaticCoefficient(opts)**opts.depth)*r for r in repeats]
+    
+    if opts.debugOut:
+        print "Coefficients:", dataToStr(coeffs)
     
     return coeffs
 
