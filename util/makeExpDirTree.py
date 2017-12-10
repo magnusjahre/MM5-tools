@@ -115,10 +115,10 @@ def makeDirTree(dirStruct):
             if not os.path.exists(exp.expname):
                 print "Making directory "+exp.expname
                 os.mkdir(exp.expname)
-                os.chdir(exp.expname)
-                writeIsExpFile(cpuCnt, exp.expname)
-                exp.writeConfigFile({"np": str(cpuCnt)})
-                os.chdir("..")
+            os.chdir(exp.expname)
+            writeIsExpFile(cpuCnt, exp.expname)
+            exp.writeConfigFile({"np": str(cpuCnt)})
+            os.chdir("..")
                 
         os.chdir("..")
 
