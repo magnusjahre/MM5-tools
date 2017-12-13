@@ -68,24 +68,42 @@ def computeNaive(indata, opts):
     
     return a[printSegment:-printSegment]
 
+def createRepeatPattern(repeats, opts):
+    
+    assert opts.width == 1
+    r1 = repeats + [0, 0]
+    r2 = [0] + repeats + [0]
+    r3 = [0,0] + repeats
+    
+    rOut = [0 for i in range(len(r1))]
+    for i in range(len(r1)):
+        rOut[i] = r1[i] + r2[i] + r3[i]
+    
+    return rOut
+
+def computeRepeats(repeats, affectedResults, opts):
+    # Handles depth equal to 1
+    if len(repeats) == affectedResults:
+        return repeats
+    
+    repeats = createRepeatPattern(repeats, opts)
+    if opts.debugOut:
+        print "Repeat pattern at length "+str(len(repeats))+" is "+str(repeats)
+    
+    if len(repeats) < affectedResults:
+        repeats = computeRepeats(repeats, affectedResults, opts) 
+    return repeats
+
 def computeCoeffcients(opts):
     # Note: procedure assumes symetric stencil
     numAffectedResults = 2 * opts.width*opts.depth + 1
-    centerIndex = opts.width*opts.depth
-    repeats = []
+    stencilWidth = 2*opts.width+1
     
-    curRepeat = 1
-    for i in range(numAffectedResults):
-        repeats.append(curRepeat)
-        if i < centerIndex:
-            curRepeat += 1
-        else:
-            curRepeat -= 1
+    repeats = computeRepeats([1 for i in range(stencilWidth)], numAffectedResults, opts)
     
     if opts.debugOut:
         print "Repeats:", str(repeats)
     
-    assert repeats[centerIndex] == 2*opts.width + 1
     coeffs = [(getStaticCoefficient(opts)**opts.depth)*r for r in repeats]
     
     if opts.debugOut:
@@ -100,8 +118,8 @@ def computeOurScheme(indata, opts):
     print
 
     resultBufferSize = 2 * opts.width*opts.depth + opts.paraInputs
-    numIncompleteResults = 2*opts.width
-    
+    numIncompleteResults = 2*opts.width+opts.depth-2
+    numOutputValues = len(indata)
     print "0", dataToStr(indata)
     
     # End-padding is a hack ensure that the impact of the final elements propagate to the output
@@ -118,6 +136,9 @@ def computeOurScheme(indata, opts):
         for i in range(len(inputs)):
             for j in range(len(coeff)):
                 resultBuffer[i+j] += coeff[j]*inputs[i]
+                
+        if opts.debugOut:
+            print "Result buffer @",inputStart,":",dataToStr(resultBuffer)
         
         for i in range(opts.paraInputs):
             outputs.append(resultBuffer[i])
@@ -127,8 +148,9 @@ def computeOurScheme(indata, opts):
             
         for i in range(resultBufferSize - opts.paraInputs, resultBufferSize):
             resultBuffer[i] = 0.0 
+            
 
-    result = outputs[numIncompleteResults:]
+    result = outputs[numIncompleteResults:numIncompleteResults+numOutputValues]
     print "1", dataToStr(result)
     return result
 
@@ -136,7 +158,11 @@ def main():
     opts, args = parseArgs()
     
     random.seed(15)
-    indata = [random.randint(1,9) for i in range(opts.inputSize)]
+    indata = []
+    while len(indata) < opts.inputSize:
+        testVal = random.randint(1,opts.inputSize)
+        if testVal not in indata:
+            indata.append(testVal)
     
     paddedData = [0.0 for a in range(opts.width*opts.depth)]+[i for i in indata]+[0.0 for a in range(opts.width*opts.depth)]
     naive = computeNaive(paddedData, opts)
