@@ -69,17 +69,21 @@ def computeNaive(indata, opts):
     return a[printSegment:-printSegment]
 
 def createRepeatPattern(repeats, opts):
+    prePad = []
+    postPad = [0 for i in range(2*opts.width)]
     
-    assert opts.width == 1
-    r1 = repeats + [0, 0]
-    r2 = [0] + repeats + [0]
-    r3 = [0,0] + repeats
+    shiftedRepeats = []
+    for i in range(2*opts.width+1):
+        shiftedRepeats.append(prePad + repeats + postPad)
+        prePad.append(0)
+        postPad = postPad[:len(postPad)-1]
+        
+    newRepeats = [0 for i in range(len(repeats)+2*opts.width)]
+    for i in range(len(shiftedRepeats)):
+        for j in range(len(newRepeats)):
+            newRepeats[j] += shiftedRepeats[i][j]
     
-    rOut = [0 for i in range(len(r1))]
-    for i in range(len(r1)):
-        rOut[i] = r1[i] + r2[i] + r3[i]
-    
-    return rOut
+    return newRepeats
 
 def computeRepeats(repeats, affectedResults, opts):
     # Handles depth equal to 1
@@ -98,6 +102,9 @@ def computeCoeffcients(opts):
     # Note: procedure assumes symetric stencil
     numAffectedResults = 2 * opts.width*opts.depth + 1
     stencilWidth = 2*opts.width+1
+    
+    if opts.debugOut:
+        print "Computing coefficients for stencil width", str(stencilWidth),"and affected results",numAffectedResults
     
     repeats = computeRepeats([1 for i in range(stencilWidth)], numAffectedResults, opts)
     
@@ -118,7 +125,8 @@ def computeOurScheme(indata, opts):
     print
 
     resultBufferSize = 2 * opts.width*opts.depth + opts.paraInputs
-    numIncompleteResults = 2*opts.width+opts.depth-2
+    numIncompleteResults = opts.depth*opts.width
+    assert numIncompleteResults > 0
     numOutputValues = len(indata)
     print "0", dataToStr(indata)
     
