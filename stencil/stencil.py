@@ -29,12 +29,34 @@ def eToStr(e):
 def dataToStr(b):
     return [eToStr(e) for e in b]
 
-def getStaticCoefficient(opts):
-    if opts.noCoeff:
-        return 1.0
-    return 1.0/(opts.width*2+1)
+class Coefficients:
+    
+    def __init__(self, opts):
+        self.noCoeff = opts.noCoeff
+        self.width = opts.width
+        
+        if opts.noCoeff:
+            self.coeffs = [1.0 for i in range(2*opts.width+1)]
+        else:
+            self.coeffs = []
+            for i in range(self.width):
+                self.coeffs.append(random.random())
+            rev = [a for a in self.coeffs]
+            rev.reverse()
+            self.coeffs = self.coeffs + [1.0] + rev
 
-def stencil(a, i, opts):
+    def getSingle(self, i):
+        assert i >= 0
+        assert i < len(self.coeffs)
+        
+        if self.noCoeff:
+            return 1.0
+        return self.coeffs[i]
+    
+    def getAll(self):
+        return self.coeffs
+
+def stencil(a, i, opts, coeffs):
     start = i-opts.width
     if start < 0:
         start = 0
@@ -44,97 +66,110 @@ def stencil(a, i, opts):
     
     s = 0
     for i in range(start, end):
-        s += a[i]
+        s += coeffs.getSingle(i-start)*a[i]
         
-    return getStaticCoefficient(opts)*s
+    return s
 
-def computeNaive(indata, opts):
+def computeNaive(indata, coefficients, opts):
     print
-    print "Naive implementation with "+str(2*opts.width+1)+" point stencil"
+    print "=====","Naive implementation with "+str(2*opts.width+1)+" point stencil","====="
     print
     
     printSegment = opts.width*opts.depth
     
     a = [a for a in indata]
     b = [0.0 for i in range(len(a))]
-    print "0", dataToStr(a)[printSegment:-printSegment]
+    print "Input: ", dataToStr(a)[printSegment:-printSegment]
     
     for n in range(opts.depth):
         for i in range(len(a))[opts.width:-opts.width]:
-            b[i] = stencil(a, i, opts)
+            b[i] = stencil(a, i, opts, coefficients)
         print n+1,dataToStr(b)[printSegment:-printSegment]
         for i in range(len(a)):
             a[i] = b[i]
     
     return a[printSegment:-printSegment]
 
-def createRepeatPattern(repeats, opts):
+def createRepeatPattern(repeats, doAdd, opts):
+    padval = 1.0
+    if doAdd:
+        padval = 0
+    
     prePad = []
-    postPad = [0 for i in range(2*opts.width)]
+    postPad = [padval for i in range(2*opts.width)]
     
     shiftedRepeats = []
     for i in range(2*opts.width+1):
         shiftedRepeats.append(prePad + repeats + postPad)
-        prePad.append(0)
+        prePad.append(padval)
         postPad = postPad[:len(postPad)-1]
         
-    newRepeats = [0 for i in range(len(repeats)+2*opts.width)]
+    newRepeats = [padval for i in range(len(repeats)+2*opts.width)]
     for i in range(len(shiftedRepeats)):
         for j in range(len(newRepeats)):
-            newRepeats[j] += shiftedRepeats[i][j]
-    
+            if doAdd:
+                newRepeats[j] += shiftedRepeats[i][j]
+            else:
+                newRepeats[j] *= shiftedRepeats[i][j]
+                
     return newRepeats
 
-def computeRepeats(repeats, affectedResults, opts):
+def computeRepeats(repeats, affectedResults, doAdd, opts):
     # Handles depth equal to 1
     if len(repeats) == affectedResults:
         return repeats
     
-    repeats = createRepeatPattern(repeats, opts)
+    repeats = createRepeatPattern(repeats, doAdd, opts)
     if opts.debugOut:
-        print "Repeat pattern at length "+str(len(repeats))+" is "+str(repeats)
+        print "-- Repeat pattern at length "+str(len(repeats))+" is "+str(dataToStr(repeats))
     
     if len(repeats) < affectedResults:
-        repeats = computeRepeats(repeats, affectedResults, opts) 
+        repeats = computeRepeats(repeats, affectedResults, doAdd, opts) 
     return repeats
 
-def computeCoeffcients(opts):
+def computeCoeffcients(coeffObj, opts):
     # Note: procedure assumes symetric stencil
     numAffectedResults = 2 * opts.width*opts.depth + 1
     stencilWidth = 2*opts.width+1
     
     if opts.debugOut:
+        print
         print "Computing coefficients for stencil width", str(stencilWidth),"and affected results",numAffectedResults
     
-    repeats = computeRepeats([1 for i in range(stencilWidth)], numAffectedResults, opts)
-    
+    repeats = computeRepeats([1 for i in range(stencilWidth)], numAffectedResults, True, opts)
     if opts.debugOut:
         print "Repeats:", str(repeats)
     
-    coeffs = [(getStaticCoefficient(opts)**opts.depth)*r for r in repeats]
-    
+    coeffs = computeRepeats(coeffObj.getAll(), numAffectedResults, False, opts)
     if opts.debugOut:
         print "Coefficients:", dataToStr(coeffs)
     
-    return coeffs
+    multipliers = [coeffs[i]*repeats[i] for i in range(len(repeats))]
+    
+    if opts.debugOut:
+        print "Multipliers:", dataToStr(multipliers)
+    
+    return multipliers
 
-def computeOurScheme(indata, opts):
+def computeOurScheme(indata, coefficients,opts):
     
     print
-    print "The scheme with depth", opts.depth
-    print
-
+    print "=====","The scheme with depth", opts.depth,"====="
+    
     resultBufferSize = 2 * opts.width*opts.depth + opts.paraInputs
     numIncompleteResults = opts.depth*opts.width
     assert numIncompleteResults > 0
     numOutputValues = len(indata)
-    print "0", dataToStr(indata)
+    print "Input: ", dataToStr(indata)
     
     # End-padding is a hack ensure that the impact of the final elements propagate to the output
     a = [a for a in indata] + [0.0 for x in range(numIncompleteResults)]
     resultBuffer = [0 for i in range(resultBufferSize)]
     
-    coeff = computeCoeffcients(opts)
+    coeff = computeCoeffcients(coefficients, opts)
+    
+    print
+    print "Performing stencil computation:"
     
     outputs = []
     for inputStart in range(len(a))[::opts.paraInputs]:
@@ -146,7 +181,7 @@ def computeOurScheme(indata, opts):
                 resultBuffer[i+j] += coeff[j]*inputs[i]
                 
         if opts.debugOut:
-            print "Result buffer @",inputStart,":",dataToStr(resultBuffer)
+            print "-- Result buffer @",inputStart,":",dataToStr(resultBuffer)
         
         for i in range(opts.paraInputs):
             outputs.append(resultBuffer[i])
@@ -159,22 +194,33 @@ def computeOurScheme(indata, opts):
             
 
     result = outputs[numIncompleteResults:numIncompleteResults+numOutputValues]
-    print "1", dataToStr(result)
+    print "Output:", dataToStr(result)
     return result
+
+def createRandomVector(veclen):
+    random.seed(15)
+    indata = []
+    while len(indata) < veclen:
+        testVal = random.randint(1, veclen)
+        if testVal not in indata:
+            indata.append(testVal)
+    return indata
 
 def main():
     opts, args = parseArgs()
     
-    random.seed(15)
-    indata = []
-    while len(indata) < opts.inputSize:
-        testVal = random.randint(1,opts.inputSize)
-        if testVal not in indata:
-            indata.append(testVal)
+    print
+    print "Stencil computing test program"
     
+    indata = createRandomVector(opts.inputSize)
     paddedData = [0.0 for a in range(opts.width*opts.depth)]+[i for i in indata]+[0.0 for a in range(opts.width*opts.depth)]
-    naive = computeNaive(paddedData, opts)
-    scheme = computeOurScheme(indata, opts)
+    
+    coefficients = Coefficients(opts)
+    
+    print "Using stencil coefficients: "+str(dataToStr(coefficients.getAll()))
+    
+    naive = computeNaive(paddedData, coefficients, opts)
+    scheme = computeOurScheme(indata, coefficients, opts)
     
     print
     assert len(naive) == len(scheme)
