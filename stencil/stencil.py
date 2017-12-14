@@ -55,6 +55,23 @@ class Coefficients:
     
     def getAll(self):
         return self.coeffs
+ 
+class CoefficientNode:
+    
+    def __init__(self, nodeID, depth):
+        self.depth = depth
+        self.ID = nodeID
+        
+        self.coefficient = 0
+        self.value = 1
+        self.visited = False
+        self.childWeights = []
+        self.children = []
+        
+    def addChildren(self, children, weights):
+        assert len(children) == len(weights)
+        self.children = children
+        self.childWeights = weights
 
 def stencil(a, i, opts, coeffs):
     start = i-opts.width
@@ -90,10 +107,9 @@ def computeNaive(indata, coefficients, opts):
     
     return a[printSegment:-printSegment]
 
-def createRepeatPattern(repeats, doAdd, opts):
-    padval = 1.0
-    if doAdd:
-        padval = 0
+def createRepeatPattern(repeats, opts):
+
+    padval = 0
     
     prePad = []
     postPad = [padval for i in range(2*opts.width)]
@@ -107,49 +123,76 @@ def createRepeatPattern(repeats, doAdd, opts):
     newRepeats = [padval for i in range(len(repeats)+2*opts.width)]
     for i in range(len(shiftedRepeats)):
         for j in range(len(newRepeats)):
-            if doAdd:
-                newRepeats[j] += shiftedRepeats[i][j]
-            else:
-                newRepeats[j] *= shiftedRepeats[i][j]
+            newRepeats[j] += shiftedRepeats[i][j]
                 
     return newRepeats
 
-def computeRepeats(repeats, affectedResults, doAdd, opts):
-    # Handles depth equal to 1
-    if len(repeats) == affectedResults:
-        return repeats
+def buildCoefficientGraph(coeffs, opts):
     
-    repeats = createRepeatPattern(repeats, doAdd, opts)
+    # 1. Add nodes organized by level
+    nodes = [[CoefficientNode(0, 0)]]
+    nodeID = 1
+    for d in range(opts.depth+1)[1:]:
+        newLength = len(nodes[d-1])+2*opts.width
+        nodes.append([CoefficientNode(nodeID+i, d) for i in range(newLength)])
+        nodeID += newLength
+    assert len(nodes[-1]) == 2 * opts.width*opts.depth + 1
+    
+    # 2. Update the children arrays and add appropriate weights
+    stencilSize = 2*opts.width+1
+    for nodeLevel in range(len(nodes)-1):
+        i = 0
+        while i+stencilSize <= len(nodes[nodeLevel+1]):
+            nodes[nodeLevel][i].addChildren(nodes[nodeLevel+1][i:i+stencilSize], coeffs)
+            i += 1
+    
+    return nodes[0][0]
+    
+
+def updateCoefficients(node, opts):
     if opts.debugOut:
-        print "-- Repeat pattern at length "+str(len(repeats))+" is "+str(dataToStr(repeats))
+        print "-- Visiting node ", node.ID, "at depth", node.depth
     
-    if len(repeats) < affectedResults:
-        repeats = computeRepeats(repeats, affectedResults, doAdd, opts) 
-    return repeats
+    if node.children == []:
+        node.coefficient += node.value
+        if opts.debugOut:
+            print "-- Leaf node: Accumulating current value ", node.value, "to compute new coefficient", node.coefficient
+    else:
+        for i in range(len(node.children)):
+            newWeight = node.value * node.childWeights[i] 
+            node.children[i].value = newWeight
+            if opts.debugOut:
+                print "-- Updating weight of child node ", node.children[i].ID, "to", newWeight, "index", i
+            
+            updateCoefficients(node.children[i], opts)
+            
+def retrieveCoefficients(node):
+    if node.children == []:
+        if not node.visited:
+            node.visited = True
+            return [node.coefficient]
+        else:
+            return []
+    
+    retdata = []
+    for c in node.children:
+        retdata = retdata + retrieveCoefficients(c)
+    
+    return retdata
 
 def computeCoeffcients(coeffObj, opts):
-    # Note: procedure assumes symetric stencil
-    numAffectedResults = 2 * opts.width*opts.depth + 1
-    stencilWidth = 2*opts.width+1
-    
     if opts.debugOut:
         print
-        print "Computing coefficients for stencil width", str(stencilWidth),"and affected results",numAffectedResults
+        print "Computing coefficients for stencil width", str(2*opts.width+1),"and depth",opts.depth
     
-    repeats = computeRepeats([1 for i in range(stencilWidth)], numAffectedResults, True, opts)
-    if opts.debugOut:
-        print "Repeats:", str(repeats)
-    
-    coeffs = computeRepeats(coeffObj.getAll(), numAffectedResults, False, opts)
+    root = buildCoefficientGraph(coeffObj.getAll(), opts)
+    updateCoefficients(root, opts)
+    coeffs = retrieveCoefficients(root)
+
     if opts.debugOut:
         print "Coefficients:", dataToStr(coeffs)
-    
-    multipliers = [coeffs[i]*repeats[i] for i in range(len(repeats))]
-    
-    if opts.debugOut:
-        print "Multipliers:", dataToStr(multipliers)
-    
-    return multipliers
+
+    return coeffs
 
 def computeOurScheme(indata, coefficients,opts):
     
