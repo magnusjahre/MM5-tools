@@ -14,6 +14,8 @@ def parseArgs():
     parser.add_option("--parallel-inputs", action="store", dest="paraInputs", default=2, type="int", help="Number of inputs to process on each fetch")
     parser.add_option("--no-coeff", action="store_true", dest="noCoeff", default=False, help="Disable coefficients to simplify debugging")
     parser.add_option("--debug", action="store_true", dest="debugOut", default=False, help="Output debug prints")
+    parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Supress output")
+    parser.add_option("--regression-tests", action="store_true", dest="regressionTests", default=False, help="Run regression test suite (all other parameters are ignored)")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
@@ -31,12 +33,12 @@ def dataToStr(b):
 
 class Coefficients:
     
-    def __init__(self, opts):
-        self.noCoeff = opts.noCoeff
-        self.width = opts.width
+    def __init__(self, width, noCoeff):
+        self.noCoeff = noCoeff
+        self.width = width
         
-        if opts.noCoeff:
-            self.coeffs = [1.0 for i in range(2*opts.width+1)]
+        if noCoeff:
+            self.coeffs = [1.0 for i in range(2*width+1)]
         else:
             self.coeffs = []
             for i in range(self.width):
@@ -73,11 +75,11 @@ class CoefficientNode:
         self.children = children
         self.childWeights = weights
 
-def stencil(a, i, opts, coeffs):
-    start = i-opts.width
+def stencil(a, i, width, coeffs):
+    start = i-width
     if start < 0:
         start = 0
-    end = i+opts.width+1
+    end = i+width+1
     if end > len(a):
         end = len(a)
     
@@ -87,21 +89,24 @@ def stencil(a, i, opts, coeffs):
         
     return s
 
-def computeNaive(indata, coefficients, opts):
-    print
-    print "=====","Naive implementation with "+str(2*opts.width+1)+" point stencil","====="
-    print
+def computeNaive(indata, coefficients, spec):
+    if not spec.quiet:
+        print
+        print "=====","Naive implementation with "+str(2*spec.width+1)+" point stencil","====="
+        print
     
-    printSegment = opts.width*opts.depth
+    printSegment = spec.width*spec.depth
     
     a = [a for a in indata]
     b = [0.0 for i in range(len(a))]
-    print "Input: ", dataToStr(a)[printSegment:-printSegment]
+    if not spec.quiet:
+        print "Input: ", dataToStr(a)[printSegment:-printSegment]
     
-    for n in range(opts.depth):
-        for i in range(len(a))[opts.width:-opts.width]:
-            b[i] = stencil(a, i, opts, coefficients)
-        print n+1,dataToStr(b)[printSegment:-printSegment]
+    for n in range(spec.depth):
+        for i in range(len(a))[spec.width:-spec.width]:
+            b[i] = stencil(a, i, spec.width, coefficients)
+        if not spec.quiet:
+            print n+1,dataToStr(b)[printSegment:-printSegment]
         for i in range(len(a)):
             a[i] = b[i]
     
@@ -127,19 +132,19 @@ def createRepeatPattern(repeats, opts):
                 
     return newRepeats
 
-def buildCoefficientGraph(coeffs, opts):
+def buildCoefficientGraph(coeffs, spec):
     
     # 1. Add nodes organized by level
     nodes = [[CoefficientNode(0, 0)]]
     nodeID = 1
-    for d in range(opts.depth+1)[1:]:
-        newLength = len(nodes[d-1])+2*opts.width
+    for d in range(spec.depth+1)[1:]:
+        newLength = len(nodes[d-1])+2*spec.width
         nodes.append([CoefficientNode(nodeID+i, d) for i in range(newLength)])
         nodeID += newLength
-    assert len(nodes[-1]) == 2 * opts.width*opts.depth + 1
+    assert len(nodes[-1]) == 2 * spec.width*spec.depth + 1
     
     # 2. Update the children arrays and add appropriate weights
-    stencilSize = 2*opts.width+1
+    stencilSize = 2*spec.width+1
     for nodeLevel in range(len(nodes)-1):
         i = 0
         while i+stencilSize <= len(nodes[nodeLevel+1]):
@@ -149,22 +154,22 @@ def buildCoefficientGraph(coeffs, opts):
     return nodes[0][0]
     
 
-def updateCoefficients(node, opts):
-    if opts.debugOut:
+def updateCoefficients(node, debugOut):
+    if debugOut:
         print "-- Visiting node ", node.ID, "at depth", node.depth
     
     if node.children == []:
         node.coefficient += node.value
-        if opts.debugOut:
+        if debugOut:
             print "-- Leaf node: Accumulating current value ", node.value, "to compute new coefficient", node.coefficient
     else:
         for i in range(len(node.children)):
             newWeight = node.value * node.childWeights[i] 
             node.children[i].value = newWeight
-            if opts.debugOut:
+            if debugOut:
                 print "-- Updating weight of child node ", node.children[i].ID, "to", newWeight, "index", i
             
-            updateCoefficients(node.children[i], opts)
+            updateCoefficients(node.children[i], debugOut)
             
 def retrieveCoefficients(node):
     if node.children == []:
@@ -180,64 +185,68 @@ def retrieveCoefficients(node):
     
     return retdata
 
-def computeCoeffcients(coeffObj, opts):
-    if opts.debugOut:
+def computeCoeffcients(coeffObj, spec):
+    if spec.debugOut:
         print
-        print "Computing coefficients for stencil width", str(2*opts.width+1),"and depth",opts.depth
+        print "Computing coefficients for stencil width", str(2*spec.width+1),"and depth",spec.depth
     
-    root = buildCoefficientGraph(coeffObj.getAll(), opts)
-    updateCoefficients(root, opts)
+    root = buildCoefficientGraph(coeffObj.getAll(), spec)
+    updateCoefficients(root, spec.debugOut)
     coeffs = retrieveCoefficients(root)
 
-    if opts.debugOut:
+    if spec.debugOut:
         print "Coefficients:", dataToStr(coeffs)
 
     return coeffs
 
-def computeOurScheme(indata, coefficients,opts):
+def computeOurScheme(indata, coefficients, spec):
     
-    print
-    print "=====","The scheme with depth", opts.depth,"====="
+    if not spec.quiet:
+        print
+        print "=====","The scheme with depth", spec.depth,"====="
     
-    resultBufferSize = 2 * opts.width*opts.depth + opts.paraInputs
-    numIncompleteResults = opts.depth*opts.width
+    resultBufferSize = 2 * spec.width*spec.depth + spec.paraInputs
+    numIncompleteResults = spec.depth*spec.width
     assert numIncompleteResults > 0
     numOutputValues = len(indata)
-    print "Input: ", dataToStr(indata)
+    if not spec.quiet:
+        print "Input: ", dataToStr(indata)
     
     # End-padding is a hack ensure that the impact of the final elements propagate to the output
     a = [a for a in indata] + [0.0 for x in range(numIncompleteResults)]
     resultBuffer = [0 for i in range(resultBufferSize)]
     
-    coeff = computeCoeffcients(coefficients, opts)
+    coeff = computeCoeffcients(coefficients, spec)
     
-    print
-    print "Performing stencil computation:"
+    if not spec.quiet:
+        print
+        print "Performing stencil computation:"
     
     outputs = []
-    for inputStart in range(len(a))[::opts.paraInputs]:
+    for inputStart in range(len(a))[::spec.paraInputs]:
     
-        inputs = a[inputStart:inputStart+opts.paraInputs]
+        inputs = a[inputStart:inputStart+spec.paraInputs]
         
         for i in range(len(inputs)):
             for j in range(len(coeff)):
                 resultBuffer[i+j] += coeff[j]*inputs[i]
                 
-        if opts.debugOut:
+        if spec.debugOut:
             print "-- Result buffer @",inputStart,":",dataToStr(resultBuffer)
         
-        for i in range(opts.paraInputs):
+        for i in range(spec.paraInputs):
             outputs.append(resultBuffer[i])
             
-        for i in range(resultBufferSize - opts.paraInputs):
-            resultBuffer[i] = resultBuffer[i+opts.paraInputs]
+        for i in range(resultBufferSize - spec.paraInputs):
+            resultBuffer[i] = resultBuffer[i+spec.paraInputs]
             
-        for i in range(resultBufferSize - opts.paraInputs, resultBufferSize):
+        for i in range(resultBufferSize - spec.paraInputs, resultBufferSize):
             resultBuffer[i] = 0.0 
             
 
     result = outputs[numIncompleteResults:numIncompleteResults+numOutputValues]
-    print "Output:", dataToStr(result)
+    if not spec.quiet:
+        print "Output:", dataToStr(result)
     return result
 
 def createRandomVector(veclen):
@@ -249,27 +258,128 @@ def createRandomVector(veclen):
             indata.append(testVal)
     return indata
 
+def generateInput(spec):
+    indata = createRandomVector(spec.inputSize)
+    paddedData = [0.0 for a in range(spec.width*spec.depth)]+[i for i in indata]+[0.0 for a in range(spec.width*spec.depth)]
+    coefficients = Coefficients(spec.width, spec.noCoeff)
+    
+    return indata, paddedData, coefficients
+    
+class StencilSpec:
+    
+    def __init__(self):
+        self.width = 0
+        self.depth = 0 
+        self.paraInputs = 0
+        self.debugOut = False
+        self.inputSize = 0
+        self.noCoeff = False
+        self.quiet = True
+        
+    def setFromOptions(self, opts):
+        self.width = opts.width
+        self.depth = opts.depth
+        self.paraInputs = opts.paraInputs
+        self.debugOut = opts.debugOut
+        self.inputSize = opts.inputSize
+        self.noCoeff = opts.noCoeff
+        self.quiet = opts.quiet
+
+def compareOutput(naive, scheme):
+    if len(naive) != len(scheme):
+        return False
+    for i in range(len(naive)):
+        if eToStr(naive[i]) != eToStr(scheme[i]):
+            return False
+    return True
+
+def evaluateSingle(spec):
+    indata, paddedData, coefficients = generateInput(spec)
+    naive = computeNaive(paddedData, coefficients, spec)
+    scheme = computeOurScheme(indata, coefficients, spec)
+    return compareOutput(naive, scheme)
+
+def runRegressionTests():
+    print 
+    print "Regression test suite"
+    print
+
+    # Baseline configuration
+    spec = StencilSpec()
+    spec.inputSize = 1000
+    spec.depth = 5
+    spec.paraInputs = 10
+    spec.width = 1
+    
+    tests = 0
+    passed = 0
+    
+    print "Depth"
+    for d in range(1,10):
+        spec.depth = d
+        res = evaluateSingle(spec)
+        print str(d), res
+        
+        if res:
+            passed += 1
+        tests += 1
+        
+    spec.depth = 5
+    
+    print
+    print "Parallel inputs"
+    for i in range(1,20):
+        spec.paraInputs = i
+        res = evaluateSingle(spec)
+        print str(i), res
+        
+        if res:
+            passed += 1
+        tests += 1
+
+    spec.paraInputs = 10
+    
+    print
+    print "Stencil radius"
+    for w in range(1, 10):
+        spec.width = w
+        res = evaluateSingle(spec)
+        print str(w), res
+        
+        if res:
+            passed += 1
+        tests += 1
+
+    print
+    print "SUMMARY: Passed",passed,"out of",tests," tests."
+    print
+    
+
 def main():
     opts, args = parseArgs()
+    
+    if opts.regressionTests:
+        runRegressionTests()
+        return
     
     print
     print "Stencil computing test program"
     
-    indata = createRandomVector(opts.inputSize)
-    paddedData = [0.0 for a in range(opts.width*opts.depth)]+[i for i in indata]+[0.0 for a in range(opts.width*opts.depth)]
-    
-    coefficients = Coefficients(opts)
+    spec = StencilSpec()
+    spec.setFromOptions(opts)
+    indata, paddedData, coefficients = generateInput(spec)
     
     print "Using stencil coefficients: "+str(dataToStr(coefficients.getAll()))
     
-    naive = computeNaive(paddedData, coefficients, opts)
-    scheme = computeOurScheme(indata, coefficients, opts)
+    naive = computeNaive(paddedData, coefficients, spec)
+    scheme = computeOurScheme(indata, coefficients, spec)
     
+    equal = compareOutput(naive, scheme)
     print
-    assert len(naive) == len(scheme)
-    for i in range(len(naive)):
-        assert eToStr(naive[i]) == eToStr(scheme[i]), "Item "+str(i)+" is not equal"
-    print "Compute methods are equivalent"
+    if equal:
+        print "Compute methods are equivalent"
+    else:
+        print "Compute methods produced different output"
         
 
 if __name__ == '__main__':
