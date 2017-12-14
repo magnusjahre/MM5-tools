@@ -26,7 +26,7 @@ def parseArgs():
     return opts, args
 
 def eToStr(e):
-    return "%.2f" % e 
+    return "%.2f" % e
 
 def dataToStr(b):
     return [eToStr(e) for e in b]
@@ -285,13 +285,27 @@ class StencilSpec:
         self.noCoeff = opts.noCoeff
         self.quiet = opts.quiet
 
+def fpValsAreEqual(a,b):
+    if abs(a-b) < 0.001:
+        return True
+    return False
+
 def compareOutput(naive, scheme):
     if len(naive) != len(scheme):
         return False
     for i in range(len(naive)):
-        if eToStr(naive[i]) != eToStr(scheme[i]):
+        if not fpValsAreEqual(naive[i], scheme[i]):
             return False
     return True
+
+def printDifferences(naive, scheme):
+    if len(naive) != len(scheme):
+        print "The length of the arrays differ"
+        return
+    for i in range(len(naive)):
+        if not fpValsAreEqual(naive[i], scheme[i]):
+            print "Arrays differ at position",i,"naive",eToStr(naive[i]),"scheme",eToStr(scheme[i])
+            print naive[i], scheme[i]
 
 def evaluateSingle(spec):
     indata, paddedData, coefficients = generateInput(spec)
@@ -380,6 +394,7 @@ def main():
         print "Compute methods are equivalent"
     else:
         print "Compute methods produced different output"
+        printDifferences(naive, scheme)
         
 
 if __name__ == '__main__':
