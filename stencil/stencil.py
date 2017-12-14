@@ -329,7 +329,7 @@ def runRegressionTests():
     passed = 0
     
     print "Depth"
-    for d in range(1,10):
+    for d in range(1,100):
         spec.depth = d
         res = evaluateSingle(spec)
         print str(d), res
@@ -355,7 +355,7 @@ def runRegressionTests():
     
     print
     print "Stencil radius"
-    for w in range(1, 10):
+    for w in range(1, 15):
         spec.width = w
         res = evaluateSingle(spec)
         print str(w), res
@@ -365,7 +365,7 @@ def runRegressionTests():
         tests += 1
 
     print
-    print "SUMMARY: Passed",passed,"out of",tests," tests."
+    print "SUMMARY: Passed",passed,"out of",tests,"tests."
     print
     
 
