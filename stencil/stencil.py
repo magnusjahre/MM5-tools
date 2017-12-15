@@ -329,10 +329,12 @@ def runRegressionTests():
     passed = 0
     
     print "Depth"
-    for d in range(1,100):
+    depths = [i for i in range(1,20)] + [i for i in range(20,101,5)]
+    for d in depths:
         spec.depth = d
         res = evaluateSingle(spec)
         print str(d), res
+        sys.stdout.flush()
         
         if res:
             passed += 1
@@ -346,6 +348,7 @@ def runRegressionTests():
         spec.paraInputs = i
         res = evaluateSingle(spec)
         print str(i), res
+        sys.stdout.flush()
         
         if res:
             passed += 1
@@ -359,6 +362,7 @@ def runRegressionTests():
         spec.width = w
         res = evaluateSingle(spec)
         print str(w), res
+        sys.stdout.flush()
         
         if res:
             passed += 1
