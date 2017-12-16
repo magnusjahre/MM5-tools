@@ -17,7 +17,7 @@ ALL = 0
 FAIR_WL = 1
 TYPED_WL = 2
 
-typedWorkloadIdentifiers = ["h", "m", "l"]
+typedWorkloadIdentifiers = ["h", "m", "l", "s", "a"]
 
 def getWLIdent(expDirName):
     wlres = re.search("t-["+"".join(typedWorkloadIdentifiers)+"]-[0-9]+", expDirName)
