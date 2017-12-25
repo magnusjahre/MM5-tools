@@ -2,6 +2,7 @@
 
 import sys
 import random
+import math
 from optparse import OptionParser
 
 def parseArgs():
@@ -316,7 +317,13 @@ class StencilSpec:
         self.quiet = opts.quiet
 
 def fpValsAreEqual(a,b):
-    if abs(a-b) < 0.001:
+    
+    baseEpsilon= 10**-10
+    newEpsilon = baseEpsilon*(10**int(math.log10(a)))
+    if newEpsilon <= baseEpsilon:
+        newEpsilon = baseEpsilon
+    
+    if abs(a-b) < newEpsilon:
         return True
     return False
 
@@ -335,7 +342,6 @@ def printDifferences(naive, scheme):
     for i in range(len(naive)):
         if not fpValsAreEqual(naive[i], scheme[i]):
             print "Arrays differ at position",i,"naive",eToStr(naive[i]),"scheme",eToStr(scheme[i])
-            print naive[i], scheme[i]
 
 def evaluateSingle(spec):
     indata, paddedData, coefficients = generateInput(spec)
