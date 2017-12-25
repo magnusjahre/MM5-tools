@@ -199,6 +199,23 @@ def computeCoeffcients(coeffObj, spec):
 
     return coeffs
 
+def computeImpulseResponse(coeffObj, spec):
+    padSize = spec.width*(spec.depth-1)
+    impulse = [0.0 for i in range(padSize)] + [0.0 for i in range(2*spec.width+1)] + [0.0 for i in range(padSize)] 
+    impulse[len(impulse)/2] = 1.0 #Correct since we assume that all stencil lenghts are odd numbers and integer div cuts decials
+    
+    coeffs = coeffObj.getAll()
+    for d in range(spec.depth):
+        tmp = [0.0 for i in range(len(impulse))]
+        for i in range(len(impulse)):
+            for j in range(len(coeffs)):
+                offset = j-spec.width+i
+                if offset >= 0 and offset < len(impulse):
+                    tmp[i] += coeffs[j]*impulse[offset]
+        impulse = [tmp[i] for i in range(len(tmp))]
+         
+    return impulse
+
 def computeOurScheme(indata, coefficients, spec):
     
     if not spec.quiet:
@@ -217,6 +234,15 @@ def computeOurScheme(indata, coefficients, spec):
     resultBuffer = [0 for i in range(resultBufferSize)]
     
     coeff = computeCoeffcients(coefficients, spec)
+    impulseCoeff = computeImpulseResponse(coefficients, spec)
+    
+    if not spec.quiet:
+        print "Graph coefficients:  ", dataToStr(coeff)
+        print "Impulse coefficients:", dataToStr(impulseCoeff)
+    
+    assert len(coeff) == len(impulseCoeff)
+    for i in range(len(coeff)):
+        assert fpValsAreEqual(coeff[i], impulseCoeff[i])
     
     if not spec.quiet:
         print
