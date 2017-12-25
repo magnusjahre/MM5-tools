@@ -233,16 +233,20 @@ def computeOurScheme(indata, coefficients, spec):
     a = [a for a in indata] + [0.0 for x in range(numIncompleteResults)]
     resultBuffer = [0 for i in range(resultBufferSize)]
     
-    coeff = computeCoeffcients(coefficients, spec)
+    graphCoeff = []
+    if spec.depth <= 10:
+        graphCoeff = computeCoeffcients(coefficients, spec)
+        
     impulseCoeff = computeImpulseResponse(coefficients, spec)
     
-    if not spec.quiet:
-        print "Graph coefficients:  ", dataToStr(coeff)
-        print "Impulse coefficients:", dataToStr(impulseCoeff)
-    
-    assert len(coeff) == len(impulseCoeff)
-    for i in range(len(coeff)):
-        assert fpValsAreEqual(coeff[i], impulseCoeff[i])
+    if graphCoeff != []:
+        if not spec.quiet:
+            print "Graph coefficients:  ", dataToStr(graphCoeff)
+            print "Impulse coefficients:", dataToStr(impulseCoeff)
+        
+        assert len(graphCoeff) == len(impulseCoeff)
+        for i in range(len(graphCoeff)):
+            assert fpValsAreEqual(graphCoeff[i], impulseCoeff[i])
     
     if not spec.quiet:
         print
@@ -254,8 +258,8 @@ def computeOurScheme(indata, coefficients, spec):
         inputs = a[inputStart:inputStart+spec.paraInputs]
         
         for i in range(len(inputs)):
-            for j in range(len(coeff)):
-                resultBuffer[i+j] += coeff[j]*inputs[i]
+            for j in range(len(impulseCoeff)):
+                resultBuffer[i+j] += impulseCoeff[j]*inputs[i]
                 
         if spec.debugOut:
             print "-- Result buffer @",inputStart,":",dataToStr(resultBuffer)
