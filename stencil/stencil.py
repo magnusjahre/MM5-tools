@@ -203,7 +203,9 @@ def computeCoeffcients(coeffObj, spec):
 def computeImpulseResponse(coeffObj, spec):
     padSize = spec.width*(spec.depth-1)
     impulse = [0.0 for i in range(padSize)] + [0.0 for i in range(2*spec.width+1)] + [0.0 for i in range(padSize)] 
-    impulse[len(impulse)/2] = 1.0 #Correct since we assume that all stencil lenghts are odd numbers and integer div cuts decials
+    impulse[len(impulse)/2] = 1.0 #Correct since we assume that all stencil lenghts are odd numbers and integer div cuts decimals
+    
+    assert len(impulse) == 2*spec.width*spec.depth+1
     
     coeffs = coeffObj.getAll()
     for d in range(spec.depth):
