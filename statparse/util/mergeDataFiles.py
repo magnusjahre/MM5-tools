@@ -148,7 +148,7 @@ def mergeData(fileData, opts):
                 wl = str(lineIdent)
                 lineIdent += 1
             else:
-                wltypes = "hmls"
+                wltypes = "hmlsa"
                 match = re.search("fair[0-9][0-9]", v[0])
                 
                 if match == None:
