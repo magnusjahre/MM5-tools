@@ -51,6 +51,7 @@ def parseArgs():
     parser.add_option("--plotfile", action="store", dest="plotfile", default="", help="Plot to this file (single plot)")
     parser.add_option("--plotdir-prefix", action="store", dest="plotdirprefix", default="cache-analysis", help="Prefix of cache analysis directories (full plot)")
     parser.add_option("--verify", action="store_true", dest="verify", default=False, help="Verify the lookahead allocation algorithm")
+    parser.add_option("--lower-is-better", action="store_true", dest="lowerIsBetter", default=False, help="The speed-up curves have been generated using a lower-is-better metric (i.e., ANTT)")
     parser.add_option("--gen-curve-code", action="store_true", dest="genCurveCode", default=False, help="Print code for testing the C++ lookahead implementation")
     parser.add_option("--cap", action="store", dest="cap", default=16, type="int", help="The maximum number of ways that can be allocated in one round of the lookahead algorithm")
     
@@ -170,19 +171,22 @@ def padSample(sample):
 def getCurveIndex(ways):
     return ways-1
 
-def getMarginalUtility(curve, curAlloc, newAlloc):
-    numerator = curve[getCurveIndex(newAlloc)] - curve[getCurveIndex(curAlloc)]
+def getMarginalUtility(curve, curAlloc, newAlloc, lowerIsBetter):
+    if lowerIsBetter:
+        numerator = curve[getCurveIndex(curAlloc)] - curve[getCurveIndex(newAlloc)]
+    else:
+        numerator = curve[getCurveIndex(newAlloc)] - curve[getCurveIndex(curAlloc)]
     denominator = float(newAlloc - curAlloc)
     mu = numerator/denominator
     return mu
 
-def getMaxMarginalUtility(curve, curAlloc, balance, cap):
+def getMaxMarginalUtility(curve, curAlloc, balance, cap, lowerIsBetter):
     maxMu = -1.0
     maxAdditionalWays = -1
     additionalWays = 1
     while additionalWays <= balance and additionalWays < cap:
         newAlloc = curAlloc+additionalWays
-        mu = getMarginalUtility(curve, curAlloc, newAlloc)
+        mu = getMarginalUtility(curve, curAlloc, newAlloc, lowerIsBetter)
         if mu > maxMu:
             maxMu = mu
             maxAdditionalWays = additionalWays
@@ -227,7 +231,7 @@ def verifyAllocation(curves, opts, usedir, ccpoint):
         maxMU = -1.0
         drawList = []
         for i in range(len(curves)):
-            coreMaxAdditionalWays, coreMaxMu = getMaxMarginalUtility(curves[i], curAlloc[i], balance, opts.cap)
+            coreMaxAdditionalWays, coreMaxMu = getMaxMarginalUtility(curves[i], curAlloc[i], balance, opts.cap, opts.lowerIsBetter)
             print "Maximum utility for CPU "+str(i)+" is "+str(coreMaxMu)+" with "+str(coreMaxAdditionalWays)+" additional ways"
             if coreMaxMu > maxMU:
                 winner = i
