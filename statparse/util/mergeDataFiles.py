@@ -6,7 +6,7 @@ from statparse.tracefile import isFloat
 from statparse.plotResults import plotRawBarChart
 from statparse.util import NO_DATA_STRING
 
-from workloadfiles.workloads import typedWorkloadIdentifiers 
+from workloadfiles.workloads import typedWorkloadIdentifiers, workloadTypePattern
 
 import sys
 import os
@@ -148,7 +148,7 @@ def mergeData(fileData, opts):
                 wl = str(lineIdent)
                 lineIdent += 1
             else:
-                wltypes = "hmlsa"
+                wltypes = workloadTypePattern
                 match = re.search("fair[0-9][0-9]", v[0])
                 
                 if match == None:

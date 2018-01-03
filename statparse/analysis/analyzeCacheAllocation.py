@@ -8,6 +8,7 @@ from statparse.tracefile.tracefileData import TracefileData
 from workloadfiles.workloads import Workloads
 from statparse.plotResults import plotLines
 from statparse.util import fatal
+from workloadfiles.workloads import workloadTypePattern
 
 class CacheTraceFileNames:
     
@@ -99,7 +100,7 @@ def getSamplePoints(directory, tracefilename):
 
 def getBenchmarkNames(directory, np):
     wls = Workloads()
-    match = re.search("t-[hmls]-[0-9]+", directory)
+    match = re.search("t-["+workloadTypePattern+"]-[0-9]+", directory)
     wl = match.group(0)
     bms =  wls.getBms(wl, np)
     return wl, bms
