@@ -102,6 +102,8 @@ class OperatingPoint:
             self.serialFraction = serialFraction
         self.opts = opts
         self.model = model
+        
+        self.executionTime = 0
     
     def estimateEnergy(self):
         
@@ -109,14 +111,24 @@ class OperatingPoint:
         self.eDynPara = (1-self.serialFraction)*self.model["ALPHA-D"]*getInsts(self.opts)*self.paraVP.v**2
         self.eDyn = self.eDynSer + self.eDynPara
         
+        assert self.executionTime != 0
+        if self.feasible:
+            eSleepConst = (self.model["PERIOD-TIME"] - self.executionTime) * self.model["SLEEP-POWER"]
+        else:
+            # Slack energy is 0 if there is no slack.
+            eSleepConst = 0
+        
         eStatConstSerial = (self.model["ALPHA-S"]*self.serVP.v)/float(self.serVP.f)
         self.eStatSerial = getInsts(self.opts)*self.serialFraction*eStatConstSerial
+        self.eStatSerial += eSleepConst * (self.cores - 1)
         
         eStatConstPara = (self.model["ALPHA-S"]*self.paraVP.v)/float(self.paraVP.f)
         self.eStatPara = getInsts(self.opts)*(1-self.serialFraction)*eStatConstPara
         self.eStat = self.eStatSerial + self.eStatPara
-           
-        self.eTot = self.eDyn + self.eStat
+        
+        self.eSlack = eSleepConst * self.cores 
+        
+        self.eTot = self.eDyn + self.eStat + self.eSlack
     
     def computeExecutionTime(self):
         self.executionTime = (getInsts(self.opts) * self.serialFraction) / self.serVP.f
@@ -134,24 +146,26 @@ class OperatingPointData:
         if singleFrequency:
             for v,f in model["OP"]:
                 op = OperatingPoint(VoltagePoint(v, f), VoltagePoint(v, f), cores, serialFraction, opts, model)
-                op.estimateEnergy()
                 op.computeExecutionTime()
+                op.estimateEnergy()
                 self.ops.append(op)
         else:
             for sv,sf in model["OP"]:
                 for pv,pf in model["OP"]:
                     op = OperatingPoint(VoltagePoint(sv, sf), VoltagePoint(pv, pf), cores, serialFraction, opts, model)
-                    op.estimateEnergy()
                     op.computeExecutionTime()
+                    op.estimateEnergy()
                     self.ops.append(op)
         
         self.Edyn = []
         self.Estat = []
+        self.Eslack = []
         self.Etot = []
         unitFactor = 10**6
         for op in self.ops:
             self.Edyn.append(op.eDyn*unitFactor)
             self.Estat.append(op.eStat*unitFactor)
+            self.Eslack.append(op.eSlack*unitFactor)
             self.Etot.append((op.eTot)*unitFactor)
             
     def findMinEP(self):
@@ -208,7 +222,7 @@ def analyseSingleCase(model, cores, serialFraction, opts):
     opd = OperatingPointData(model, cores, serialFraction, opts, True)
     
     if opts.verbose:
-        printEnergyData(opd.getvRange(), [["Edyn"]+opd.Edyn, ["Estat"]+opd.Estat, ["Etot"]+opd.Etot], opts)
+        printEnergyData(opd.getvRange(), [["Edyn"]+opd.Edyn, ["Estat"]+opd.Estat, ["Eslack"]+opd.Eslack, ["Etot"]+opd.Etot], opts)
     
     bestIndex = opd.findMinEP()
     
@@ -225,9 +239,9 @@ def analyseSingleCase(model, cores, serialFraction, opts):
     opLabel = "Best Operating Point\nE = "+("%.2f uJ" % opd.bestEnergy)+("\nSlack %.3f s" % (model["PERIOD-TIME"]-opd.bestExecTime))
     
     plotRawLinePlot(opd.getvRange(),
-                    [opd.Edyn, opd.Estat, opd.Etot],
-                    titles=["Dynamic Energy Consumption","Static Energy Consumption", "Total Energy Consumption"],
-                    legendColumns=3,
+                    [opd.Edyn, opd.Estat, opd.Eslack, opd.Etot],
+                    titles=["Dynamic Energy Consumption","Static Energy Consumption", "Slack Energy Consumption", "Total Energy Consumption"],
+                    legendColumns=4,
                     mode="None",
                     xlabel="$V_{dd}$",
                     ylabel="Energy (uJ)",
@@ -312,8 +326,8 @@ def test(model, opts):
     print "Test 1: Single core with single voltage point"
     vp = VoltagePoint(0.55, 2.88*10**6)
     op1 = OperatingPoint(vp, vp, 1, 1.0, opts, model)
-    op1.estimateEnergy()
     op1.computeExecutionTime()
+    op1.estimateEnergy()
     values = {"eDynSer": "0.000163", "eDynPara": "0.000000","eDyn": "0.000163", "eStatSerial": "0.001358", "eStatPara": "0.000000", "eTot": "0.001521" }
     checkAssertions(op1, values)
     print "Test passed!"
@@ -321,8 +335,8 @@ def test(model, opts):
     print "Test 2: 4-core with single voltage point and serial fraction 0.25"
     vp = VoltagePoint(0.874, 92.16*10**6)
     op1 = OperatingPoint(vp, vp, 4, 0.25, opts, model)
-    op1.estimateEnergy()
     op1.computeExecutionTime()
+    op1.estimateEnergy()
     values = {"eDynSer": "0.000103", "eDynPara": "0.000309", "eDyn": "0.000413", "eStatSerial": "0.000017", "eStatPara": "0.000051", "eTot": "0.000480" }
     checkAssertions(op1, values)
     print "Test passed!"
@@ -331,8 +345,8 @@ def test(model, opts):
     vpSer = VoltagePoint(1.054, 184.32*10**6)
     vpPara = VoltagePoint(0.760, 46.08*10**6)
     op1 = OperatingPoint(vpSer, vpPara, 4, 0.1, opts, model)
-    op1.estimateEnergy()
     op1.computeExecutionTime()
+    op1.estimateEnergy()
     values = {"eDynSer": "0.000060", "eDynPara": "0.000281", "eDyn": "0.000341", "eStatSerial": "0.000004", "eStatPara": "0.000106", "eTot": "0.000450" }
     checkAssertions(op1, values)
     print "Test passed!"
