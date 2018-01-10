@@ -105,9 +105,9 @@ def generatePlotCommand(data):
     cmd.append("--plot-type")
     cmd.append(data["type"])
     cmd.append("-y")
-    cmd.append(data["ytitle"])
+    cmd.append('"'+data["ytitle"]+'"')
     cmd.append("-x")
-    cmd.append(data["xtitle"])
+    cmd.append('"'+data["xtitle"]+'"')
     for o in data["opts"]:
         cmd.append(o)
 
