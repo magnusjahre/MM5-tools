@@ -81,9 +81,6 @@ def printEnergyData(vRange, data, opts):
     print
     printData(lines, justify, sys.stdout, opts.decimals)
 
-def getInsts(opts):
-    return opts.insts * 10**6
-
 class VoltagePoint:
     
     def __init__(self, v, f):
@@ -92,7 +89,7 @@ class VoltagePoint:
 
 class OperatingPoint:
     
-    def __init__(self, serVP, paraVP, cores, serialFraction, opts, model):
+    def __init__(self, serVP, paraVP, cores, serialFraction, millInsts, model):
         self.serVP = serVP
         self.paraVP = paraVP
         self.cores = cores
@@ -100,39 +97,41 @@ class OperatingPoint:
             self.serialFraction = 1.0
         else:
             self.serialFraction = serialFraction
-        self.opts = opts
+        self.insts = millInsts * 10**6
         self.model = model
         
         self.executionTime = 0
+        self.serialExecTime = 0
     
     def estimateEnergy(self):
         
-        self.eDynSer = self.serialFraction*self.model["ALPHA-D"]*getInsts(self.opts)*self.serVP.v**2
-        self.eDynPara = (1-self.serialFraction)*self.model["ALPHA-D"]*getInsts(self.opts)*self.paraVP.v**2
+        self.eDynSer = self.serialFraction*self.model["ALPHA-D"]*self.insts*self.serVP.v**2
+        self.eDynPara = (1-self.serialFraction)*self.model["ALPHA-D"]*self.insts*self.paraVP.v**2
         self.eDyn = self.eDynSer + self.eDynPara
         
-        assert self.executionTime != 0
-        if self.feasible:
-            eSleepConst = (self.model["PERIOD-TIME"] - self.executionTime) * self.model["SLEEP-POWER"]
-        else:
-            # Slack energy is 0 if there is no slack.
-            eSleepConst = 0
+        assert self.serialExecTime != 0
+        assert self.serialExecTime != 0
         
         eStatConstSerial = (self.model["ALPHA-S"]*self.serVP.v)/float(self.serVP.f)
-        self.eStatSerial = getInsts(self.opts)*self.serialFraction*eStatConstSerial
-        self.eStatSerial += eSleepConst * (self.cores - 1)
+        self.eStatSerial = self.insts*self.serialFraction*eStatConstSerial
+        self.eStatSleep = self.serialExecTime * self.model["SLEEP-POWER"] * (self.cores - 1)
+        self.eStatSerial += self.eStatSleep
         
         eStatConstPara = (self.model["ALPHA-S"]*self.paraVP.v)/float(self.paraVP.f)
-        self.eStatPara = getInsts(self.opts)*(1-self.serialFraction)*eStatConstPara
+        self.eStatPara = self.insts*(1-self.serialFraction)*eStatConstPara
         self.eStat = self.eStatSerial + self.eStatPara
         
-        self.eSlack = eSleepConst * self.cores 
+        if self.feasible:
+            self.eSlack = (self.model["PERIOD-TIME"] - self.executionTime) * self.cores * self.model["SLEEP-POWER"]
+        else:
+            # Slack energy is 0 if there is no slack.
+            self.eSlack = 0
         
         self.eTot = self.eDyn + self.eStat + self.eSlack
     
     def computeExecutionTime(self):
-        self.executionTime = (getInsts(self.opts) * self.serialFraction) / self.serVP.f
-        self.executionTime += (getInsts(self.opts)* (1-self.serialFraction)) / (self.paraVP.f * float(self.cores))
+        self.serialExecTime = (self.insts * self.serialFraction) / self.serVP.f
+        self.executionTime = self.serialExecTime + (self.insts* (1-self.serialFraction)) / (self.paraVP.f * float(self.cores))
         if self.executionTime <= self.model["PERIOD-TIME"]:
             self.feasible = True
         else:
@@ -145,14 +144,14 @@ class OperatingPointData:
         
         if singleFrequency:
             for v,f in model["OP"]:
-                op = OperatingPoint(VoltagePoint(v, f), VoltagePoint(v, f), cores, serialFraction, opts, model)
+                op = OperatingPoint(VoltagePoint(v, f), VoltagePoint(v, f), cores, serialFraction, opts.insts, model)
                 op.computeExecutionTime()
                 op.estimateEnergy()
                 self.ops.append(op)
         else:
             for sv,sf in model["OP"]:
                 for pv,pf in model["OP"]:
-                    op = OperatingPoint(VoltagePoint(sv, sf), VoltagePoint(pv, pf), cores, serialFraction, opts, model)
+                    op = OperatingPoint(VoltagePoint(sv, sf), VoltagePoint(pv, pf), cores, serialFraction, opts.insts, model)
                     op.computeExecutionTime()
                     op.estimateEnergy()
                     self.ops.append(op)
@@ -204,7 +203,7 @@ def analyseCores(model, maxCores, opts):
         norm = [e/minE[s][0] for e in minE[s]]
         data.append(norm)
     
-    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(getInsts(opts)/10**6)+" million instructions"
+    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(opts.insts)+" million instructions"
     
     plotRawLinePlot(cores,
                     data,
@@ -235,7 +234,7 @@ def analyseSingleCase(model, cores, serialFraction, opts):
         print
         print "Optimal Voltage is "+str(opd.bestVoltage)+" with total energy "+str(opd.bestEnergy)+" uJ and execution time "+str(opd.bestExecTime)
     
-    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(getInsts(opts)/10**6)+" million instructions with "+str(cores)+" cores and s="+str(serialFraction)
+    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(opts.insts)+" million instructions with "+str(cores)+" cores and s="+str(serialFraction)
     opLabel = "Best Operating Point\nE = "+("%.2f uJ" % opd.bestEnergy)+("\nSlack %.3f s" % (model["PERIOD-TIME"]-opd.bestExecTime))
     
     plotRawLinePlot(opd.getvRange(),
@@ -299,7 +298,7 @@ def main():
     serialFraction = float(args[2])
     
     if opts.test:
-        test(model, opts)
+        test(model)
         return
     
     if opts.analyseCores:
@@ -312,43 +311,55 @@ def main():
     
     analyseSingleCase(model, cores, serialFraction, opts)
 
-def checkAssertions(op1, v):
-    assert "%.6f" % op1.eDynSer == v["eDynSer"], "Unexpeced EdynSer "+("%.6f" % op1.eDynSer)
-    assert "%.6f" % op1.eDynPara == v["eDynPara"], "Unexpeced EdynPara "+("%.6f" % op1.eDynPara)
-    assert "%.6f" % op1.eDyn == v["eDyn"], "Unexpeced Edyn "+("%.6f" % op1.eDyn)
-    assert "%.6f" % op1.eStatSerial == v["eStatSerial"], "Unexpeced EstatSerial "+("%.6f" % op1.eStatSerial)
-    assert "%.6f" % op1.eStatPara == v["eStatPara"], "Unexpeced EstatPara "+("%.6f" % op1.eStatPara)
-    assert "%.6f" % op1.eTot == v["eTot"], "Unexpeced Etot "+("%.6f" % op1.eTot)
+def checkAssertions(op1, v, decimals):
+    decimals = str(decimals)
+    assert ("%."+decimals+"f") % op1.eDynSer == v["eDynSer"], "Unexpeced EdynSer "+(("%."+decimals+"f") % op1.eDynSer)
+    assert ("%."+decimals+"f") % op1.eDynPara == v["eDynPara"], "Unexpeced EdynPara "+(("%."+decimals+"f") % op1.eDynPara)
+    assert ("%."+decimals+"f") % op1.eDyn == v["eDyn"], "Unexpeced Edyn "+(("%."+decimals+"f") % op1.eDyn)
+    assert ("%."+decimals+"f") % op1.eStatSleep == v["eStatSleep"], "Unexpeced EstatSleep "+(("%."+decimals+"f") % op1.eStatSleep)
+    assert ("%."+decimals+"f") % op1.eStatSerial == v["eStatSerial"], "Unexpeced EstatSerial "+(("%."+decimals+"f") % op1.eStatSerial)
+    assert ("%."+decimals+"f") % op1.eStatPara == v["eStatPara"], "Unexpeced EstatPara "+(("%."+decimals+"f") % op1.eStatPara)
+    assert ("%."+decimals+"f") % op1.eSlack == v["eSlack"], "Unexpeced Eslack "+(("%."+decimals+"f") % op1.eSlack)
+    assert ("%."+decimals+"f") % op1.eTot == v["eTot"], "Unexpeced Etot "+(("%."+decimals+"f") % op1.eTot)
 
-def test(model, opts):
-    assert opts.insts == 15, "Must use default instruction count for the tests to work"
-    
+def test(model):
+
     print "Test 1: Single core with single voltage point"
     vp = VoltagePoint(0.55, 2.88*10**6)
-    op1 = OperatingPoint(vp, vp, 1, 1.0, opts, model)
+    op1 = OperatingPoint(vp, vp, 1, 1.0, 15, model)
     op1.computeExecutionTime()
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000163", "eDynPara": "0.000000","eDyn": "0.000163", "eStatSerial": "0.001358", "eStatPara": "0.000000", "eTot": "0.001521" }
-    checkAssertions(op1, values)
+    values = {"eDynSer": "0.000163", "eDynPara": "0.000000","eDyn": "0.000163", "eStatSerial": "0.001358", "eStatPara": "0.000000", "eTot": "0.001521", "eSlack": "0.000000", "eStatSleep": "0.000000"}
+    checkAssertions(op1, values, 6)
     print "Test passed!"
     
     print "Test 2: 4-core with single voltage point and serial fraction 0.25"
     vp = VoltagePoint(0.874, 92.16*10**6)
-    op1 = OperatingPoint(vp, vp, 4, 0.25, opts, model)
+    op1 = OperatingPoint(vp, vp, 4, 0.25, 15, model)
     op1.computeExecutionTime()
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000103", "eDynPara": "0.000309", "eDyn": "0.000413", "eStatSerial": "0.000017", "eStatPara": "0.000051", "eTot": "0.000480" }
-    checkAssertions(op1, values)
+    values = {"eDynSer": "0.000103", "eDynPara": "0.000309", "eDyn": "0.000413", "eStatSerial": "0.000017", "eStatPara": "0.000051", "eTot": "0.000480", "eSlack": "0.000000", "eStatSleep": "0.000000"}
+    checkAssertions(op1, values, 6)
     print "Test passed!"
     
     print "Test 3: 4-core with two voltage point and serial fraction 0.1"
     vpSer = VoltagePoint(1.054, 184.32*10**6)
     vpPara = VoltagePoint(0.760, 46.08*10**6)
-    op1 = OperatingPoint(vpSer, vpPara, 4, 0.1, opts, model)
+    op1 = OperatingPoint(vpSer, vpPara, 4, 0.1, 15, model)
     op1.computeExecutionTime()
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000060", "eDynPara": "0.000281", "eDyn": "0.000341", "eStatSerial": "0.000004", "eStatPara": "0.000106", "eTot": "0.000450" }
-    checkAssertions(op1, values)
+    values = {"eDynSer": "0.000060", "eDynPara": "0.000281", "eDyn": "0.000341", "eStatSerial": "0.000004", "eStatPara": "0.000106", "eTot": "0.000450", "eSlack": "0.000000", "eStatSleep": "0.000000"}
+    checkAssertions(op1, values, 6)
+    print "Test passed!"
+    
+    print "Test 4: 4-core with two voltage points, serial fraction 0.5 and 1M instructions"
+    vpSer = VoltagePoint(1.054, 184.32*10**6)
+    vpPara = VoltagePoint(0.760, 46.08*10**6)
+    op1 = OperatingPoint(vpSer, vpPara, 4, 0.9, 1, model)
+    op1.computeExecutionTime()
+    op1.estimateEnergy()
+    values = {"eDynSer": "0.00003600", "eDynPara": "0.00000208", "eDyn": "0.00003808", "eStatSerial": "0.00000245", "eStatPara": "0.00000078", "eTot": "0.00004152", "eSlack": "0.00000021", "eStatSleep": "0.00000001"}
+    checkAssertions(op1, values,8)
     print "Test passed!"
     
 
