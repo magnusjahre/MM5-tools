@@ -194,7 +194,7 @@ def getMaxMarginalUtility(curve, curAlloc, balance, cap, lowerIsBetter):
 
     return maxAdditionalWays, maxMu
 
-def printCurvesForM5(curves):
+def printCurvesForM5(curves, lowerIsBetter):
     print "C++ curve intialization for simulator test:"
     print
     for i in range(len(curves)):
@@ -212,12 +212,18 @@ def printCurvesForM5(curves):
     for i in range(len(curves)):
         print "utilities["+str(i)+"] = vector<double>(arr"+str(i)+", arr"+str(i)+" + sizeof(arr"+str(i)+") / sizeof(arr"+str(i)+"[0]));"
     print
+    if lowerIsBetter:
+        print "bool higherIsBetter = false;"
+    else:
+        print "bool higherIsBetter = true;"
+    print
+    
 
 
 def verifyAllocation(curves, opts, usedir, ccpoint):
     
     if opts.genCurveCode:
-        printCurvesForM5(curves)
+        printCurvesForM5(curves, opts.lowerIsBetter)
     
     maxWays = len(curves[0])
     curAlloc = [1 for c in curves]
