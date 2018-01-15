@@ -137,8 +137,13 @@ def generateCheckpoint(workload, np, fwInsts, memsys, simpoint):
                     newname = file+"."+str(cpuID)
                 elif file.startswith("cacheInterference"):
                     newname = file+"."+str(cpuID)
-                else:
+                elif file.startswith("diskpages"):
                     newname = file.replace("0", str(cpuID))
+                elif file.startswith("pagefile-content"):
+                    newname = file.replace("0", str(cpuID))
+                else:
+                    newname = file
+                
                 outpath = outdir+"/"+newname
                 if not os.path.exists(outpath):
                     os.symlink(newFilePath, outpath)
