@@ -99,6 +99,23 @@ def createDataSeries(rawdata, datacols, opts):
         dataseries[0] = newWls
 
     return dataseries
+
+def generatePlotCommand(data):
+    cmd = ["plotDataFile.py"]
+    cmd.append("--plot-type")
+    cmd.append(data["type"])
+    cmd.append("-y")
+    cmd.append('"'+data["ytitle"]+'"')
+    cmd.append("-x")
+    cmd.append('"'+data["xtitle"]+'"')
+    for o in data["opts"]:
+        cmd.append(o)
+
+    cmd.append("--outfile")
+    cmd.append(data["output"])
+    cmd.append(data["input"])
+    
+    return " ".join(cmd)
     
 def main():
 

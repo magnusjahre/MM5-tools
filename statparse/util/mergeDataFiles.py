@@ -533,6 +533,23 @@ def plotData(processedData, columnToFileList, opts, filecnt):
     
     plotRawBarChart(datavals, xticklabels=bms, legend=legend, filename=opts.pltfilename, legendcols=opts.legendcols)
 
+def generateMergeCommand(data):
+    cmd = ["mergeDataFiles.py"]
+    if data["colnames"] != "":
+        cmd.append("--col-names")
+        cmd.append(data["colnames"])
+    if data["rownames"] != "":
+        cmd.append("--row-names")
+        cmd.append(data["rownames"])
+    cmd.append("--outfile")
+    cmd.append(data["outfile"])
+    for o in data["opts"]:
+        cmd.append(o)
+    for f in data["files"]:
+        cmd.append(f)
+        
+    return " ".join(cmd)
+
 def main():
 
     opts,args, printSpec = parseArgs()
