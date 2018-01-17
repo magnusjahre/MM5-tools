@@ -1136,6 +1136,12 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
             for c in coords:
                 ax.axvline(x=c, linestyle="dashed")
     
+    if "linemarkers" in kwargs:
+        if kwargs["linemarkers"] != "":
+            coords = [float(i) for i in kwargs["linemarkers"].split(",")]
+            for c in coords:
+                ax.axhline(y=c)
+    
     if "labels" in kwargs:
         if kwargs["labels"] != "":
             labelstr = [i for i in kwargs["labels"].split(":")]

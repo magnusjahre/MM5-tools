@@ -17,6 +17,7 @@ def parseArgs():
     parser.add_option("--analyse-cores", action="store_true", dest="analyseCores", default=False, help="Find the minium energy points for each core configuration")
     parser.add_option("--single-scatter", action="store_true", dest="singleScatter", default=False, help="Analyse a single architecture with all frequency pairs")
     parser.add_option("--scatter-feasible", action="store_true", dest="scatterFeasible", default=False, help="Zoom scatter on the feasible points")
+    parser.add_option("--datafile", action="store", dest="datafile", default="", help="Write data according to specification in this file")
     parser.add_option("--test", action="store_true", dest="test", default=False, help="Run regression test suite")
     
     opts, args = parser.parse_args()
@@ -289,8 +290,74 @@ def analyseFrequencies(model, cores, serialFraction, opts):
                    yrange="0,"+str(maxE*1.1),
                    title=str(cores)+"-core with s="+str(serialFraction)+", "+str(opts.insts)+" million instructions and period "+str(model["PERIOD-TIME"])+"s",
                    filename=opts.outfile)
-    
 
+METRIC_PERFORMANCE = "perf"
+METRIC_ENERGY = "en"
+METRIC_EDP = "edp"
+
+def readDataFile(datafile):
+    experimentSpec = {}
+    f = open(datafile)
+    for l in f:
+        d = l.split("=")
+        if d[0] == "CORES":
+            experimentSpec["c"] = [int(v) for v in d[1].split(",")]
+        elif d[0] == "SF":
+            experimentSpec["s"] = [float(v) for v in d[1].split(",")]
+        elif d[0] == "METRIC":
+            if d[1].strip() == "Performance":
+                experimentSpec["m"] = METRIC_PERFORMANCE
+            elif d[1].strip() == "Energy":
+                experimentSpec["m"] = METRIC_ENERGY
+            elif d[1].strip() == "EDP":
+                experimentSpec["m"] = METRIC_EDP
+            else:
+                fatal("Datafile: Unknown metric "+d[1])
+        else:
+            fatal("Datafile parse error: "+l)
+
+    return experimentSpec
+
+def getHeader(dataColNames):
+    lines = []
+    header = [""]
+    justify = [True]
+    for v in dataColNames:
+        header.append(v)
+        justify.append(False)
+    lines.append(header)
+    return lines, justify
+
+def opToStr(v,f):
+    return str(int(f/10**6))+"MHz"
+
+def computeEDP(energy, execTime):
+    return (energy*execTime)
+
+def printCoresVsOp(model, cores, s, metric, opts):
+    lines, justify = getHeader(opToStr(v, f) for v,f in model["OP"])
+    for c in cores:
+        line = [str(c)]
+        opd = OperatingPointData(model, c, s, opts, True)
+        for op in opd.ops:
+            if metric == METRIC_PERFORMANCE:
+                line.append(numberToString(op.executionTime, opts.decimals)) # seconds
+            elif metric == METRIC_ENERGY:
+                line.append(numberToString(op.eTot * 10**6, opts.decimals)) # uJ
+            elif metric == METRIC_EDP:
+                line.append(numberToString(computeEDP(op.eTot, op.executionTime), opts.decimals))
+            else:
+                fatal("metric not implemented")
+        lines.append(line)
+    
+    printData(lines, justify, open(opts.outfile, "w"), opts.decimals)
+
+def createDatafile(model, opts):
+    spec = readDataFile(opts.datafile)
+    
+    if len(spec["s"]) == 1:
+        printCoresVsOp(model, spec["c"], spec["s"][0], spec["m"], opts)
+    
 def main():
     args, opts = parseArgs()
     model = readModelFile(args[0])
@@ -307,6 +374,10 @@ def main():
     
     if opts.singleScatter:
         analyseFrequencies(model, cores, serialFraction, opts)
+        return
+    
+    if opts.datafile != "":
+        createDatafile(model, opts)
         return
     
     analyseSingleCase(model, cores, serialFraction, opts)

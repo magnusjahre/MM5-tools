@@ -38,8 +38,8 @@ def parseArgs():
     parser.add_option("--div-factor", action="store", dest="divFactor", type="float", default=1.0, help="Divide all y values by this constant")
     parser.add_option("--mode", action="store", dest="mode", type="string", default="expand", help="The mode of the legend, set to None to disable expansion")
     parser.add_option("--separators", action="store", dest="separators", type="string", default="", help="Add separator lines at these x-values, comma separated")
+    parser.add_option("--linemarkers", action="store", dest="linemarkers", type="string", default="", help="Add line markers at these y-values, comma separated")
     parser.add_option("--labels", action="store", dest="labels", type="string", default="", help="Add labels  at these coordinates, x,y,text[:x,y,text]")
-
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -199,6 +199,7 @@ def main():
                              figwidth=opts.figwidth,
                              mode=usemode,
                              separators=opts.separators,
+                             linemarkers=opts.linemarkers,
                              labels=opts.labels)
     elif opts.plotType == "violin":
         plotViolin(header,
