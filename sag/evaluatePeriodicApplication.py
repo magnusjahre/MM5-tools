@@ -323,7 +323,7 @@ def getHeader(dataColNames):
     header = [""]
     justify = [True]
     for v in dataColNames:
-        header.append(v)
+        header.append(str(v))
         justify.append(False)
     lines.append(header)
     return lines, justify
@@ -334,29 +334,53 @@ def opToStr(v,f):
 def computeEDP(energy, execTime):
     return (energy*execTime)
 
+def computeMetric(metric, op):
+    if metric == METRIC_PERFORMANCE:
+        return op.executionTime # seconds
+    elif metric == METRIC_ENERGY:
+        return op.eTot * 10**6 # uJ
+    elif metric == METRIC_EDP:
+        return computeEDP(op.eTot, op.executionTime)
+
+    fatal("metric not implemented")
+    return None
+
+def getOutfile(opts):
+    if opts.outfile == None:
+        return sys.stdout
+    return open(opts.outfile, "w")
+
 def printCoresVsOp(model, cores, s, metric, opts):
     lines, justify = getHeader(opToStr(v, f) for v,f in model["OP"])
     for c in cores:
         line = [str(c)]
         opd = OperatingPointData(model, c, s, opts, True)
         for op in opd.ops:
-            if metric == METRIC_PERFORMANCE:
-                line.append(numberToString(op.executionTime, opts.decimals)) # seconds
-            elif metric == METRIC_ENERGY:
-                line.append(numberToString(op.eTot * 10**6, opts.decimals)) # uJ
-            elif metric == METRIC_EDP:
-                line.append(numberToString(computeEDP(op.eTot, op.executionTime), opts.decimals))
-            else:
-                fatal("metric not implemented")
+            line.append(numberToString(computeMetric(metric, op), opts.decimals))
         lines.append(line)
     
-    printData(lines, justify, open(opts.outfile, "w"), opts.decimals)
+    printData(lines, justify, getOutfile(opts), opts.decimals)
+    
+def printCoresVsS(model, cores, serialFractions, metric, opts):
+    lines, justify = getHeader([str(int(s*100))+"\%" for s in serialFractions])
+    for c in cores:
+        line = [str(c)]
+        for s in serialFractions:
+            opd = OperatingPointData(model, c, s, opts, True)
+            minEP = opd.findMinEP()
+            op = opd.ops[minEP]
+            line.append(numberToString(computeMetric(metric, op), opts.decimals))
+        lines.append(line)
+    
+    printData(lines, justify, getOutfile(opts), opts.decimals)
 
 def createDatafile(model, opts):
     spec = readDataFile(opts.datafile)
     
     if len(spec["s"]) == 1:
         printCoresVsOp(model, spec["c"], spec["s"][0], spec["m"], opts)
+    else:
+        printCoresVsS(model, spec["c"], spec["s"], spec["m"], opts)
     
 def main():
     args, opts = parseArgs()
