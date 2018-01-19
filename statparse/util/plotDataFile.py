@@ -40,6 +40,7 @@ def parseArgs():
     parser.add_option("--separators", action="store", dest="separators", type="string", default="", help="Add separator lines at these x-values, comma separated")
     parser.add_option("--linemarkers", action="store", dest="linemarkers", type="string", default="", help="Add line markers at these y-values, comma separated")
     parser.add_option("--labels", action="store", dest="labels", type="string", default="", help="Add labels  at these coordinates, x,y,text[:x,y,text]")
+    parser.add_option("--fill-background", action="store", dest="fillBackground", type="string", default="", help="Fill the background between x-ranges x1,x2[:xi,yj]")
 
     optcomplete.autocomplete(parser, optcomplete.AllCompleter())
 
@@ -200,7 +201,8 @@ def main():
                              mode=usemode,
                              separators=opts.separators,
                              linemarkers=opts.linemarkers,
-                             labels=opts.labels)
+                             labels=opts.labels,
+                             fillBackground=opts.fillBackground)
     elif opts.plotType == "violin":
         plotViolin(header,
                    dataseries[1:],
