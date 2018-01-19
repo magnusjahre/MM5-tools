@@ -306,6 +306,9 @@ def readDataFile(datafile):
             experimentSpec["s"] = [float(v) for v in d[1].split(",")]
         elif d[0] == "INTENSITY":
             experimentSpec["i"] = [float(v) for v in d[1].split(",")]
+        elif d[0] == "HETEROGENEOUS":
+            assert d[1].strip() == "Both"
+            experimentSpec["h"] = False
         elif d[0] == "METRIC":
             if d[1].strip() == "Performance":
                 experimentSpec["m"] = METRIC_PERFORMANCE
@@ -318,6 +321,8 @@ def readDataFile(datafile):
         else:
             fatal("Datafile parse error: "+l)
 
+    if "h" not in experimentSpec:
+        experimentSpec["h"] = True
     return experimentSpec
 
 def getHeader(dataColNames):
@@ -358,23 +363,23 @@ def getPercString(v):
 def getPercStrings(values):
     return [getPercString(v) for v in values]
 
-def printCoresVsOp(model, cores, s, metric, opts):
+def printCoresVsOp(model, cores, s, metric, h, opts):
     lines, justify = getHeader(opToStr(v, f) for v,f in model["OP"])
     for c in cores:
         line = [str(c)]
-        opd = OperatingPointData(model, c, s, opts, True)
+        opd = OperatingPointData(model, c, s, opts, h)
         for op in opd.ops:
             line.append(numberToString(computeMetric(metric, op), opts.decimals))
         lines.append(line)
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
     
-def printCoresVsS(model, cores, serialFractions, metric, opts):
+def printCoresVsS(model, cores, serialFractions, metric, h, opts):
     lines, justify = getHeader(getPercStrings(serialFractions))
     for c in cores:
         line = [str(c)]
         for s in serialFractions:
-            opd = OperatingPointData(model, c, s, opts, True)
+            opd = OperatingPointData(model, c, s, opts, h)
             minEP = opd.findMinEP()
             op = opd.ops[minEP]
             line.append(numberToString(computeMetric(metric, op), opts.decimals))
@@ -382,7 +387,7 @@ def printCoresVsS(model, cores, serialFractions, metric, opts):
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
 
-def printSfVsCompInt(model, c, sfs, metric, compInt, opts):
+def printSfVsCompInt(model, c, sfs, metric, compInt, h, opts):
     
     insts = []
     maxinsts = max(model["f"]) * model["PERIOD-TIME"]
@@ -394,7 +399,21 @@ def printSfVsCompInt(model, c, sfs, metric, compInt, opts):
         line = [str(compInt[i])]
         opts.insts = insts[i]
         for s in sfs:
-            opd = OperatingPointData(model, c, s, opts, True)
+            opd = OperatingPointData(model, c, s, opts, h)
+            minEP = opd.findMinEP()
+            op = opd.ops[minEP]
+            line.append(numberToString(computeMetric(metric, op), opts.decimals))
+        lines.append(line)
+    
+    printData(lines, justify, getOutfile(opts), opts.decimals)
+    
+def printSfVsHeterogeneous(model, c, sfs, metric, opts):
+    
+    lines, justify = getHeader(["Single_OP", "Different_OPs"])
+    for s in sfs:
+        line = [getPercString(s)]
+        for h in (True, False):
+            opd = OperatingPointData(model, c, s, opts, h)
             minEP = opd.findMinEP()
             op = opd.ops[minEP]
             line.append(numberToString(computeMetric(metric, op), opts.decimals))
@@ -405,15 +424,19 @@ def printSfVsCompInt(model, c, sfs, metric, compInt, opts):
 def createDatafile(model, opts):
     spec = readDataFile(opts.datafile)
     
+    if not spec["h"]:
+        printSfVsHeterogeneous(model, spec["c"][0], spec["s"], spec["m"], opts)
+        return
+    
     if "i" in spec:
-        printSfVsCompInt(model, spec["c"][0], spec["s"], spec["m"], spec["i"], opts)
+        printSfVsCompInt(model, spec["c"][0], spec["s"], spec["m"], spec["i"], spec["h"], opts)
         return
     
     if len(spec["s"]) == 1:
-        printCoresVsOp(model, spec["c"], spec["s"][0], spec["m"], opts)
+        printCoresVsOp(model, spec["c"], spec["s"][0], spec["m"], spec["h"], opts)
         return
 
-    printCoresVsS(model, spec["c"], spec["s"], spec["m"], opts)
+    printCoresVsS(model, spec["c"], spec["s"], spec["m"], spec["h"], opts)
     
 def main():
     args, opts = parseArgs()
