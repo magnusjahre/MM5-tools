@@ -304,6 +304,8 @@ def readDataFile(datafile):
             experimentSpec["c"] = [int(v) for v in d[1].split(",")]
         elif d[0] == "SF":
             experimentSpec["s"] = [float(v) for v in d[1].split(",")]
+        elif d[0] == "INTENSITY":
+            experimentSpec["i"] = [float(v) for v in d[1].split(",")]
         elif d[0] == "METRIC":
             if d[1].strip() == "Performance":
                 experimentSpec["m"] = METRIC_PERFORMANCE
@@ -350,6 +352,12 @@ def getOutfile(opts):
         return sys.stdout
     return open(opts.outfile, "w")
 
+def getPercString(v):
+    return str(int(v*100))+"\%"
+
+def getPercStrings(values):
+    return [getPercString(v) for v in values]
+
 def printCoresVsOp(model, cores, s, metric, opts):
     lines, justify = getHeader(opToStr(v, f) for v,f in model["OP"])
     for c in cores:
@@ -362,7 +370,7 @@ def printCoresVsOp(model, cores, s, metric, opts):
     printData(lines, justify, getOutfile(opts), opts.decimals)
     
 def printCoresVsS(model, cores, serialFractions, metric, opts):
-    lines, justify = getHeader([str(int(s*100))+"\%" for s in serialFractions])
+    lines, justify = getHeader(getPercStrings(serialFractions))
     for c in cores:
         line = [str(c)]
         for s in serialFractions:
@@ -374,13 +382,38 @@ def printCoresVsS(model, cores, serialFractions, metric, opts):
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
 
+def printSfVsCompInt(model, c, sfs, metric, compInt, opts):
+    
+    insts = []
+    maxinsts = max(model["f"]) * model["PERIOD-TIME"]
+    for i in compInt:
+        insts.append((i*maxinsts)/10**6)
+    
+    lines, justify = getHeader(getPercStrings(sfs))
+    for i in range(len(insts)):
+        line = [str(compInt[i])]
+        opts.insts = insts[i]
+        for s in sfs:
+            opd = OperatingPointData(model, c, s, opts, True)
+            minEP = opd.findMinEP()
+            op = opd.ops[minEP]
+            line.append(numberToString(computeMetric(metric, op), opts.decimals))
+        lines.append(line)
+    
+    printData(lines, justify, getOutfile(opts), opts.decimals)
+
 def createDatafile(model, opts):
     spec = readDataFile(opts.datafile)
     
+    if "i" in spec:
+        printSfVsCompInt(model, spec["c"][0], spec["s"], spec["m"], spec["i"], opts)
+        return
+    
     if len(spec["s"]) == 1:
         printCoresVsOp(model, spec["c"], spec["s"][0], spec["m"], opts)
-    else:
-        printCoresVsS(model, spec["c"], spec["s"], spec["m"], opts)
+        return
+
+    printCoresVsS(model, spec["c"], spec["s"], spec["m"], opts)
     
 def main():
     args, opts = parseArgs()
