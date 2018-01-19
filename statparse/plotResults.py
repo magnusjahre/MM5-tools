@@ -1146,15 +1146,15 @@ def plotDataFileBarChart(names, values, legendNames, **kwargs):
         if kwargs["labels"] != "":
             labelstr = [i for i in kwargs["labels"].split(":")]
             for t in labelstr:
-                x,y,text = t.split(",")
-                ax.text(float(x),float(y),text)
+                x,y,text,rotation = t.split(",")
+                ax.text(float(x),float(y),text,rotation=rotation)
                 
     if "fillBackground" in kwargs:
         if kwargs["fillBackground"] != "":
             labelstr = [i for i in kwargs["fillBackground"].split(":")]
             for t in labelstr:
                 x1,x2 = t.split(",")
-                ax.axvspan(float(x1),float(x2), alpha=0.5, color='lightgrey', linestyle=None)
+                ax.axvspan(float(x1),float(x2), color='lightgrey', linestyle=None, zorder=0.5)
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
