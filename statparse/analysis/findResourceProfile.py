@@ -200,7 +200,7 @@ def parseArgs():
     defStreamingThres = 1.2
     defHighThres = 1.985
     defMediumThres = 1.25
-    defWlDistStr = "h:10,m:10,s:10,l:5,a:10"
+    defWlDistStr = "h:25,m:10,s:25,l:10,a:10"
     
     parser.add_option("--generate-workloads", action="store_true", dest="genwl", default=False, help="Generate a workloads in file reswl.py")
     parser.add_option("--streaming-threshold", action="store", dest="streamingThreshold", type="float", default=defStreamingThres, help="Speedup threshold used to classify a benchmark as streaming (Default: "+str(defStreamingThres)+")")
