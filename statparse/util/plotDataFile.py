@@ -4,14 +4,14 @@ from optparse import OptionParser
 from statparse.util import fatal, NO_DATA_STRING
 from statparse.util import readDataFile
 
-from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot, plotDataFileBarChart, plotViolin
+from statparse.plotResults import plotRawBoxPlot, plotRawLinePlot, plotDataFileBarChart, plotViolin, plotRawScatter
 
 import optcomplete
 
 def parseArgs():
     parser = OptionParser(usage="plotDataFile.py [options] filename [filename ...]")
 
-    plotTypes = ["boxes", "lines", "bars", "violin"]
+    plotTypes = ["boxes", "lines", "bars", "violin", "scatter"]
 
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
@@ -73,7 +73,9 @@ def createDataSeries(rawdata, datacols, opts):
     
     for l in rawdata:
         for i in range(datacols+1):
-            if l[i] != NO_DATA_STRING:
+            if opts.plotType == "scatter":
+                dataseries[i].append(l[i])
+            elif l[i] != NO_DATA_STRING:
                 dataseries[i].append(l[i])
 
     if opts.fixWls:
@@ -117,7 +119,19 @@ def generatePlotCommand(data):
     cmd.append(data["input"])
     
     return " ".join(cmd)
+
+def getScatterData(dataseries):
+    xdata = [[] for i in range(len(dataseries)-1)]
+    ydata = [[] for i in range(len(dataseries)-1)]
     
+    for i in range(len(dataseries[1:])):
+        for j in range(len(dataseries[0])):
+            if dataseries[i+1][j] != NO_DATA_STRING:
+                xdata[i].append(dataseries[0][j])
+                ydata[i].append(dataseries[i+1][j])
+                
+    return xdata, ydata
+
 def main():
 
     opts, args, datafiles = parseArgs()
@@ -215,6 +229,19 @@ def main():
                    figwidth=opts.figwidth,
                    labels=opts.labels)
     
+    elif opts.plotType == "scatter":
+        xdata, ydata = getScatterData(dataseries)
+        plotRawScatter(xdata,
+                       ydata,
+                       legend=header,
+                       filename=opts.outfile,
+                       xlabel=opts.xtitle,
+                       ylabel=opts.ytitle,
+                       legendColumns=opts.legendColumns,
+                       yrange=opts.yrange,
+                       figheight=opts.figheight,
+                       figwidth=opts.figwidth,
+                       mode=usemode) 
     else:
         assert opts.plotType == "boxes"
         plotRawBoxPlot(dataseries,

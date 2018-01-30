@@ -205,48 +205,47 @@ def plotArea(xdata, ydata, **kwargs):
         plt.show()
 
 def plotRawScatter(xdata, ydata, **kwargs):
-    
+    import numpy as np
     import matplotlib
     import matplotlib.pyplot as plt
     from matplotlib import cm
     from matplotlib.markers import MarkerStyle
-    
-    fontsize = 12    
+
+    fontsize = 12
     width = 16
     height = 3.5
             
+    if "figheight" in kwargs:
+        height = kwargs["figheight"]  
+    
     if "figwidth" in kwargs:
         width = kwargs["figwidth"] 
         fontsize = 14
-            
+    
     if "largeFonts" in kwargs:
         if kwargs["largeFonts"]:
             fontsize += 4
-    
-    if "figheight" in kwargs:
-        height = kwargs["figheight"] 
-    
+            
     matplotlib.rc('ps', useafm=True)
     matplotlib.rc('pdf', use14corefonts=True)
-    if "notex" not in kwargs:
-        matplotlib.rc('text', usetex=True)
+    matplotlib.rc('text', usetex=True)
     matplotlib.rc('xtick', labelsize=fontsize) 
     matplotlib.rc('ytick', labelsize=fontsize)
     matplotlib.rc('legend', fontsize=fontsize)
     matplotlib.rc('font', size=fontsize)
     
-    if(len(xdata) != len(ydata)):
-        raise Exception("X and Y series data must be of equal length")
-    
     fig = plt.figure(figsize=(width,height))
     ax = fig.add_subplot(111)
+    
+    if(len(xdata) != len(ydata)):
+        raise Exception("X and Y series data must be of equal length")
     
     scatters = []
     assert len(xdata) == len(ydata)
     for i in range(len(xdata)):
-        thisColor = cm.Paired(1*(float(i)/float(len(xdata))))
+        thisColor = cm.Blues(1*(float(i)/len(xdata)))
         thisMarker = MarkerStyle.filled_markers[i % len(MarkerStyle.filled_markers)]
-        scatters.append(ax.scatter(xdata[i], ydata[i], marker=thisMarker, color=thisColor))
+        scatters.append(ax.scatter(xdata[i], ydata[i], marker=thisMarker, color=thisColor, edgecolors="black"))
     
     if "fitLines" in kwargs:
         if kwargs["fitLines"]:
@@ -264,7 +263,7 @@ def plotRawScatter(xdata, ydata, **kwargs):
             ax.set_ylabel(kwargs["ylabel"])
         
     if "yrange" in kwargs:
-        if kwargs["yrange"] != "":
+        if kwargs["yrange"] != None:
             try:
                 yrange = kwargs["yrange"].split(",")
                 ymin = float(yrange[0])
@@ -283,8 +282,10 @@ def plotRawScatter(xdata, ydata, **kwargs):
                 raise Exception("Invalid xrange string")
             ax.set_xlim(xmin, xmax)
     
-    if "legend" in kwargs:
-        plt.legend(scatters, kwargs["legend"], scatterpoints=1)
+    addLegend(ax, scatters, kwargs["legend"], kwargs)
+    
+    #if "legend" in kwargs:
+    #    plt.legend(scatters, kwargs["legend"], scatterpoints=1)
         
     if "title" in kwargs:
         if kwargs["title"] != "none":
@@ -986,9 +987,11 @@ def addLegend(ax, plottedItems, legendNames, kwargs):
         bboxHeight = bboxHeight * math.ceil(numRows)
         if lmode == "expand":
             bboxHeight = 0.3
-            
+    
     ax.legend(plottedItems, legendNames, bbox_to_anchor=(0.0, 1.04, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
-              frameon=False, ncol=useCols, handletextpad=0.3, labelspacing=0.15, columnspacing=0.5)  
+              frameon=False, ncol=useCols, handletextpad=0.3, labelspacing=0.15, columnspacing=0.5)
+    
+    print "Done"
 
 def plotDataFileBarChart(names, values, legendNames, **kwargs):
     import numpy as np
