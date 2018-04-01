@@ -67,10 +67,15 @@ def analyseCGRAs():
         data.append(CGRAConfig(fus, activatedSoftbrains))
     return data
 
-def printCGRAData(data):
+def printCGRAData(data, normalize):
     decimals = 2
     
-    header = ["", "Performance_(GOps)", "Power_(mW)", "Power_Efficiency_(GOps/W)"]
+    if normalize:
+        normtext = "Relative_"
+    else:
+        normtext = ""
+    
+    header = ["", normtext+"Performance_(GO/s)", normtext+"Power_Consumption_(W)", normtext+"Power_Efficiency_(GO/s_per_W)"]
     justify = [True, False, False, False]
     
     lines = [header]
@@ -100,7 +105,7 @@ def main():
 
     rawData = analyseCGRAs()
     valueArray = getValueArray(rawData, opts.normalize)
-    printCGRAData(valueArray)
+    printCGRAData(valueArray, opts.normalize)
         
     
     

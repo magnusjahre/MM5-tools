@@ -22,6 +22,7 @@ def parseArgs():
     parser.add_option("-y", "--ytitle", action="store", dest="ytitle", type="string", default="Y axis title", help="Y axis title")
     parser.add_option("-x", "--xtitle", action="store", dest="xtitle", type="string", default="X axis title", help="X axis title")
     parser.add_option("--yrange", action="store", dest="yrange", type="string", default=None, help="Comma separated min,max pair")
+    parser.add_option("--xrange", action="store", dest="xrange", type="string", default=None, help="Comma separated min,max pair")
     parser.add_option("--columns", action="store", dest="columns", type="string", default="", help="Comma separated list of columns to include (Zero indexed)")
     parser.add_option("--errorrows", action="store_true", dest="errorrows", default=False, help="Every second row in the data file is error values")
     parser.add_option("--errorcols", action="store_true", dest="errorcols", default=False, help="Every second column in the data file is error values")
@@ -190,11 +191,15 @@ def main():
                         ylabel=opts.ytitle,
                         legendColumns=opts.legendColumns,
                         yrange=opts.yrange,
+                        xrange=opts.xrange,
                         figheight=opts.figheight,
                         figwidth=opts.figwidth,
                         markEvery=opts.markEvery,
                         largeFonts=opts.largeFonts,
                         divFactor=opts.divFactor,
+                        labels=opts.labels,
+                        separators=opts.separators,
+                        fillBackground=opts.fillBackground,
                         rotate=opts.rotate)
         
     elif opts.plotType == "bars":

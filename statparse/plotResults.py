@@ -460,6 +460,17 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
             except:
                 raise Exception("Could not parse yrange string "+str(kwargs["yrange"]))    
             plt.ylim(minval,maxval)
+            
+            
+    if "xrange" in kwargs:
+        if kwargs["xrange"] != None:
+            try:
+                minval,maxval = kwargs["xrange"].split(",")
+                minval = float(minval)
+                maxval = float(maxval)
+            except:
+                raise Exception("Could not parse xrange string "+str(kwargs["xrange"]))    
+            plt.xlim(minval,maxval)
     
     if "figtitle" in kwargs:
         if kwargs["figtitle"] != "none":
@@ -478,8 +489,15 @@ def plotRawLinePlot(xvalues, ydataseries, **kwargs):
         if kwargs["labels"] != "":
             labelstr = [i for i in kwargs["labels"].split(":")]
             for t in labelstr:
-                x,y,text = t.split(",")
-                ax.text(float(x),float(y),text)
+                x,y,text,rotation = t.split(",")
+                ax.text(float(x),float(y),text,rotation=rotation)
+    
+    if "fillBackground" in kwargs:
+        if kwargs["fillBackground"] != "":
+            labelstr = [i for i in kwargs["fillBackground"].split(":")]
+            for t in labelstr:
+                x1,x2 = t.split(",")
+                ax.axvspan(float(x1),float(x2), color='lightgrey', linestyle=None, zorder=0.5)
     
     if "filename" in kwargs:
         if kwargs["filename"] != None:
