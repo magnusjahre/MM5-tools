@@ -8,7 +8,7 @@ from statparse.printResults import numberToString, printData
 def parseArgs():
     
     parser = OptionParser(usage="cgra_efficiency.py [options]")
-    parser.add_option("--verbose", '-v', action="store_true", dest="verbose", default=False, help="Print all lines")
+    parser.add_option("--normalize", action="store_true", dest="normalize", default=False, help="Normalize to show relative trends")
     opts, args = parser.parse_args()
     
     if len(args) != 0:
@@ -43,11 +43,17 @@ class CGRAConfig:
         
         self.powerEfficiency = float(self.performance)/float(self.power*10**-3) #Gop/s/Watt
     
-    def getDataLine(self, decimals):
+    def getDataLineStr(self, decimals):
         return [str(self.activeFUs),
                 numberToString(self.performance, decimals),
                 numberToString(self.power, decimals),
                 numberToString(self.powerEfficiency, decimals)]
+        
+    def getDataLine(self):
+        return [self.activeFUs,
+                self.performance,
+                self.power,
+                self.powerEfficiency]
     
     def __str__(self):
         return "FUs="+str(self.activeFUs)+", SBs="+str(self.activeSBs)+", perf="+str(self.performance)+" GOp/s, power="+str(self.power)+" mW, power efficiency="+str(self.powerEfficiency)+" GOp/s/Watt"
@@ -69,15 +75,32 @@ def printCGRAData(data):
     
     lines = [header]
     for d in data:
-        lines.append(d.getDataLine(decimals))
+        line = [str(d[0])]
+        for v in d[1:]:
+            line.append(numberToString(v, 2))
+        lines.append(line)
         
     printData(lines, justify, sys.stdout, decimals)
+
+def getValueArray(rawData, normalize):
+    data = []
+    for config in rawData:
+        data.append(config.getDataLine())
+    
+    if normalize:
+        for i in range(len(data[0]))[1:]:
+            baseline = data[0][i]
+            for j in range(len(data)):
+                data[j][i] = data[j][i] / baseline
+            
+    return data
 
 def main():
     opts, args = parseArgs()
 
-    data = analyseCGRAs()
-    printCGRAData(data)
+    rawData = analyseCGRAs()
+    valueArray = getValueArray(rawData, opts.normalize)
+    printCGRAData(valueArray)
         
     
     
