@@ -2,7 +2,7 @@
 
 import sys
 from optparse import OptionParser
-from toggl import *
+from misc.toggl import *
 from statparse.printResults import numberToString, printData
 from datetime import *
 import dateutil.parser
