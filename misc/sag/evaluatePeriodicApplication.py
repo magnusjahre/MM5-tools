@@ -2,7 +2,7 @@
 
 import sys
 from optparse import OptionParser
-from sag import fatal
+from misc.sag import fatal
 
 from statparse.plotResults import plotRawLinePlot, plotRawScatter
 from statparse.printResults import printData, numberToString
