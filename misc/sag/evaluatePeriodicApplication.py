@@ -247,7 +247,7 @@ def analyseSingleCase(model, cores, serialFraction, opts):
                     ylabel="Energy (uJ)",
                     figtitle=figTitle,
                     separators=str(opd.bestVoltage),
-                    labels=str(opd.bestVoltage*1.01)+","+str(opd.bestEnergy*1.2)+","+opLabel,
+                    labels=str(opd.bestVoltage*1.01)+","+str(opd.bestEnergy*1.2)+","+opLabel+",horizontal",
                     filename=opts.outfile)
 
 def analyseFrequencies(model, cores, serialFraction, opts):
