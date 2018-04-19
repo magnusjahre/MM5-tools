@@ -62,7 +62,7 @@ def analyseCGRAs():
     data = []
     fusPerSoftbrain = 20
     numSoftbrains = 8
-    for fus in [1] + range(5, (fusPerSoftbrain*numSoftbrains)+1,5):
+    for fus in range(1,fusPerSoftbrain*numSoftbrains): #[1] + range(5, (fusPerSoftbrain*numSoftbrains)+1,5):
         activatedSoftbrains = math.ceil(fus / float(fusPerSoftbrain))
         data.append(CGRAConfig(fus, activatedSoftbrains))
     return data
