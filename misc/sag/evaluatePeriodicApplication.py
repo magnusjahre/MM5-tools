@@ -291,7 +291,7 @@ def analyseFrequencies(model, cores, serialFraction, opts):
     
     xrangeSpec = "0,"+str(maxTime*1.25)
     if opts.scatterFeasible:
-        xrangeSpec = "0,"+str(model["PERIOD-TIME"]*1.25)
+        xrangeSpec = "0,1.25"
     
     plotRawScatter(execTimes,
                    energies,
