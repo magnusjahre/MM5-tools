@@ -218,7 +218,7 @@ def analyseCores(model, maxCores, opts):
         norm = [e/minE[s][0] for e in minE[s]]
         data.append(norm)
     
-    figTitle = "Period "+str(model["PERIOD-TIME"])+"s and "+str(opts.insts)+" million instructions"
+    figTitle = ("Single core utilization %.1f" % (opts.utilization*100))+"\%"
     
     plotRawLinePlot(cores,
                     data,
@@ -227,7 +227,7 @@ def analyseCores(model, maxCores, opts):
                     mode="None",
                     xlabel="Number of cores",
                     ylabel="Energy Normalized to Single Core",
-                    yrange="0.6,1.2",
+                    yrange="0.0,1.2",
                     figtitle=figTitle,
                     filename=opts.outfile)
 
