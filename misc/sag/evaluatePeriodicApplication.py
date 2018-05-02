@@ -270,10 +270,10 @@ def analyseFrequencies(model, cores, serialFraction, opts):
     data = {}
     
     for op in opd.ops:
-        if op.serVP.v not in data:
-            data[op.serVP.v] = ([],[])
-        data[op.serVP.v][0].append(op.executionTime)
-        data[op.serVP.v][1].append(op.eTot * 10**6)
+        if op.serV not in data:
+            data[op.serV] = ([],[])
+        data[op.serV][0].append(op.executionTime)
+        data[op.serV][1].append(op.eTot * 10**6)
     
     execTimes = []
     energies = []
@@ -298,11 +298,12 @@ def analyseFrequencies(model, cores, serialFraction, opts):
                    xlabel="Execution Time (s)",
                    ylabel="Energy (uJ)",
                    legend=legend,
+                   legendColumns=12,
                    hseparators=str(minE),
-                   vseparators=str(minTime)+","+str(model["PERIOD-TIME"]),
+                   vseparators=str(minTime)+",1.0",
                    xrange=xrangeSpec,
                    yrange="0,"+str(maxE*1.1),
-                   title=str(cores)+"-core with s="+str(serialFraction)+", "+str(opts.insts)+" million instructions and period "+str(model["PERIOD-TIME"])+"s",
+                   title=str(cores)+"-core with s="+str(serialFraction)+" and utilization "+str(opts.utilization),
                    filename=opts.outfile)
 
 METRIC_PERFORMANCE = "perf"
