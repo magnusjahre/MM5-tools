@@ -1002,10 +1002,17 @@ def addLegend(ax, plottedItems, legendNames, kwargs):
     if numRows > 1.0:
         legendNames = flip(legendNames, useCols)
         plottedItems = flip(plottedItems, useCols)
-        bboxHeight = bboxHeight * math.ceil(numRows)
-        if lmode == "expand":
-            bboxHeight = 0.3
-    
+        
+        if "legendBBoxHeight" in kwargs:
+            if kwargs["legendBBoxHeight"] == 0.0:
+                bboxHeight = bboxHeight * math.ceil(numRows)
+            else:
+                bboxHeight = kwargs["legendBBoxHeight"]
+        else:
+            bboxHeight = bboxHeight * math.ceil(numRows)
+            if lmode == "expand":
+                bboxHeight = 0.3
+        
     ax.legend(plottedItems, legendNames, bbox_to_anchor=(0.0, 1.04, 1.0, bboxHeight), loc="center", mode=lmode, borderaxespad=0.0,
               frameon=False, ncol=useCols, handletextpad=0.3, labelspacing=0.15, columnspacing=0.5)
     

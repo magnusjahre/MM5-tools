@@ -16,6 +16,7 @@ def parseArgs():
     parser.add_option("--quiet", action="store_true", dest="quiet", default=False, help="Only write results to stdout")
     parser.add_option("--decimals", action="store", dest="decimals", type="int", default=2, help="Number of decimals to use when printing results")
     parser.add_option("--legend-columns", action="store", dest="legendColumns", type="int", default=2, help="Number of columns in legend")
+    parser.add_option("--legend-bbox-height", action="store", dest="legendBBoxHeight", type="float", default=0.0, help="Manually set the height of the bbox legend to this value.")
     parser.add_option("--margins", action="store", dest="margins", type="string", default="", help="Comma separated plot margins: left,right,top,bottom ")
     parser.add_option("--outfile", action="store", dest="outfile", type="string", default=None, help="Output filename (Default: plot.pdf)")
     parser.add_option("--plot-type", action="store", dest="plotType", type="string", default="boxes", help="Output filename (Default: boxes, alternatives "+str(plotTypes)+")")
@@ -210,6 +211,7 @@ def main():
                              xlabel=opts.xtitle,
                              ylabel=opts.ytitle,
                              legendColumns=opts.legendColumns,
+                             legendBBoxHeight=opts.legendBBoxHeight,
                              yrange=opts.yrange,
                              errorrows=opts.errorrows,
                              errorcols=opts.errorcols,
