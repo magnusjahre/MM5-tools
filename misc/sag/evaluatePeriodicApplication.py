@@ -351,7 +351,7 @@ def getHeader(dataColNames):
     return lines, justify
 
 def opToStr(v,f):
-    return str(int(f/10**6))+"MHz"
+    return "%.1f_MHz" % (f/10**6)
 
 def computeEDP(energy, execTime):
     return (energy*execTime)
@@ -360,7 +360,7 @@ def computeMetric(metric, op):
     if metric == METRIC_PERFORMANCE:
         return op.executionTime # seconds
     elif metric == METRIC_ENERGY:
-        return op.eTot * 10**6 # uJ
+        return op.eTot * 10**3 # mJ
     elif metric == METRIC_EDP:
         return computeEDP(op.eTot, op.executionTime)
 
@@ -404,15 +404,10 @@ def printCoresVsS(model, cores, serialFractions, metric, h, opts):
 
 def printSfVsCompInt(model, c, sfs, metric, compInt, h, opts):
     
-    insts = []
-    maxinsts = max(model["f"]) * model["PERIOD-TIME"]
-    for i in compInt:
-        insts.append((i*maxinsts)/10**6)
-    
     lines, justify = getHeader(getPercStrings(sfs))
-    for i in range(len(insts)):
+    for i in range(len(compInt)):
         line = [str(compInt[i])]
-        opts.insts = insts[i]
+        opts.utilization = compInt[i]
         for s in sfs:
             opd = OperatingPointData(model, c, s, opts, h)
             minEP = opd.findMinEP()
