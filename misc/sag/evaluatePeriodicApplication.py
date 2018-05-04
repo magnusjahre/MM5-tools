@@ -309,6 +309,9 @@ def analyseFrequencies(model, cores, serialFraction, opts):
 METRIC_PERFORMANCE = "perf"
 METRIC_ENERGY = "en"
 METRIC_EDP = "edp"
+METRIC_PERF_PER_WATT = "P/W"
+
+METRIC_NAMES = {METRIC_PERFORMANCE: "Execution_Time", METRIC_ENERGY:"Energy", METRIC_EDP: "EDP", METRIC_PERF_PER_WATT: "Performance/Watt"}
 
 def readDataFile(datafile):
     experimentSpec = {}
@@ -331,6 +334,8 @@ def readDataFile(datafile):
                 experimentSpec["m"] = METRIC_ENERGY
             elif d[1].strip() == "EDP":
                 experimentSpec["m"] = METRIC_EDP
+            elif d[1].strip() == "P/W":
+                experimentSpec["m"] = METRIC_PERF_PER_WATT
             else:
                 fatal("Datafile: Unknown metric "+d[1])
         else:
@@ -356,6 +361,12 @@ def opToStr(v,f):
 def computeEDP(energy, execTime):
     return (energy*execTime)
 
+def computePerfPerWatt(energy, execTime):
+    avgWatt = energy/execTime
+    perf = 1.0/execTime
+    #In this case, Performance/Watt is actually 1/Energy
+    return perf/avgWatt
+
 def computeMetric(metric, op):
     if metric == METRIC_PERFORMANCE:
         return op.executionTime # seconds
@@ -363,7 +374,8 @@ def computeMetric(metric, op):
         return op.eTot * 10**3 # mJ
     elif metric == METRIC_EDP:
         return computeEDP(op.eTot, op.executionTime)
-
+    elif metric == METRIC_PERF_PER_WATT:
+        return computePerfPerWatt(op.eTot, op.executionTime)
     fatal("metric not implemented")
     return None
 
@@ -404,7 +416,10 @@ def printCoresVsS(model, cores, serialFractions, metric, h, opts):
 
 def printSfVsCompInt(model, c, sfs, metric, compInt, h, opts):
     
-    lines, justify = getHeader(getPercStrings(sfs))
+    if len(sfs) == 1:
+        lines, justify = getHeader([METRIC_NAMES[metric]])
+    else:
+        lines, justify = getHeader(getPercStrings(sfs))
     for i in range(len(compInt)):
         line = [str(compInt[i])]
         opts.utilization = compInt[i]
@@ -430,6 +445,29 @@ def printSfVsHeterogeneous(model, c, sfs, metric, opts):
         lines.append(line)
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
+    
+def coresToHeading(cores):
+    out = []
+    for c in cores:
+        if c == 1:
+            out.append("Single-core")
+        else:
+            out.append(str(c)+"-core")
+    return out
+def printCoresVsCompInt(model, cores, s, metric, compInt, h, opts):
+    
+    lines, justify = getHeader(coresToHeading(cores))
+    for i in range(len(compInt)):
+        line = [str(compInt[i])]
+        opts.utilization = compInt[i]
+        for c in cores:
+            opd = OperatingPointData(model, c, s, opts, h)
+            minEP = opd.findMinEP()
+            op = opd.ops[minEP]
+            line.append(numberToString(computeMetric(metric, op), opts.decimals))
+        lines.append(line)
+    
+    printData(lines, justify, getOutfile(opts), opts.decimals)
 
 def createDatafile(model, opts):
     spec = readDataFile(opts.datafile)
@@ -438,8 +476,12 @@ def createDatafile(model, opts):
         printSfVsHeterogeneous(model, spec["c"][0], spec["s"], spec["m"], opts)
         return
     
-    if "i" in spec:
+    if "i" in spec and len(spec["c"]) == 1:
         printSfVsCompInt(model, spec["c"][0], spec["s"], spec["m"], spec["i"], spec["h"], opts)
+        return
+    
+    if "i" in spec:
+        printCoresVsCompInt(model, spec["c"], spec["s"][0], spec["m"], spec["i"], spec["h"], opts)
         return
     
     if len(spec["s"]) == 1:
