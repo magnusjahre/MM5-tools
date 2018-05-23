@@ -528,26 +528,26 @@ def checkAssertions(op1, v, decimals):
 def test(model):
 
     print "Test 1: Single core with utilization 10% @ 1.0V"
-    op1 = OperatingPoint(10, 10, 1, 1.0, model)
+    op1 = OperatingPoint(6, 6, 1, 1.0, model)
     op1.computeExecutionTime(0.1)
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000144", "eDynPara": "0.000000","eDyn": "0.000144", "eStatSerial": "0.000002", "eStatPara": "0.000000", "eTot": "0.000146", "eSlack": "0.000000", "eStatSleep": "0.000000"}
+    values = {"eDynSer": "0.000041", "eDynPara": "0.000000","eDyn": "0.000041", "eStatSerial": "0.000000", "eStatPara": "0.000000", "eTot": "0.000042", "eSlack": "0.000000", "eStatSleep": "0.000000"}
     checkAssertions(op1, values, 6)
     print "Test passed!"
     
-    print "Test 2: 4-core with utilization 50% @ 2.0V and serial fraction 0.25"
-    op1 = OperatingPoint(20, 20, 4, 0.25, model)
+    print "Test 2: 4-core with utilization 50% @ 1.3V and serial fraction 0.25"
+    op1 = OperatingPoint(12, 12, 4, 0.25, model)
     op1.computeExecutionTime(0.5)
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000719", "eDynPara": "0.002158", "eDyn": "0.002878", "eStatSerial": "0.000002", "eStatPara": "0.000004", "eTot": "0.002885", "eSlack": "0.000001", "eStatSleep": "0.000000"}
+    values = {"eDynSer": "0.000087", "eDynPara": "0.000261", "eDyn": "0.000347", "eStatSerial": "0.000001", "eStatPara": "0.000002", "eTot": "0.000352", "eSlack": "0.000002", "eStatSleep": "0.000000"}
     checkAssertions(op1, values, 6)
     print "Test passed!"
     
     print "Test 3: 4-core with serial @ 2V and para @ 1V, utilization 50% and serial fraction 0.1"
-    op1 = OperatingPoint(20, 10, 4, 0.1, model)
+    op1 = OperatingPoint(12, 6, 4, 0.1, model)
     op1.computeExecutionTime(0.5)
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000288", "eDynPara": "0.000648", "eDyn": "0.000936", "eStatSerial": "0.000001", "eStatPara": "0.000008", "eTot": "0.000945", "eSlack": "0.000000", "eStatSleep": "0.000000"}
+    values = {"eDynSer": "0.000035", "eDynPara": "0.000185", "eDyn": "0.000220", "eStatSerial": "0.000000", "eStatPara": "0.000001", "eTot": "0.000223", "eSlack": "0.000002", "eStatSleep": "0.000000"}
     checkAssertions(op1, values, 6)
     print "Test passed!"
     
