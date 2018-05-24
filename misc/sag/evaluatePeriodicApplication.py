@@ -427,7 +427,10 @@ def printSfVsCompInt(model, c, sfs, metric, compInt, h, opts):
             opd = OperatingPointData(model, c, s, opts, h)
             minEP = opd.findMinEP()
             op = opd.ops[minEP]
-            line.append(numberToString(computeMetric(metric, op), opts.decimals))
+            if op.feasible:
+                line.append(numberToString(computeMetric(metric, op), opts.decimals))
+            else:
+                line.append("NoData")
         lines.append(line)
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
@@ -456,6 +459,16 @@ def coresToHeading(cores):
     return out
 def printCoresVsCompInt(model, cores, s, metric, compInt, h, opts):
     
+    if metric == METRIC_PERF_PER_WATT: #Higher is better metrics
+        opts.utilization = min(compInt)
+    else: # Lower is better metrics
+        opts.utilization = 1.0
+        
+    opd = OperatingPointData(model, 1, s, opts, h)
+    minEP = opd.findMinEP()
+    op = opd.ops[minEP]
+    maxMetricVal = computeMetric(metric, op)        
+    
     lines, justify = getHeader(coresToHeading(cores))
     for i in range(len(compInt)):
         line = [str(compInt[i])]
@@ -464,7 +477,13 @@ def printCoresVsCompInt(model, cores, s, metric, compInt, h, opts):
             opd = OperatingPointData(model, c, s, opts, h)
             minEP = opd.findMinEP()
             op = opd.ops[minEP]
-            line.append(numberToString(computeMetric(metric, op), opts.decimals))
+            
+            if op.feasible:
+                metricVal = computeMetric(metric, op) 
+                relVal = metricVal / maxMetricVal 
+                line.append(numberToString(relVal, opts.decimals))
+            else:
+                line.append("NoData")
         lines.append(line)
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
@@ -476,7 +495,7 @@ def createDatafile(model, opts):
         printSfVsHeterogeneous(model, spec["c"][0], spec["s"], spec["m"], opts)
         return
     
-    if "i" in spec and len(spec["c"]) == 1:
+    if "i" in spec and len(spec["s"]) > 1:
         printSfVsCompInt(model, spec["c"][0], spec["s"], spec["m"], spec["i"], spec["h"], opts)
         return
     
