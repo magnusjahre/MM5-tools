@@ -406,7 +406,8 @@ def printCoresVsOp(model, cores, s, metric, h, opts):
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
     
-def printCoresVsS(model, cores, serialFractions, metric, h, opts):
+def printCoresVsS(model, cores, serialFractions, metric, h, compInt, opts):
+    opts.utilization = compInt
     lines, justify = getHeader(getPercStrings(serialFractions))
     for c in cores:
         line = [str(c)]
@@ -440,9 +441,9 @@ def printSfVsCompInt(model, c, sfs, metric, compInt, h, opts):
     
     printData(lines, justify, getOutfile(opts), opts.decimals)
     
-def printSfVsHeterogeneous(model, c, sfs, metric, opts):
-    
-    lines, justify = getHeader(["Single_OP", "Different_OPs"])
+def printSfVsHeterogeneous(model, c, sfs, metric, compInt, opts):
+    opts.utilization = compInt
+    lines, justify = getHeader(["Baseline", "DVFS"])
     for s in sfs:
         line = [getPercString(s)]
         for h in (True, False):
@@ -500,22 +501,23 @@ def createDatafile(model, opts):
     spec = readDataFile(opts.datafile)
     
     if not spec["h"]:
-        printSfVsHeterogeneous(model, spec["c"][0], spec["s"], spec["m"], opts)
+        printSfVsHeterogeneous(model, spec["c"][0], spec["s"], spec["m"], spec["i"][0], opts)
         return
     
-    if "i" in spec and len(spec["s"]) > 1:
-        printSfVsCompInt(model, spec["c"][0], spec["s"], spec["m"], spec["i"], spec["h"], opts)
-        return
+    #if "i" in spec and len(spec["c"]) == 1:
+    #    printSfVsCompInt(model, spec["c"][0], spec["s"], spec["m"], spec["i"], spec["h"], opts)
+    #    return
     
-    if "i" in spec:
+    if "i" in spec and len(spec["s"]) == 1:
         printCoresVsCompInt(model, spec["c"], spec["s"][0], spec["m"], spec["i"], spec["h"], spec["n"], opts)
         return
     
     if len(spec["s"]) == 1:
         printCoresVsOp(model, spec["c"], spec["s"][0], spec["m"], spec["h"], opts)
         return
-
-    printCoresVsS(model, spec["c"], spec["s"], spec["m"], spec["h"], opts)
+    
+    assert len(spec["i"]) == 1
+    printCoresVsS(model, spec["c"], spec["s"], spec["m"], spec["h"], spec["i"][0], opts)
     
 def main():
     args, opts = parseArgs()
