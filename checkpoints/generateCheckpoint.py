@@ -39,9 +39,22 @@ def parseAargs():
 
 def createCheckpointsFromExperiment():
     
+    print "Setting up private mode baselines"
     for np, wl, mem, simpoint, fw in buildPossibleParams():
-        print np,wl,mem,simpoint,fw
-        if Checkpoint.prerequisiteFilesExist(wl, 4, mem, simpoint):
+        if np != 4:
+            curWorkload = workloads.getBms(wl, np, True)
+            for bm in curWorkload:
+                actualPath = checkpoints.getCheckpointDirectory(4, mem, bm, simpoint)
+                checkPath = checkpoints.getCheckpointDirectory(np, mem, bm, simpoint)
+                checkFile = checkPath+"/m5.cpt"
+                if not os.path.exists(checkFile):
+                    print "Linking", actualPath, checkPath
+                    os.symlink(actualPath, checkPath)
+    
+    print
+    print "Generating multi-core checkpoints"
+    for np, wl, mem, simpoint, fw in buildPossibleParams():
+        if Checkpoint.prerequisiteFilesExist(wl, np, mem, simpoint):
             printParameters(np, wl, mem, simpoint, fw)
             path = Checkpoint.generateCheckpoint(wl, np, fw, mem, simpoint)
             print "Generated checkpoint at "+path
