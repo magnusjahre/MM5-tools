@@ -338,6 +338,11 @@ def readDataFile(datafile):
                 experimentSpec["m"] = METRIC_PERF_PER_WATT
             else:
                 fatal("Datafile: Unknown metric "+d[1])
+        elif d[0] == "NORMALIZE":
+            if d[1].strip() == "True": 
+                experimentSpec["n"] = True
+            else:
+                experimentSpec["n"] = False
         else:
             fatal("Datafile parse error: "+l)
 
@@ -457,17 +462,20 @@ def coresToHeading(cores):
         else:
             out.append(str(c)+"-core")
     return out
-def printCoresVsCompInt(model, cores, s, metric, compInt, h, opts):
+def printCoresVsCompInt(model, cores, s, metric, compInt, h, normalize, opts):
     
-    if metric == METRIC_PERF_PER_WATT: #Higher is better metrics
-        opts.utilization = min(compInt)
-    else: # Lower is better metrics
-        opts.utilization = 1.0
+    if normalize:
+        if metric == METRIC_PERF_PER_WATT: #Higher is better metrics
+            opts.utilization = min(compInt)
+        else: # Lower is better metrics
+            opts.utilization = 1.0
         
-    opd = OperatingPointData(model, 1, s, opts, h)
-    minEP = opd.findMinEP()
-    op = opd.ops[minEP]
-    maxMetricVal = computeMetric(metric, op)        
+        opd = OperatingPointData(model, 1, s, opts, h)
+        minEP = opd.findMinEP()
+        op = opd.ops[minEP]
+        maxMetricVal = computeMetric(metric, op)        
+    else:
+        maxMetricVal = 1.0
     
     lines, justify = getHeader(coresToHeading(cores))
     for i in range(len(compInt)):
@@ -479,7 +487,7 @@ def printCoresVsCompInt(model, cores, s, metric, compInt, h, opts):
             op = opd.ops[minEP]
             
             if op.feasible:
-                metricVal = computeMetric(metric, op) 
+                metricVal = computeMetric(metric, op)
                 relVal = metricVal / maxMetricVal 
                 line.append(numberToString(relVal, opts.decimals))
             else:
@@ -500,7 +508,7 @@ def createDatafile(model, opts):
         return
     
     if "i" in spec:
-        printCoresVsCompInt(model, spec["c"], spec["s"][0], spec["m"], spec["i"], spec["h"], opts)
+        printCoresVsCompInt(model, spec["c"], spec["s"][0], spec["m"], spec["i"], spec["h"], spec["n"], opts)
         return
     
     if len(spec["s"]) == 1:
