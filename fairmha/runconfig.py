@@ -49,7 +49,7 @@ class ComputerParams:
     def __processStallo(self):
         # Single core is high due to CPL graph generation, can be lowered when this is disabled
         self.ppn = {1:16, 2:16, 4:16, 8:8, 16:6}
-        self.walltime = {1:47, 2:100, 4:100, 8:600, 16:408}
+        self.walltime = {1:47, 2:100, 4:100, 8:150, 16:350}
         self.projectNum = "nn4650k"        
         
     def getQueue(self, np):
