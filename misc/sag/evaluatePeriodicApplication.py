@@ -560,7 +560,7 @@ def test(model):
     op1 = OperatingPoint(6, 6, 1, 1.0, model)
     op1.computeExecutionTime(0.1)
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000041", "eDynPara": "0.000000","eDyn": "0.000041", "eStatSerial": "0.000000", "eStatPara": "0.000000", "eTot": "0.000042", "eSlack": "0.000000", "eStatSleep": "0.000000"}
+    values = {"eDynSer": "0.000041", "eDynPara": "0.000000","eDyn": "0.000041", "eStatSerial": "0.000000", "eStatPara": "0.000000", "eTot": "0.000042", "eSlack": "0.000001", "eStatSleep": "0.000000"}
     checkAssertions(op1, values, 6)
     print "Test passed!"
     
@@ -568,7 +568,7 @@ def test(model):
     op1 = OperatingPoint(12, 12, 4, 0.25, model)
     op1.computeExecutionTime(0.5)
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000087", "eDynPara": "0.000261", "eDyn": "0.000347", "eStatSerial": "0.000001", "eStatPara": "0.000002", "eTot": "0.000352", "eSlack": "0.000002", "eStatSleep": "0.000000"}
+    values = {"eDynSer": "0.000087", "eDynPara": "0.000261", "eDyn": "0.000347", "eStatSerial": "0.000001", "eStatPara": "0.000002", "eTot": "0.000353", "eSlack": "0.000002", "eStatSleep": "0.000000"}
     checkAssertions(op1, values, 6)
     print "Test passed!"
     
@@ -576,7 +576,7 @@ def test(model):
     op1 = OperatingPoint(12, 6, 4, 0.1, model)
     op1.computeExecutionTime(0.5)
     op1.estimateEnergy()
-    values = {"eDynSer": "0.000035", "eDynPara": "0.000185", "eDyn": "0.000220", "eStatSerial": "0.000000", "eStatPara": "0.000001", "eTot": "0.000223", "eSlack": "0.000002", "eStatSleep": "0.000000"}
+    values = {"eDynSer": "0.000035", "eDynPara": "0.000185", "eDyn": "0.000220", "eStatSerial": "0.000000", "eStatPara": "0.000001", "eTot": "0.000224", "eSlack": "0.000002", "eStatSleep": "0.000000"}
     checkAssertions(op1, values, 6)
     print "Test passed!"
     
