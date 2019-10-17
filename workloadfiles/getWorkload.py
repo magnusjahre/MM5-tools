@@ -5,6 +5,7 @@ from workloadfiles.workloads import parseTypeString
 from workloadfiles.workloads import Workloads
 from workloadfiles.workloads import UnknownWorkloadException
 from workloadfiles.workloads import getAllBenchmarks
+from workloadfiles.workloads import typedWorkloadIdentifiers
 import optcomplete
 import sys
 
@@ -29,45 +30,31 @@ def printBenchmarkClassification(np, workloads):
     print 
     
     bms = {}
-    for type in ["a", "c", "b"]:
-        bms[type] = []
-        wls = workloads.getWorkloadsByType(np, type)
-        for wl in wls:
-            for bm in workloads.getTypedBms(np, wl):        
-                if bm not in bms[type]:
-                    bms[type].append(bm)                
+    for type in typedWorkloadIdentifiers:
+        if type != 'a':
+            bms[type] = []
+            wls = workloads.getWorkloadsByType(np, type)
+            for wl in wls:
+                for bm in workloads.getTypedBms(np, wl):        
+                    if bm not in bms[type]:
+                        bms[type].append(bm)                
     
-    bms["n"] = []
-    for noneWl in workloads.getWorkloadsByType(np, "n"):
-        for noneBm in workloads.getTypedBms(np, noneWl):
-            found = False
-            for type in ["a", "c", "b", "n"]:
-                if noneBm in bms[type]:
-                    found = True
-            if not found:
-                bms["n"].append(noneBm)
-
     allBms = getAllBenchmarks()
     
     print "Number of benchmarks: "+str(len(allBms))
     print
-    
-    for type in bms:
-        for bm in bms[type]:
-            assert bm in allBms
-            allBms.remove(bm)
-            
-    
+     
+    allcnt = 0
     for t in bms:
         print t+":",
+        cnt = 0
         for b in bms[t]:
             print b+", ",
-        print
+            cnt +=1
+        allcnt += cnt
+        print "("+str(cnt)+")"
+    print "Total: "+str(allcnt)
     
-    print "Unknown: ",
-    for b in allBms:
-        print b+", ",
-    print
 
 def main():
     opts, args = parseArgs()
