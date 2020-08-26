@@ -1,0 +1,88 @@
+Peter’s guide to use his master project
+
+
+The main contribution of the project is a set of scripts using Pandas, Numpy and Scikit Learn that predicts interference-free performance through 
+machine learning methods. Following is an explanation of the workflow to use the project.
+
+
+
+Generate data points:
+Data points are generated through the M5 simulator (https://github.com/magnusjahre/MM5). All features used for the master thesis are found in 
+files called globalPolicyCommittedInsts[0,1,2,3].txt. 
+
+The workloads are generated in three rounds (so far).
+
+1.
+10 workloads within l, m and a
+25 workloads within s and h
+56 as random seed
+
+2.
+5 workloads within every category
+95 as random seed
+
+3.
+15 workloads within l, m and a
+0 workloads within s and h
+6 as random seed
+
+
+
+
+Process data points:
+The data points need to be processed before being used. The script “UpdateData.py” does this (calling three other scripts). 
+The scripts adds features from running in private mode to every row in the shared mode data. 
+The private mode features are supposedly predicted in shared mode and are thus used for training and testing.
+
+
+
+
+Shortcut:
+A handy shortcut, is that I have made already processed data points available. Consisting of 25 workloads within each category for training, 
+and 5 workloads within each category for testing. Those are available under “/work/petersal/processed_project_data/” on Moog (moog.idi.ntnu.no). 
+In those data points, the folder numbers of workload 0-9 (in workload l, m and a) on the third round of data generation are incremented by 15. 
+The second round of workload generation is used as test data.
+
+
+
+
+Regression:
+All scripts used for regression are in the separate regression folder. Of which, many was deemed unuseful (but included because I cannot 
+remember the exact relevance of every script). Following is a brief explanation of scripts, sorted by their (predicted) relevance.
+
+Common_functions.py and constants.py:
+Defines some constants and functions used by most regression scripts. This includes available features for regression and giving access 
+to training- and test data. In general scripts are supposed to be used as following:
+
+
+	regression_script.py data_partitioning prediction_target feature_set max_tree_leaf_nodes
+
+
+Data_partitioning, is ‘a’ to use all training data and test data. Other restrictions are there because the training- and test data used to be in the same repository.
+
+Prediction_target, can be ‘ipc, lat, stall or stall-a’. ‘ipc’ is used to predict IPC directly.
+
+Feature_set, can be ‘a or r’. ‘a’ denotes all features. ‘r’ or reduced do not include features that require auxiliary tag directories.
+
+In general average RMS errors per job is printed. However, I have just printed the preferable metric to be used with calmerge and calplot (found in MM5-tools).
+
+ExtendedTreeRegression.py:
+Is the regression method yielding the best results in the master thesis. Uses linear model trees to directly predict a metric.
+
+TreeRegression.py:
+Is the “pure” decision tree without linear regression in the leaf nodes.
+
+Coeff_determination.py:
+Prints the coefficient of determination as features are added. This is the basis for the priority of which features to use in 
+linear regression in leaf nodes. See the thesis for the background
+
+Scripts combining ExtendedTree…, AlteredExTree…, Tree...  and some other method:
+Use Linear Model Trees or pure decision trees combined with some performance model (described in the thesis). 
+That explains part of the use of lat (latency) and two versions of stall cycles as the predicted metric. 
+
+Scripts named ….Series.py:
+Were made to see how the accuracy of trees gets better with more leaf nodes. Print average RMS job errors for a certain tree size 
+
+The rest of the scripts:
+Are probably dead ends. 
+
